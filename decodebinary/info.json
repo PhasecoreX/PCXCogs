@@ -1,10 +1,8 @@
 {
-    "NAME" : "DecodeBinary",
-    "AUTHOR" : "PhasecoreX",
-    "SHORT" : "Decode binary strings.",
-    "DESCRIPTION" : "Automatically decodes binary strings to human readable ones.",
-    "INSTALL_MSG" : "01011001011000010111100100100001",
-    "REQUIREMENTS" : [],
-    "TAGS" : ["binary", "decode"],
-    "DISABLED" : false
+    "name" : "DecodeBinary",
+    "author" : "PhasecoreX (PhasecoreX#0635)",
+    "short" : "Decode binary strings.",
+    "description" : "Automatically decodes binary strings to human readable ones.",
+    "install_msg" : "01011001011000010111100100100001",
+    "tags" : ["binary", "decode"]
 }
