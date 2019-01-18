@@ -3,11 +3,14 @@ Decode binary cog for Redbot by PhasecoreX
 """
 import re
 import time
+import discord
+from redbot.core import checks, Config, commands
+from redbot.core.utils.chat_formatting import box
+
 
 __version__ = "0.1.0"
 __author__ = "PhasecoreX"
 
-from redbot.core import checks, Config, commands
 
 GUILD_SETTINGS = {
     "ignore_guild": False,
@@ -21,18 +24,29 @@ class DecodeBinary(BaseCog):
     """Decodes binary strings to human readable ones"""
 
     def __init__(self, bot):
+        super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1224364860)
         self.config.register_guild(**GUILD_SETTINGS)
 
-    @commands.group(name="decodebinaryignore", pass_context=True, no_pm=True)
+    @commands.group()
+    @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
-    async def decodebinaryignore(self, ctx):
+    async def decodebinaryignore(self, ctx: commands.Context):
         """Change DecodeBinary cog ignore settings."""
+        if not ctx.invoked_subcommand:
+            guild = ctx.message.guild
+            ignore_guild = await self.config.guild(guild).ignore_guild()
+            ignored_channels = await self.config.guild(guild).ignored_channels()
+            ignore_channel = ctx.message.channel.id in ignored_channels
 
-    @decodebinaryignore.command(name="server", pass_context=True, no_pm=True)
-    @checks.admin_or_permissions(manage_guild=True)
-    async def _decodebinaryignore_server(self, ctx):
+            msg = "Enabled on this server:  {}".format("No" if ignore_guild else "Yes")
+            if not ignore_guild:
+                msg += "\nEnabled in this channel: {}".format("No" if ignore_channel else "Yes")
+            await ctx.send(box(msg))
+
+    @decodebinaryignore.command(name="server")
+    async def _decodebinaryignore_server(self, ctx: commands.Context):
         """Ignore/Unignore the current server"""
 
         guild = ctx.message.guild
@@ -43,9 +57,8 @@ class DecodeBinary(BaseCog):
             await self.config.guild(guild).ignore_guild.set(True)
             await ctx.send("I will ignore this server.")
 
-    @decodebinaryignore.command(name="channel", pass_context=True, no_pm=True)
-    @checks.admin_or_permissions(manage_guild=True)
-    async def _decodebinaryignore_channel(self, ctx):
+    @decodebinaryignore.command(name="channel")
+    async def _decodebinaryignore_channel(self, ctx: commands.Context):
         """Ignore/Unignore the current channel"""
 
         channel = ctx.message.channel
@@ -60,7 +73,7 @@ class DecodeBinary(BaseCog):
         await self.config.guild(guild).ignored_channels.set(ignored_channels)
 
     # Come up with a new method to ignore bot commands
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message):
         """Grab messages and see if we can decode them from binary"""
         if message.guild is None:
             return
@@ -78,7 +91,7 @@ class DecodeBinary(BaseCog):
         if found:
             await self.do_translation(message, found)
 
-    async def do_translation(self, orig_message, found):
+    async def do_translation(self, orig_message: discord.Message, found):
         """Translates each found string and sends a message"""
         translated_messages = []
         for encoded in found:
@@ -112,7 +125,7 @@ class DecodeBinary(BaseCog):
             await self.send_message(orig_message.channel, msg)
 
     @staticmethod
-    async def send_message(channel, message):
+    async def send_message(channel: discord.TextChannel, message: str):
         """Sends a message to a channel.
 
         Will send a typing indicator, and will wait a variable amount of time
@@ -123,7 +136,7 @@ class DecodeBinary(BaseCog):
             await channel.send(message)
 
     @staticmethod
-    def decode_binary_string(string):
+    def decode_binary_string(string: str):
         """Converts a string of 1's and 0's into an ascii string"""
         if len(string) % 8 != 0:
             return ''
@@ -133,7 +146,7 @@ class DecodeBinary(BaseCog):
         return ''
 
     @staticmethod
-    def is_ascii(string):
+    def is_ascii(string: str):
         """Checks if a string is fully ascii characters"""
         try:
             string.encode('ascii')
