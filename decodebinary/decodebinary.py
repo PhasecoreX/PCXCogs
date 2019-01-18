@@ -1,8 +1,8 @@
 """
 Decode binary cog for Redbot by PhasecoreX
 """
+import asyncio
 import re
-import time
 import discord
 from redbot.core import checks, Config, commands
 from redbot.core.utils.chat_formatting import box
@@ -132,7 +132,7 @@ class DecodeBinary(BaseCog):
         based on the length of the text (to simulate typing speed)
         """
         async with channel.typing():
-            time.sleep(len(message) * 0.01)
+            await asyncio.sleep(len(message) * 0.01)
             await channel.send(message)
 
     @staticmethod
