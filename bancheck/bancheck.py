@@ -114,6 +114,5 @@ class BanCheck(BaseCog):
     def embed_maker(title, color, description, avatar):
         """Creates a nice embed."""
         embed = discord.Embed(title=title, color=color, description=description)
-        if avatar:
-            embed.set_thumbnail(url=avatar)
+        embed.set_thumbnail(url=avatar)
         return embed
