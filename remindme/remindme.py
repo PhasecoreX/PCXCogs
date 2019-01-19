@@ -1,15 +1,13 @@
 """
-RemindMe cog for Redbot ported and enhanced by PhasecoreX
+RemindMe cog for Red-DiscordBot ported and enhanced by PhasecoreX
 """
 import asyncio
 import time
-
 import discord
 from redbot.core import checks, Config, commands
 from redbot.core.utils.chat_formatting import box
 
 
-__version__ = "0.1.0"
 __author__ = "PhasecoreX"
 BaseCog = getattr(commands, "Cog", object)
 

@@ -1,5 +1,5 @@
 """
-DecodeBinary cog for Redbot by PhasecoreX
+DecodeBinary cog for Red-DiscordBot by PhasecoreX
 """
 import asyncio
 import re
@@ -8,7 +8,6 @@ from redbot.core import checks, Config, commands
 from redbot.core.utils.chat_formatting import box
 
 
-__version__ = "0.1.0"
 __author__ = "PhasecoreX"
 BaseCog = getattr(commands, "Cog", object)
 
