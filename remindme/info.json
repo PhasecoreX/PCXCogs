@@ -1,0 +1,8 @@
+{
+    "name" : "RemindMe",
+    "author" : "PhasecoreX (PhasecoreX#0635)",
+    "short" : "Never forget anything anymore.",
+    "description" : "Allows for users to set reminders for themselves.",
+    "install_msg" : "Thanks for installing RemindMe!",
+    "tags" : ["reminder", "schedule", "utility"]
+}

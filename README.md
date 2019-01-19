@@ -12,3 +12,4 @@ To add these wonderful cogs to your instance, run this command:
 | Name | Status | Description (Click for more details)
 | --- | --- | --- |
 | DecodeBinary | **Release** | <details><summary>Decode binary automatically.</summary>Any message that the bot thinks is binary will be decoded to regular text.</details> |
+| RemindMe | **Release** | <details><summary>Set reminders for yourself.</summary>Ported from v2; originally by Twentysix26. I've made many enhancements to it as well.</details> |
