@@ -7,6 +7,7 @@ To add these wonderful cogs to your instance, run this command:
 ```
 [p]repo add PCXCogs https://github.com/PhasecoreX/PCXCogs
 ```
+If you don't have an instance, consider using my nice [docker image](https://hub.docker.com/r/phasecorex/red-discordbot)!
 
 ## The List of Cogs
 | Name | Status | Description (Click for more details)
