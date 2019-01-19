@@ -1,5 +1,5 @@
 """
-Decode binary cog for Redbot by PhasecoreX
+DecodeBinary cog for Redbot by PhasecoreX
 """
 import asyncio
 import re
@@ -10,24 +10,19 @@ from redbot.core.utils.chat_formatting import box
 
 __version__ = "0.1.0"
 __author__ = "PhasecoreX"
-
-
-GUILD_SETTINGS = {
-    "ignore_guild": False,
-    "ignored_channels": []
-}
-
 BaseCog = getattr(commands, "Cog", object)
 
 
 class DecodeBinary(BaseCog):
     """Decodes binary strings to human readable ones"""
 
+    default_guild_settings = {"ignore_guild": False, "ignored_channels": []}
+
     def __init__(self, bot):
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1224364860)
-        self.config.register_guild(**GUILD_SETTINGS)
+        self.config.register_guild(**self.default_guild_settings)
 
     @commands.group()
     @commands.guild_only()
