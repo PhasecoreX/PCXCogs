@@ -80,7 +80,7 @@ class DecodeBinary(BaseCog):
         if message.channel.id in await self.config.guild(message.guild).ignored_channels():
             return
 
-        pattern = re.compile(r'[01][01 ]*[01]')
+        pattern = re.compile(r"[01][01 ]*[01]")
         found = pattern.findall(message.content)
         if found:
             await self.do_translation(message, found)
@@ -89,7 +89,7 @@ class DecodeBinary(BaseCog):
         """Translates each found string and sends a message"""
         translated_messages = []
         for encoded in found:
-            encoded = encoded.replace(' ', '')
+            encoded = encoded.replace(" ", "")
             if len(encoded) < 8:
                 continue
             translated_messages.append(self.decode_binary_string(encoded))
@@ -133,17 +133,17 @@ class DecodeBinary(BaseCog):
     def decode_binary_string(string: str):
         """Converts a string of 1's and 0's into an ascii string"""
         if len(string) % 8 != 0:
-            return ''
-        result = ''.join(chr(int(string[i * 8:i * 8 + 8], 2)) for i in range(len(string) // 8))
+            return ""
+        result = "".join(chr(int(string[i * 8:i * 8 + 8], 2)) for i in range(len(string) // 8))
         if DecodeBinary.is_ascii(result):
             return result
-        return ''
+        return ""
 
     @staticmethod
     def is_ascii(string: str):
         """Checks if a string is fully ascii characters"""
         try:
-            string.encode('ascii')
+            string.encode("ascii")
             return True
         except UnicodeEncodeError:
             return False
