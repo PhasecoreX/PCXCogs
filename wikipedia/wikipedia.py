@@ -34,13 +34,16 @@ class Wikipedia(BaseCog):
             # Get the last page. Usually this is the only page.
             for page in result["query"]["pages"]:
                 title = page["title"]
-                description = page["extract"].replace("\n", "\n\n")
+                description = page["extract"].strip().replace("\n", "\n\n")
+                url = "https://en.wikipedia.org/wiki/{}".format(title.replace(" ", "_"))
+
+            if len(description) > 1500:
+                description = description[:1500].strip() + "... [(read more)]({})".format(url)
 
             embed = discord.Embed(title="Wikipedia: {}".format(title),
                                   description=u"\u2063\n{}\n\u2063".format(description),
                                   color=discord.Color.blue(),
-                                  url="https://en.wikipedia.org/wiki/{}"
-                                  .format(title.replace(" ", "_")))
+                                  url=url)
             embed.set_footer(text="Information provided by Wikimedia",
                              icon_url=self.footer_icon)
             await ctx.send(embed=embed)
