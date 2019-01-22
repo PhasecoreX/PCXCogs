@@ -22,7 +22,7 @@ class Wikipedia(BaseCog):
         self.bot = bot
 
     @commands.command(aliases=["wiki"])
-    async def wikipedia(self, ctx: commands.Context, *query: str):
+    async def wikipedia(self, ctx: commands.Context, *, query: str):
         """Get information from Wikipedia"""
         payload = self.generate_payload(query)
         conn = aiohttp.TCPConnector()
@@ -50,14 +50,14 @@ class Wikipedia(BaseCog):
 
         except KeyError:
             await ctx.send("I'm sorry, I couldn't find \"{}\" on Wikipedia"
-                           .format(" ".join(query)))
+                           .format(query))
 
     @staticmethod
     def generate_payload(query: str):
         """Generates the payload for Wikipedia based on a query string."""
         payload = {}
         payload["action"] = "query"
-        payload["titles"] = "_".join(query)
+        payload["titles"] = query.replace(" ", "_")
         payload["format"] = "json"
         payload["formatversion"] = "2"  # Cleaner json results
         payload["prop"] = "extracts"    # Include extract in returned results
