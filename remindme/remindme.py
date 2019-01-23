@@ -35,7 +35,7 @@ class RemindMe(BaseCog):
             self.task.cancel()
 
     @commands.group()
-    @checks.admin_or_permissions(manage_guild=True)
+    @checks.is_owner()
     async def remindmeset(self, ctx: commands.Context):
         """Manage RemindMe settings."""
         if not ctx.invoked_subcommand:
