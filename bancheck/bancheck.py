@@ -15,9 +15,7 @@ class BanCheck(BaseCog):
     """Look up users on various ban lists."""
 
     base_url = "https://discord.services/api"
-    default_guild_settings = {
-        "channel": None
-    }
+    default_guild_settings = {"channel": None}
 
     def __init__(self, bot):
         super().__init__()
@@ -39,18 +37,22 @@ class BanCheck(BaseCog):
 
     @bancheck.command()
     @checks.admin_or_permissions(manage_guild=True)
-    async def channel(self, ctx: commands.Context, channel: discord.TextChannel=None):
+    async def channel(self, ctx: commands.Context, channel: discord.TextChannel = None):
         """Set the channel you want new user ban check notices to go to."""
         if channel is None:
             channel = ctx.message.channel
         await self.config.guild(ctx.message.guild).channel.set(channel.id)
 
-        channel = self.bot.get_channel(await self.config.guild(ctx.message.guild).channel())
+        channel = self.bot.get_channel(
+            await self.config.guild(ctx.message.guild).channel()
+        )
         try:
-            embed = self.embed_maker(None, discord.Colour.green(),
-                                     ":white_check_mark: " +
-                                     "**I will send all ban check notices here.**",
-                                     avatar=self.bot.user.avatar_url)
+            embed = self.embed_maker(
+                None,
+                discord.Colour.green(),
+                ":white_check_mark: **I will send all ban check notices here.**",
+                avatar=self.bot.user.avatar_url,
+            )
             await channel.send(embed=embed)
         except (discord.errors.Forbidden, discord.errors.NotFound):
             await channel.send(":no_entry: **I'm not allowed to send embeds here.**")
@@ -66,7 +68,7 @@ class BanCheck(BaseCog):
             await ctx.send("Automatic ban check is now disabled.")
 
     @bancheck.command()
-    async def search(self, ctx: commands.Context, member: discord.Member=None):
+    async def search(self, ctx: commands.Context, member: discord.Member = None):
         """Check if user is on a ban list."""
         if not member:
             member = ctx.message.author
@@ -90,17 +92,25 @@ class BanCheck(BaseCog):
             proof = response["ban"]["proof"]
             niceurl = "[Click Here]({})".format(proof)
 
-            description = (
-                """**Name:** {}\n**ID:** {}\n**Reason:** {}\n**Proof:** {}""".format(
-                    name, userid, reason, niceurl))
+            description = """**Name:** {}\n**ID:** {}\n**Reason:** {}\n**Proof:** {}""".format(
+                name, userid, reason, niceurl
+            )
 
-            await channel.send(embed=self.embed_maker("Ban Found", discord.Colour.red(),
-                                                      description, member.avatar_url))
+            await channel.send(
+                embed=self.embed_maker(
+                    "Ban Found", discord.Colour.red(), description, member.avatar_url
+                )
+            )
 
         else:
-            await channel.send(embed=self.embed_maker("No ban found for **{}**".format(member.name),
-                                                      discord.Colour.green(), None,
-                                                      member.avatar_url))
+            await channel.send(
+                embed=self.embed_maker(
+                    "No ban found for **{}**".format(member.name),
+                    discord.Colour.green(),
+                    None,
+                    member.avatar_url,
+                )
+            )
 
     async def lookup(self, user):
         """Helper method to do the lookup."""

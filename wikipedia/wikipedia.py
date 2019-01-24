@@ -14,8 +14,10 @@ class Wikipedia(BaseCog):
 
     base_url = "https://en.wikipedia.org/w/api.php"
     headers = {"user-agent": "Red-DiscordBot/3.0"}
-    footer_icon = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Wikimedia-logo.png" + \
-        "/600px-Wikimedia-logo.png"
+    footer_icon = (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Wikimedia-logo.png"
+        + "/600px-Wikimedia-logo.png"
+    )
 
     def __init__(self, bot):
         super().__init__()
@@ -27,7 +29,9 @@ class Wikipedia(BaseCog):
         payload = self.generate_payload(query)
         conn = aiohttp.TCPConnector()
         async with aiohttp.ClientSession(connector=conn) as session:
-            async with session.get(self.base_url, params=payload, headers=self.headers) as res:
+            async with session.get(
+                self.base_url, params=payload, headers=self.headers
+            ) as res:
                 result = await res.json()
 
         try:
@@ -38,19 +42,24 @@ class Wikipedia(BaseCog):
                 url = "https://en.wikipedia.org/wiki/{}".format(title.replace(" ", "_"))
 
             if len(description) > 1500:
-                description = description[:1500].strip() + "... [(read more)]({})".format(url)
+                description = description[:1500].strip()
+                description += "... [(read more)]({})".format(url)
 
-            embed = discord.Embed(title="Wikipedia: {}".format(title),
-                                  description=u"\u2063\n{}\n\u2063".format(description),
-                                  color=discord.Color.blue(),
-                                  url=url)
-            embed.set_footer(text="Information provided by Wikimedia",
-                             icon_url=self.footer_icon)
+            embed = discord.Embed(
+                title="Wikipedia: {}".format(title),
+                description=u"\u2063\n{}\n\u2063".format(description),
+                color=discord.Color.blue(),
+                url=url,
+            )
+            embed.set_footer(
+                text="Information provided by Wikimedia", icon_url=self.footer_icon
+            )
             await ctx.send(embed=embed)
 
         except KeyError:
-            await ctx.send("I'm sorry, I couldn't find \"{}\" on Wikipedia"
-                           .format(query))
+            await ctx.send(
+                "I'm sorry, I couldn't find \"{}\" on Wikipedia".format(query)
+            )
 
     @staticmethod
     def generate_payload(query: str):
@@ -60,8 +69,8 @@ class Wikipedia(BaseCog):
         payload["titles"] = query.replace(" ", "_")
         payload["format"] = "json"
         payload["formatversion"] = "2"  # Cleaner json results
-        payload["prop"] = "extracts"    # Include extract in returned results
-        payload["exintro"] = "1"        # Only return summary paragraph(s) before main content
-        payload["redirects"] = "1"      # Follow redirects
-        payload["explaintext"] = "1"    # Make sure it's plaintext (not HTML)
+        payload["prop"] = "extracts"  # Include extract in returned results
+        payload["exintro"] = "1"  # Only return summary paragraph(s) before main content
+        payload["redirects"] = "1"  # Follow redirects
+        payload["explaintext"] = "1"  # Make sure it's plaintext (not HTML)
         return payload

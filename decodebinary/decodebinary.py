@@ -36,7 +36,9 @@ class DecodeBinary(BaseCog):
 
             msg = "Enabled on this server:  {}".format("No" if ignore_guild else "Yes")
             if not ignore_guild:
-                msg += "\nEnabled in this channel: {}".format("No" if ignore_channel else "Yes")
+                msg += "\nEnabled in this channel: {}".format(
+                    "No" if ignore_channel else "Yes"
+                )
             await ctx.send(box(msg))
 
     @decodebinaryignore.command(name="server")
@@ -77,7 +79,10 @@ class DecodeBinary(BaseCog):
         #     return
         if await self.config.guild(message.guild).ignore_guild():
             return
-        if message.channel.id in await self.config.guild(message.guild).ignored_channels():
+        if (
+            message.channel.id
+            in await self.config.guild(message.guild).ignored_channels()
+        ):
             return
 
         pattern = re.compile(r"[01][01 ]*[01]")
@@ -96,8 +101,9 @@ class DecodeBinary(BaseCog):
 
         if len(translated_messages) == 1:
             if translated_messages[0]:
-                msg = "{}'s message said:\n\"{}\"".format(
-                    orig_message.author.display_name, translated_messages[0])
+                msg = '{}\'s message said:\n"{}"'.format(
+                    orig_message.author.display_name, translated_messages[0]
+                )
             else:
                 msg = "Hmm... That doesn't look like valid binary..."
             await self.send_message(orig_message.channel, msg)
@@ -106,14 +112,17 @@ class DecodeBinary(BaseCog):
             translated_counter = 0
             one_was_translated = False
             msg = "{}'s {} messages said:".format(
-                orig_message.author.display_name, len(translated_messages))
+                orig_message.author.display_name, len(translated_messages)
+            )
             for translated_message in translated_messages:
                 translated_counter += 1
                 if translated_message:
                     one_was_translated = True
-                    msg += "\n{}. \"{}\"".format(translated_counter, translated_message)
+                    msg += '\n{}. "{}"'.format(translated_counter, translated_message)
                 else:
-                    msg += "\n{}. (Couldn't translate this one...)".format(translated_counter)
+                    msg += "\n{}. (Couldn't translate this one...)".format(
+                        translated_counter
+                    )
             if not one_was_translated:
                 msg = "Hmm... None of that looks like valid binary..."
             await self.send_message(orig_message.channel, msg)
@@ -134,7 +143,9 @@ class DecodeBinary(BaseCog):
         """Converts a string of 1's and 0's into an ascii string"""
         if len(string) % 8 != 0:
             return ""
-        result = "".join(chr(int(string[i * 8:i * 8 + 8], 2)) for i in range(len(string) // 8))
+        result = "".join(
+            chr(int(string[i * 8 : i * 8 + 8], 2)) for i in range(len(string) // 8)
+        )
         if DecodeBinary.is_ascii(result):
             return result
         return ""

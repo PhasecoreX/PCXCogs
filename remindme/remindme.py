@@ -22,11 +22,22 @@ class RemindMe(BaseCog):
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)
         self.config.register_global(**self.default_global_settings)
-        self.units = {"minute": 60, "min": 60, "m": 60,
-                      "hour": 3600, "hr": 3600, "h": 3600,
-                      "day": 86400, "d": 86400,
-                      "week": 604800, "wk": 604800, "w": 604800,
-                      "month": 2592000, "mon": 2592000, "mo": 2592000}
+        self.units = {
+            "minute": 60,
+            "min": 60,
+            "m": 60,
+            "hour": 3600,
+            "hr": 3600,
+            "h": 3600,
+            "day": 86400,
+            "d": 86400,
+            "week": 604800,
+            "wk": 604800,
+            "w": 604800,
+            "month": 2592000,
+            "mon": 2592000,
+            "mo": 2592000,
+        }
         self.time = 5
         self.task = self.bot.loop.create_task(self.check_reminders())
 
@@ -39,15 +50,20 @@ class RemindMe(BaseCog):
     async def remindmeset(self, ctx: commands.Context):
         """Manage RemindMe settings."""
         if not ctx.invoked_subcommand:
-            msg = "Maximum reminders per user: {}".format(await self.config.max_user_reminders())
+            msg = "Maximum reminders per user: {}".format(
+                await self.config.max_user_reminders()
+            )
             await ctx.send(box(msg))
 
     @remindmeset.command()
     async def max(self, ctx: commands.Context, maximum: int):
         """Set the maximum number of reminders a user can create at one time."""
         await self.config.max_user_reminders.set(maximum)
-        await ctx.send("Maximum reminders per user is now set to {}"
-                       .format(await self.config.max_user_reminders()))
+        await ctx.send(
+            "Maximum reminders per user is now set to {}".format(
+                await self.config.max_user_reminders()
+            )
+        )
 
     @commands.group()
     async def reminder(self, ctx: commands.Context):
@@ -72,7 +88,9 @@ class RemindMe(BaseCog):
                 await self.send_message(ctx, "Check your DMs for a full list!")
 
     @reminder.command(aliases=["add"])
-    async def create(self, ctx: commands.Context, quantity: int, time_unit: str, *, text: str):
+    async def create(
+        self, ctx: commands.Context, quantity: int, time_unit: str, *, text: str
+    ):
         """Create a reminder.
 
         Same as [p]remindme
@@ -92,7 +110,9 @@ class RemindMe(BaseCog):
         await self.delete_reminder(ctx, index)
 
     @commands.command()
-    async def remindme(self, ctx: commands.Context, quantity: int, time_unit: str, *, text: str):
+    async def remindme(
+        self, ctx: commands.Context, quantity: int, time_unit: str, *, text: str
+    ):
         """Sends you <text> when the time is up
 
         Accepts: minutes, hours, days, weeks, months
@@ -104,16 +124,21 @@ class RemindMe(BaseCog):
         """Removes all of your upcoming reminders."""
         await self.delete_reminder(ctx, "all")
 
-    async def create_reminder(self, ctx: commands.Context, quantity: int,
-                              time_unit: str, text: str):
+    async def create_reminder(
+        self, ctx: commands.Context, quantity: int, time_unit: str, text: str
+    ):
         """Helper method to create reminders."""
         author = ctx.message.author
         maximum = await self.config.max_user_reminders()
         if maximum - 1 < len(await self.get_user_reminders(author.id)):
             plural = "reminder" if maximum == 1 else "reminders"
-            await self.send_message(ctx, "You have too many reminders! " +
-                                    "I can only keep track of {} {} for you at a time."
-                                    .format(maximum, plural))
+            await self.send_message(
+                ctx,
+                "You have too many reminders!"
+                + "I can only keep track of {} {} for you at a time.".format(
+                    maximum, plural
+                ),
+            )
             return
 
         time_unit = time_unit.lower()
@@ -123,8 +148,9 @@ class RemindMe(BaseCog):
         if quantity != 1:
             plural = "s"
         if time_unit not in self.units:
-            await self.send_message(ctx,
-                                    "Invalid time unit. Choose minutes/hours/days/weeks/months")
+            await self.send_message(
+                ctx, "Invalid time unit. Choose minutes/hours/days/weeks/months"
+            )
             return
         if quantity < 1:
             await self.send_message(ctx, "Quantity must be greater than 0.")
@@ -142,9 +168,17 @@ class RemindMe(BaseCog):
         future_text = "{} {}".format(str(quantity), time_unit + plural)
 
         async with self.config.reminders() as current_reminders:
-            current_reminders.append({"ID": author.id, "FUTURE": future,
-                                      "TEXT": text, "FUTURE_TEXT": future_text})
-        await self.send_message(ctx, "I will remind you that in {}.".format(future_text))
+            current_reminders.append(
+                {
+                    "ID": author.id,
+                    "FUTURE": future,
+                    "TEXT": text,
+                    "FUTURE_TEXT": future_text,
+                }
+            )
+        await self.send_message(
+            ctx, "I will remind you that in {}.".format(future_text)
+        )
 
     async def delete_reminder(self, ctx: commands.Context, index: str):
         """Helper method to delete reminders."""
@@ -166,7 +200,9 @@ class RemindMe(BaseCog):
         elif index == "last":
             async with self.config.reminders() as current_reminders:
                 current_reminders.remove(to_remove[len(to_remove) - 1])
-            await self.send_message(ctx, "Your most recently created reminder has been removed.")
+            await self.send_message(
+                ctx, "Your most recently created reminder has been removed."
+            )
 
         try:
             int_index = int(index)
@@ -174,14 +210,18 @@ class RemindMe(BaseCog):
             int_index = 0
         if int_index > 0:
             if len(to_remove) < int_index:
-                await self.send_message(ctx,
-                                        "You don't have that many reminders! (you only have {})"
-                                        .format(len(to_remove)))
+                await self.send_message(
+                    ctx,
+                    "You don't have that many reminders! (you only have {})".format(
+                        len(to_remove)
+                    ),
+                )
             else:
                 async with self.config.reminders() as current_reminders:
                     current_reminders.remove(to_remove[int_index - 1])
-                await self.send_message(ctx, "Reminder #{} has been removed."
-                                        .format(int_index))
+                await self.send_message(
+                    ctx, "Reminder #{} has been removed.".format(int_index)
+                )
 
     async def get_user_reminders(self, user_id: int):
         """Helper method that returns all of a users reminders."""
@@ -214,10 +254,15 @@ class RemindMe(BaseCog):
             for reminder in await self.config.reminders():
                 if reminder["FUTURE"] <= int(time.time()):
                     try:
-                        user = discord.utils.get(self.bot.get_all_members(), id=reminder["ID"])
+                        user = discord.utils.get(
+                            self.bot.get_all_members(), id=reminder["ID"]
+                        )
                         if user is not None:
-                            await user.send("Hello! You asked me to remind you this {} ago:\n{}"
-                                            .format(reminder["FUTURE_TEXT"], reminder["TEXT"]))
+                            await user.send(
+                                "Hello! You asked me to remind you this {} ago:\n{}".format(
+                                    reminder["FUTURE_TEXT"], reminder["TEXT"]
+                                )
+                            )
                         else:
                             # Can't see the user (no shared servers)
                             to_remove.append(reminder)
