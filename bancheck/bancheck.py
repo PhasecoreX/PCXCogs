@@ -43,9 +43,6 @@ class BanCheck(BaseCog):
             channel = ctx.message.channel
         await self.config.guild(ctx.message.guild).channel.set(channel.id)
 
-        channel = self.bot.get_channel(
-            await self.config.guild(ctx.message.guild).channel()
-        )
         try:
             embed = self.embed_maker(
                 None,
