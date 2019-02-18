@@ -4,6 +4,7 @@ Dice cog for Red-DiscordBot by PhasecoreX
 from io import BytesIO
 import random
 from tokenize import tokenize, NUMBER, NAME, OP
+import discord
 from redbot.core import checks, Config, commands
 from redbot.core.utils.chat_formatting import box
 from .evaluate import eval_expr
@@ -41,7 +42,22 @@ class Dice(BaseCog):
 
     @diceset.command()
     async def rolls(self, ctx: commands.Context, maximum: int):
-        """Set the maximum number of dice a user can roll at one time."""
+        """Set the maximum number of dice a user can roll at one time.
+
+        WARNING:
+        Setting this too high will allow other users to slow down/freeze/crash your bot!
+        Generating random numbers is easily the most CPU consuming process here,
+        so keep this number low (less than one million, and way less than that on a Pi)
+        """
+        if maximum > 1000000:
+            await ctx.send(
+                embed=discord.Embed(
+                    title="WARNING",
+                    color=discord.Colour.red(),
+                    description="Setting this too high will allow other users to slow down/"
+                    + "freeze/crash your bot!\nYOU HAVE BEEN WARNED!",
+                )
+            )
         await self.config.max_dice_rolls.set(maximum)
         await ctx.send(
             "Maximum dice rolls per user is now set to {}".format(
@@ -51,7 +67,12 @@ class Dice(BaseCog):
 
     @diceset.command()
     async def sides(self, ctx: commands.Context, maximum: int):
-        """Set the maximum number of sides a die can have."""
+        """Set the maximum number of sides a die can have.
+
+        Python seems to be pretty good at generating huge random numbers and doing math on them.
+        There should be sufficient safety checks in place to mitigate anything getting too crazy.
+        But be honest, do you really need to roll multiple five trillion sided dice at once?
+        """
         await self.config.max_die_sides.set(maximum)
         await ctx.send(
             "Maximum die sides is now set to {}".format(
@@ -184,9 +205,16 @@ class Die:
 
     def roll(self):
         """Roll the dice and store the results."""
+        self.rolls = []
+        self.total = 0
+        rolled = 0
         for _ in range(self.amount):
-            self.rolls.append(random.randint(1, self.sides))
-        self.total = sum(self.rolls)
+            roll_result = random.randint(1, self.sides)
+            if rolled < 750:
+                # If we've rolled over 750 dice, we won't log them (they won't show up anyway)
+                self.rolls.append(roll_result)
+            self.total += roll_result
+            rolled += 1
 
 
 class TooManyDice(ValueError):
