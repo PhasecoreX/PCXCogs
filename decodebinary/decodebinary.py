@@ -127,8 +127,7 @@ class DecodeBinary(BaseCog):
                 msg = "Hmm... None of that looks like valid binary..."
             await self.send_message(orig_message.channel, msg)
 
-    @staticmethod
-    async def send_message(channel: discord.TextChannel, message: str):
+    async def send_message(self, channel: discord.TextChannel, message: str):
         """Sends a message to a channel.
 
         Will send a typing indicator, and will wait a variable amount of time
@@ -136,7 +135,7 @@ class DecodeBinary(BaseCog):
         """
         async with channel.typing():
             await asyncio.sleep(len(message) * 0.01)
-            await channel.send(message)
+            await self.bot.send_filtered(channel, content=message)
 
     @staticmethod
     def decode_binary_string(string: str):
