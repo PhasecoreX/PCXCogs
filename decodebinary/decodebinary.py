@@ -85,7 +85,7 @@ class DecodeBinary(BaseCog):
         ):
             return
 
-        pattern = re.compile(r"[01][01 ]*[01]")
+        pattern = re.compile(r"[01]{7}[01 ]*[01]")
         found = pattern.findall(message.content)
         if found:
             await self.do_translation(message, found)
@@ -94,19 +94,15 @@ class DecodeBinary(BaseCog):
         """Translates each found string and sends a message"""
         translated_messages = []
         for encoded in found:
-            encoded = encoded.replace(" ", "")
-            if len(encoded) < 8:
-                continue
             translated_messages.append(self.decode_binary_string(encoded))
 
-        if len(translated_messages) == 1:
-            if translated_messages[0]:
-                msg = '{}\'s message said:\n"{}"'.format(
+        if len(translated_messages) == 1 and translated_messages[0]:
+            await self.send_message(
+                orig_message.channel,
+                '{}\'s message said:\n"{}"'.format(
                     orig_message.author.display_name, translated_messages[0]
-                )
-            else:
-                msg = "Hmm... That doesn't look like valid binary..."
-            await self.send_message(orig_message.channel, msg)
+                ),
+            )
 
         elif len(translated_messages) > 1:
             translated_counter = 0
@@ -123,9 +119,8 @@ class DecodeBinary(BaseCog):
                     msg += "\n{}. (Couldn't translate this one...)".format(
                         translated_counter
                     )
-            if not one_was_translated:
-                msg = "Hmm... None of that looks like valid binary..."
-            await self.send_message(orig_message.channel, msg)
+            if one_was_translated:
+                await self.send_message(orig_message.channel, msg)
 
     async def send_message(self, channel: discord.TextChannel, message: str):
         """Sends a message to a channel.
@@ -139,7 +134,8 @@ class DecodeBinary(BaseCog):
 
     @staticmethod
     def decode_binary_string(string: str):
-        """Converts a string of 1's and 0's into an ascii string"""
+        """Converts a string of 1's, 0's, and spaces into an ascii string"""
+        string = string.replace(" ", "")
         if len(string) % 8 != 0:
             return ""
         result = "".join(
