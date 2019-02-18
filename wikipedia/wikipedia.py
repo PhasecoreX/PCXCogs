@@ -16,7 +16,7 @@ class Wikipedia(BaseCog):
     headers = {"user-agent": "Red-DiscordBot/3.0"}
     footer_icon = (
         "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Wikimedia-logo.png"
-        + "/600px-Wikimedia-logo.png"
+        "/600px-Wikimedia-logo.png"
     )
 
     def __init__(self, bot):

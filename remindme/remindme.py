@@ -134,9 +134,11 @@ class RemindMe(BaseCog):
             plural = "reminder" if maximum == 1 else "reminders"
             await self.send_message(
                 ctx,
-                "You have too many reminders!"
-                + "I can only keep track of {} {} for you at a time.".format(
-                    maximum, plural
+                (
+                    "You have too many reminders! "
+                    "I can only keep track of {} {} for you at a time.".format(
+                        maximum, plural
+                    )
                 ),
             )
             return
