@@ -1,12 +1,13 @@
 """
 Dice cog for Red-DiscordBot by PhasecoreX
 """
+import asyncio
 from io import BytesIO
 import random
 from tokenize import tokenize, NUMBER, NAME, OP
-import discord
 from redbot.core import checks, Config, commands
 from redbot.core.utils.chat_formatting import box
+from redbot.core.utils.predicates import MessagePredicate
 from .evaluate import eval_expr
 
 
@@ -49,19 +50,34 @@ class Dice(BaseCog):
         Generating random numbers is easily the most CPU consuming process here,
         so keep this number low (less than one million, and way less than that on a Pi)
         """
-        if maximum > 1000000:
+        action = "is already set at"
+        if maximum == await self.config.max_dice_rolls():
+            pass
+        elif maximum > 1000000:
+            action = "has been left at"
+            pred = MessagePredicate.yes_or_no(ctx)
             await ctx.send(
-                embed=discord.Embed(
-                    title="WARNING",
-                    color=discord.Colour.red(),
-                    description="Setting this too high will allow other users to slow down/"
-                    + "freeze/crash your bot!\nYOU HAVE BEEN WARNED!",
+                (
+                    "Are you **sure** you want to set the maximum rolls to {}? (yes/no)\n"
+                    "Setting this over one million will allow other users to "
+                    "slow down/freeze/crash your bot!".format(maximum)
                 )
             )
-        await self.config.max_dice_rolls.set(maximum)
+            try:
+                await ctx.bot.wait_for("message", check=pred, timeout=30)
+            except asyncio.TimeoutError:
+                pass
+            if pred.result:
+                await self.config.max_dice_rolls.set(maximum)
+                action = "is now set to"
+            else:
+                pass
+        else:
+            await self.config.max_dice_rolls.set(maximum)
+            action = "is now set to"
         await ctx.send(
-            "Maximum dice rolls per user is now set to {}".format(
-                await self.config.max_dice_rolls()
+            "Maximum dice rolls per user {} {}".format(
+                action, await self.config.max_dice_rolls()
             )
         )
 
