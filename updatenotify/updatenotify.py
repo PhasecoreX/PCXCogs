@@ -105,7 +105,7 @@ class UpdateNotify(BaseCog):
         """Main loop that checks for updates and notifies the bot owner."""
         await self.bot.wait_until_ready()
         while self.bot.get_cog("UpdateNotify") == self:
-            latest_version = await self.update_check()
+            latest_version = self.update_check()
             if latest_version != self.notified_version:
                 self.notified_version = latest_version
                 await self.notify_owner(redbot_version, latest_version)
