@@ -109,8 +109,8 @@ class UpdateNotify(BaseCog):
             if latest_version != self.notified_version:
                 self.notified_version = latest_version
                 await self.notify_owner(redbot_version, latest_version)
-            time_to_sleep = await self.config.update_check_interval()
+            seconds_to_sleep = await self.config.update_check_interval() * 60
             self.next_check = datetime.datetime.now() + datetime.timedelta(
-                0, time_to_sleep * 60
+                0, seconds_to_sleep
             )
-            await asyncio.sleep(time_to_sleep)
+            await asyncio.sleep(seconds_to_sleep)
