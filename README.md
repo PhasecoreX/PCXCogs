@@ -1,8 +1,8 @@
 # PCXCogs
-[![Red-DiscordBot](https://img.shields.io/badge/Red--DiscordBot-V3-red.svg)](https://github.com/Cog-Creators/Red-DiscordBot/tree/V3/release/3.0.0)
+[![Red-DiscordBot](https://img.shields.io/badge/Red--DiscordBot-V3-red.svg)](https://github.com/Cog-Creators/Red-DiscordBot/releases)
 [![Donate to support my cogs](https://img.shields.io/badge/Paypal-Donate-blue.svg)](https://paypal.me/pcx)
 
-PhasecoreX's Cogs for [Red-DiscordBot](https://github.com/Cog-Creators/Red-DiscordBot/tree/V3/release/3.0.0).
+PhasecoreX's Cogs for [Red-DiscordBot](https://github.com/Cog-Creators/Red-DiscordBot/releases).
 To add these wonderful cogs to your instance, run this command:
 ```
 [p]repo add PCXCogs https://github.com/PhasecoreX/PCXCogs
@@ -16,4 +16,5 @@ If you don't have an instance, consider using my nice [docker image](https://hub
 | DecodeBinary | **Release** | <details><summary>Decode binary strings automatically.</summary>Any message that the bot thinks is binary will be decoded to regular text.</details> |
 | Dice | **Release** | <details><summary>Perform complex dice rolling.</summary>Supports dice notation (such as 3d6+3), shows all roll results, and can be configured to limit the number of dice a user can roll at once.</details> |
 | RemindMe | **Release** | <details><summary>Set reminders for yourself.</summary>Ported from v2; originally by Twentysix26. I've made many enhancements to it as well.</details> |
+| UpdateNotify | **Beta** | <details><summary>Automatically check for updates.</summary>Will check for updates to Red-DiscordBot and notify the owner. Works nicely with [my docker image](https://hub.docker.com/r/phasecorex/red-discordbot).</details> |
 | Wikipedia | **Release** | <details><summary>Look up articles on Wikipedia.</summary>Ported from v2; originally by PaddoInWonderland. I've made some enhancements to it as well.</details> |
