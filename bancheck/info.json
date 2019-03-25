@@ -1,8 +1,14 @@
 {
-    "name" : "BanCheck",
-    "author" : ["PhasecoreX (PhasecoreX#0635)"],
-    "short" : "Check user accounts on gloabl ban lists.",
-    "description" : "This cog automatically checks users against global ban lists. You can also manually check users already on the server.",
-    "install_msg" : "Thanks for installing BanCheck!",
-    "tags" : ["ban", "moderation", "utility"]
+    "name": "BanCheck",
+    "author": [
+        "PhasecoreX (PhasecoreX#0635)"
+    ],
+    "short": "Check user accounts on gloabl ban lists.",
+    "description": "This cog automatically checks users against global ban lists. You can also manually check users already on the server.",
+    "install_msg": "Thanks for installing BanCheck!",
+    "tags": [
+        "ban",
+        "moderation",
+        "utility"
+    ]
 }
