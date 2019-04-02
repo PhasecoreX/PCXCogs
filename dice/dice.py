@@ -1,26 +1,25 @@
-"""
-Dice cog for Red-DiscordBot by PhasecoreX
-"""
+"""Dice cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
-from io import BytesIO
 import random
-from tokenize import tokenize, NUMBER, NAME, OP
-from redbot.core import checks, Config, commands
+from io import BytesIO
+from tokenize import NAME, NUMBER, OP, tokenize
+
+from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import box
 from redbot.core.utils.predicates import MessagePredicate
+
 from .evaluate import eval_expr
 
-
 __author__ = "PhasecoreX"
-BaseCog = getattr(commands, "Cog", object)
 
 
-class Dice(BaseCog):
+class Dice(commands.Cog):
     """Perform complex dice rolling."""
 
     default_global_settings = {"max_dice_rolls": 10000, "max_die_sides": 1000}
 
     def __init__(self, bot):
+        """Set up the plugin."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)
@@ -208,15 +207,18 @@ class Die:
     """A die roll."""
 
     def __init__(self, amount, sides):
+        """Create a representation of a set of dice."""
         self.amount = amount
         self.sides = sides
         self.rolls = []
         self.total = 0
 
     def __str__(self):
+        """Return the string representation of a dice roll, e.g. 3d6."""
         return str(self.amount) + "d" + str(self.sides)
 
     def __repr__(self):
+        """Return the string representation of a dice roll, e.g. 3d6."""
         return self.__str__()
 
     def roll(self):
@@ -225,7 +227,7 @@ class Die:
         self.total = 0
         rolled = 0
         for _ in range(self.amount):
-            roll_result = random.randint(1, self.sides)
+            roll_result = random.randint(1, self.sides)  # nosec (not cryptographic)
             if rolled < 750:
                 # If we've rolled over 750 dice, we won't log them (they won't show up anyway)
                 self.rolls.append(roll_result)
@@ -234,12 +236,13 @@ class Die:
 
 
 class TooManyDice(ValueError):
-    """Too many dice to roll"""
+    """Too many dice to roll."""
 
 
 class TooManySides(ValueError):
-    """Too many sides on this die"""
+    """Too many sides on this die."""
 
     def __init__(self, value):
+        """Set the value that is too many sides."""
         super().__init__()
         self.value = value

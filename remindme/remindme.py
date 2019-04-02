@@ -1,23 +1,21 @@
-"""
-RemindMe cog for Red-DiscordBot ported and enhanced by PhasecoreX
-"""
+"""RemindMe cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
 import asyncio
 import time
+
 import discord
-from redbot.core import checks, Config, commands
+from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import box
 
-
 __author__ = "PhasecoreX"
-BaseCog = getattr(commands, "Cog", object)
 
 
-class RemindMe(BaseCog):
+class RemindMe(commands.Cog):
     """Never forget anything anymore."""
 
     default_global_settings = {"max_user_reminders": 20, "reminders": []}
 
     def __init__(self, bot):
+        """Set up the plugin."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)
@@ -95,7 +93,8 @@ class RemindMe(BaseCog):
 
         Same as [p]remindme
         Accepts: minutes, hours, days, weeks, months
-        Example: [p]reminder create 3 days Have sushi with Ryan and Heather"""
+        Example: [p]reminder create 3 days Have sushi with Ryan and Heather
+        """
         await self.create_reminder(ctx, quantity, time_unit, text=text)
 
     @reminder.command(aliases=["delete"])
@@ -113,21 +112,22 @@ class RemindMe(BaseCog):
     async def remindme(
         self, ctx: commands.Context, quantity: int, time_unit: str, *, text: str
     ):
-        """Sends you <text> when the time is up
+        """Send you <text> when the time is up.
 
         Accepts: minutes, hours, days, weeks, months
-        Example: [p]remindme 3 days Have sushi with Ryan and Heather"""
+        Example: [p]remindme 3 days Have sushi with Ryan and Heather
+        """
         await self.create_reminder(ctx, quantity, time_unit, text=text)
 
     @commands.command()
     async def forgetme(self, ctx: commands.Context):
-        """Removes all of your upcoming reminders."""
+        """Remove all of your upcoming reminders."""
         await self.delete_reminder(ctx, "all")
 
     async def create_reminder(
         self, ctx: commands.Context, quantity: int, time_unit: str, text: str
     ):
-        """Helper method to create reminders."""
+        """Logic to create a reminder."""
         author = ctx.message.author
         maximum = await self.config.max_user_reminders()
         if maximum - 1 < len(await self.get_user_reminders(author.id)):
@@ -183,7 +183,7 @@ class RemindMe(BaseCog):
         )
 
     async def delete_reminder(self, ctx: commands.Context, index: str):
-        """Helper method to delete reminders."""
+        """Logic to delete reminders."""
         if not index:
             return
         author = ctx.message.author
@@ -226,7 +226,7 @@ class RemindMe(BaseCog):
                 )
 
     async def get_user_reminders(self, user_id: int):
-        """Helper method that returns all of a users reminders."""
+        """Return all of a users reminders."""
         result = []
         async with self.config.reminders() as current_reminders:
             for reminder in current_reminders:
@@ -236,7 +236,7 @@ class RemindMe(BaseCog):
 
     @staticmethod
     async def send_message(ctx: commands.Context, message: str):
-        """Sends a message.
+        """Send a message.
 
         This will append the users name if we are sending to a channel,
         or leave it as-is if we are in a DM
@@ -249,7 +249,7 @@ class RemindMe(BaseCog):
         await ctx.send(message)
 
     async def check_reminders(self):
-        """Main loop that sends reminders"""
+        """Loop task that sends reminders."""
         await self.bot.wait_until_ready()
         while self.bot.get_cog("RemindMe") == self:
             to_remove = []

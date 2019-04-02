@@ -1,15 +1,12 @@
-"""
-Wikipedia cog for Red-DiscordBot ported by PhasecoreX
-"""
+"""Wikipedia cog for Red-DiscordBot ported by PhasecoreX."""
 import aiohttp
 import discord
 from redbot.core import commands
 
 __author__ = "PhasecoreX"
-BaseCog = getattr(commands, "Cog", object)
 
 
-class Wikipedia(BaseCog):
+class Wikipedia(commands.Cog):
     """Look up stuff on Wikipedia."""
 
     base_url = "https://en.wikipedia.org/w/api.php"
@@ -25,7 +22,7 @@ class Wikipedia(BaseCog):
 
     @commands.command(aliases=["wiki"])
     async def wikipedia(self, ctx: commands.Context, *, query: str):
-        """Get information from Wikipedia"""
+        """Get information from Wikipedia."""
         payload = self.generate_payload(query)
         conn = aiohttp.TCPConnector()
         async with aiohttp.ClientSession(connector=conn) as session:
@@ -63,7 +60,7 @@ class Wikipedia(BaseCog):
 
     @staticmethod
     def generate_payload(query: str):
-        """Generates the payload for Wikipedia based on a query string."""
+        """Generate the payload for Wikipedia based on a query string."""
         payload = {}
         payload["action"] = "query"
         payload["titles"] = query.replace(" ", "_")

@@ -1,23 +1,21 @@
-"""
-DecodeBinary cog for Red-DiscordBot by PhasecoreX
-"""
+"""DecodeBinary cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
 import re
+
 import discord
-from redbot.core import checks, Config, commands
+from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import box
 
-
 __author__ = "PhasecoreX"
-BaseCog = getattr(commands, "Cog", object)
 
 
-class DecodeBinary(BaseCog):
-    """Decodes binary strings to human readable ones"""
+class DecodeBinary(commands.Cog):
+    """Decodes binary strings to human readable ones."""
 
     default_guild_settings = {"ignore_guild": False, "ignored_channels": []}
 
     def __init__(self, bot):
+        """Set up the plugin."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1224364860)
@@ -43,8 +41,7 @@ class DecodeBinary(BaseCog):
 
     @decodebinaryignore.command(name="server")
     async def _decodebinaryignore_server(self, ctx: commands.Context):
-        """Ignore/Unignore the current server"""
-
+        """Ignore/Unignore the current server."""
         guild = ctx.message.guild
         if await self.config.guild(guild).ignore_guild():
             await self.config.guild(guild).ignore_guild.set(False)
@@ -55,8 +52,7 @@ class DecodeBinary(BaseCog):
 
     @decodebinaryignore.command(name="channel")
     async def _decodebinaryignore_channel(self, ctx: commands.Context):
-        """Ignore/Unignore the current channel"""
-
+        """Ignore/Unignore the current channel."""
         channel = ctx.message.channel
         guild = ctx.message.guild
         ignored_channels = await self.config.guild(guild).ignored_channels()
@@ -70,7 +66,7 @@ class DecodeBinary(BaseCog):
 
     # Come up with a new method to ignore bot commands
     async def on_message(self, message: discord.Message):
-        """Grab messages and see if we can decode them from binary"""
+        """Grab messages and see if we can decode them from binary."""
         if message.guild is None:
             return
         if message.author.bot:
@@ -91,7 +87,7 @@ class DecodeBinary(BaseCog):
             await self.do_translation(message, found)
 
     async def do_translation(self, orig_message: discord.Message, found):
-        """Translates each found string and sends a message"""
+        """Translate each found string and sends a message."""
         translated_messages = []
         for encoded in found:
             translated_messages.append(self.decode_binary_string(encoded))
@@ -123,7 +119,7 @@ class DecodeBinary(BaseCog):
                 await self.send_message(orig_message.channel, msg)
 
     async def send_message(self, channel: discord.TextChannel, message: str):
-        """Sends a message to a channel.
+        """Send a message to a channel.
 
         Will send a typing indicator, and will wait a variable amount of time
         based on the length of the text (to simulate typing speed)
@@ -134,7 +130,7 @@ class DecodeBinary(BaseCog):
 
     @staticmethod
     def decode_binary_string(string: str):
-        """Converts a string of 1's, 0's, and spaces into an ascii string"""
+        """Convert a string of 1's, 0's, and spaces into an ascii string."""
         string = string.replace(" ", "")
         if len(string) % 8 != 0:
             return ""
@@ -147,7 +143,7 @@ class DecodeBinary(BaseCog):
 
     @staticmethod
     def is_ascii(string: str):
-        """Checks if a string is fully ascii characters"""
+        """Check if a string is fully ascii characters."""
         try:
             string.encode("ascii")
             return True

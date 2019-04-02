@@ -1,23 +1,20 @@
-"""
-BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX
-"""
+"""BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
 import aiohttp
 import discord
-from redbot.core import checks, Config, commands
+from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import box
 
-
 __author__ = "PhasecoreX"
-BaseCog = getattr(commands, "Cog", object)
 
 
-class BanCheck(BaseCog):
+class BanCheck(commands.Cog):
     """Look up users on various ban lists."""
 
     base_url = "https://discord.services/api"
     default_guild_settings = {"channel": None}
 
     def __init__(self, bot):
+        """Set up the plugin."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1224364860)
@@ -79,7 +76,7 @@ class BanCheck(BaseCog):
             await self.user_lookup(channel, member)
 
     async def user_lookup(self, channel: discord.TextChannel, member: discord.Member):
-        """Helper method that does the user lookup, and sends results to a specific channel"""
+        """Perform user lookup, and send results to a specific channel."""
         response = await self.lookup(member.id)
 
         if "ban" in response:
@@ -110,7 +107,7 @@ class BanCheck(BaseCog):
             )
 
     async def lookup(self, user):
-        """Helper method to do the lookup."""
+        """Perform the actual user lookup."""
         conn = aiohttp.TCPConnector()
         async with aiohttp.ClientSession(connector=conn) as session:
             async with session.get(self.base_url + "/ban/" + str(user)) as response:
@@ -119,7 +116,7 @@ class BanCheck(BaseCog):
 
     @staticmethod
     def embed_maker(title, color, description, avatar):
-        """Creates a nice embed."""
+        """Create a nice embed."""
         embed = discord.Embed(title=title, color=color, description=description)
         embed.set_thumbnail(url=avatar)
         return embed

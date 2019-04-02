@@ -1,5 +1,4 @@
-"""
-Safe math evaluator for Dice cog by PhasecoreX
+"""Safe math evaluator for Dice cog by PhasecoreX.
 
 Thanks to jfs here:
 https://stackoverflow.com/questions/2371436/evaluating-a-mathematical-expression-in-a-string#9558001
@@ -13,14 +12,14 @@ MAX_STRING_LENGTH = 100000
 
 
 def safe_add(first, second):
-    """Safely add two numbers (check resulting length)"""
+    """Safely add two numbers (check resulting length)."""
     if len(str(first)) + len(str(second)) > MAX_STRING_LENGTH:
         raise KeyError
     return first + second
 
 
 def safe_mult(first, second):
-    """Safely multiply two numbers (check resulting length)"""
+    """Safely multiply two numbers (check resulting length)."""
     if second * len(str(first)) > MAX_STRING_LENGTH:
         raise KeyError
     if first * len(str(second)) > MAX_STRING_LENGTH:
@@ -39,7 +38,7 @@ OPERATORS = {
 
 
 def eval_expr(expr):
-    """Evaluate math problems safely"""
+    """Evaluate math problems safely."""
     return eval_(ast.parse(expr, mode="eval").body)
 
 

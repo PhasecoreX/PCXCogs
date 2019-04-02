@@ -1,25 +1,25 @@
-"""
-UpdateNotify cog for Red-DiscordBot by PhasecoreX
-"""
+"""UpdateNotify cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
 import datetime
 import json
 import os
 import urllib.request
-from redbot.core import checks, Config, commands
-from redbot.core.utils.chat_formatting import box
+
+from redbot.core import Config
 from redbot.core import __version__ as redbot_version
+from redbot.core import checks, commands
+from redbot.core.utils.chat_formatting import box
 
 __author__ = "PhasecoreX"
-BaseCog = getattr(commands, "Cog", object)
 
 
-class UpdateNotify(BaseCog):
+class UpdateNotify(commands.Cog):
     """Get notifications when your bot needs updating."""
 
     default_global_settings = {"update_check_interval": 60}
 
     def __init__(self, bot):
+        """Set up the plugin."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)
@@ -68,14 +68,15 @@ class UpdateNotify(BaseCog):
 
     @staticmethod
     def update_check():
-        """Checks PyPI for the latest update to Red-DiscordBot"""
+        """Check PyPI for the latest update to Red-DiscordBot."""
         url = "https://pypi.org/pypi/Red-DiscordBot/json"
-        data = json.load(urllib.request.urlopen(url))
-        return data["info"]["version"]
+        with urllib.request.urlopen(url) as response:  # nosec (always https)
+            data = json.load(response)
+            return data["info"]["version"]
 
     @staticmethod
     async def generate_update_text(old_version: str, new_version: str):
-        """Generates the text that will be sent to the user."""
+        """Generate the text that will be sent to the user."""
         if old_version != new_version:
             message = (
                 "Hello!\n\n"
@@ -102,7 +103,7 @@ class UpdateNotify(BaseCog):
         )
 
     async def check_for_updates(self):
-        """Main loop that checks for updates and notifies the bot owner."""
+        """Loop task that checks for updates and notifies the bot owner."""
         await self.bot.wait_until_ready()
         while self.bot.get_cog("UpdateNotify") == self:
             latest_version = self.update_check()
