@@ -2,6 +2,7 @@
 import aiohttp
 import discord
 from redbot.core import commands
+from redbot.core import __version__ as redbot_version
 
 __author__ = "PhasecoreX"
 
@@ -10,15 +11,11 @@ class Wikipedia(commands.Cog):
     """Look up stuff on Wikipedia."""
 
     base_url = "https://en.wikipedia.org/w/api.php"
-    headers = {"user-agent": "Red-DiscordBot/3.0"}
+    headers = {"user-agent": "Red-DiscordBot/" + redbot_version}
     footer_icon = (
         "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Wikimedia-logo.png"
         "/600px-Wikimedia-logo.png"
     )
-
-    def __init__(self, bot):
-        super().__init__()
-        self.bot = bot
 
     @commands.command(aliases=["wiki"])
     async def wikipedia(self, ctx: commands.Context, *, query: str):
