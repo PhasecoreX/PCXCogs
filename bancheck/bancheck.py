@@ -10,7 +10,6 @@ __author__ = "PhasecoreX"
 class BanCheck(commands.Cog):
     """Look up users on various ban lists."""
 
-    base_url = "https://discord.services/api"
     default_guild_settings = {"channel": None}
 
     def __init__(self, bot):
@@ -77,17 +76,13 @@ class BanCheck(commands.Cog):
 
     async def user_lookup(self, channel: discord.TextChannel, member: discord.Member):
         """Perform user lookup, and send results to a specific channel."""
-        response = await self.lookup(member.id)
+        response = await self.lookup_discord_services(member.id)
 
-        if "ban" in response:
-            name = response["ban"]["name"]
-            userid = response["ban"]["id"]
-            reason = response["ban"]["reason"]
-            proof = response["ban"]["proof"]
-            niceurl = "[Click Here]({})".format(proof)
+        if response.result == "ban":
+            niceurl = "[Click Here]({})".format(response.proof)
 
             description = """**Name:** {}\n**ID:** {}\n**Reason:** {}\n**Proof:** {}""".format(
-                name, userid, reason, niceurl
+                response.username, response.userid, response.reason, niceurl
             )
 
             await channel.send(
@@ -96,7 +91,7 @@ class BanCheck(commands.Cog):
                 )
             )
 
-        else:
+        elif response.result == "clear":
             await channel.send(
                 embed=self.embed_maker(
                     "No ban found for **{}**".format(member.name),
@@ -106,13 +101,50 @@ class BanCheck(commands.Cog):
                 )
             )
 
-    async def lookup(self, user):
-        """Perform the actual user lookup."""
-        conn = aiohttp.TCPConnector()
-        async with aiohttp.ClientSession(connector=conn) as session:
-            async with session.get(self.base_url + "/ban/" + str(user)) as response:
-                result = await response.json()
-        return result
+        elif response.result == "error":
+            await channel.send(
+                embed=self.embed_maker(
+                    "Error looking up ban info for **{}**".format(member.name),
+                    discord.Colour.red(),
+                    (
+                        "When attempting to connect to `{}`, "
+                        "the server responded with the HTTP code `{}`."
+                    ).format(response.service, response.reason),
+                    member.avatar_url,
+                )
+            )
+
+        else:
+            await channel.send(
+                embed=self.embed_maker(
+                    "Something is broken...",
+                    discord.Colour.red(),
+                    "You should probably let PhasecoreX know about this -> `{}`.".format(
+                        response.result
+                    ),
+                    self.bot.user.avatar_url,
+                )
+            )
+
+    async def lookup_discord_services(self, user):
+        """Perform user lookup on discord.services."""
+        async with aiohttp.ClientSession() as client:
+            async with client.get(
+                "https://discord.services/api/ban/" + str(user)
+            ) as resp:
+                if resp.status != 200:
+                    result = Lookup("discord.services", "error")
+                    result.reason = resp.status
+                    return result
+                data = await resp.json()
+                if "ban" in data:
+                    result = Lookup("discord.services", "ban")
+                    result.username = data["ban"]["name"]
+                    result.userid = data["ban"]["id"]
+                    result.reason = data["ban"]["reason"]
+                    result.proof = data["ban"]["proof"]
+                    return result
+                return Lookup("discord.services", "clear")
 
     @staticmethod
     def embed_maker(title, color, description, avatar):
@@ -120,3 +152,16 @@ class BanCheck(commands.Cog):
         embed = discord.Embed(title=title, color=color, description=description)
         embed.set_thumbnail(url=avatar)
         return embed
+
+
+class Lookup:
+    """A user lookup result."""
+
+    def __init__(self, service: str, result: str):
+        """Create the base lookup result."""
+        self.service = service
+        self.result = result
+        self.username = ""
+        self.userid = 0
+        self.reason = "(none specified)"
+        self.proof = ""
