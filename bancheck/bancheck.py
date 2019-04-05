@@ -128,8 +128,8 @@ class BanCheck(commands.Cog):
 
     async def lookup_discord_services(self, user):
         """Perform user lookup on discord.services."""
-        async with aiohttp.ClientSession() as client:
-            async with client.get(
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
                 "https://discord.services/api/ban/" + str(user)
             ) as resp:
                 if resp.status != 200:

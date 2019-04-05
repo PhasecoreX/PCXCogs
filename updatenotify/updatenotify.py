@@ -3,8 +3,8 @@ import asyncio
 import datetime
 import json
 import os
-import urllib.request
 
+import aiohttp
 from redbot.core import Config
 from redbot.core import __version__ as redbot_version
 from redbot.core import checks, commands
@@ -61,55 +61,52 @@ class UpdateNotify(commands.Cog):
     async def check(self, ctx: commands.Context):
         """Perform a manual update check."""
         async with ctx.typing():
-            latest_version = self.update_check()
-            self.notified_version = latest_version
-            message = await self.generate_update_text(redbot_version, latest_version)
+            message = await self.update_check(manual=True)
             await ctx.send(message)
 
     @staticmethod
-    def update_check():
+    async def get_latest_redbot_version():
         """Check PyPI for the latest update to Red-DiscordBot."""
         url = "https://pypi.org/pypi/Red-DiscordBot/json"
-        with urllib.request.urlopen(url) as response:  # nosec (always https)
-            data = json.load(response)
-            return data["info"]["version"]
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                return data["info"]["version"]
 
-    @staticmethod
-    async def generate_update_text(old_version: str, new_version: str):
-        """Generate the text that will be sent to the user."""
-        if old_version != new_version:
+    async def update_check(self, manual: bool = False):
+        """Check for all updates."""
+        message = ""
+        if manual:
+            self.notified_version = redbot_version
+        latest_redbot_version = await self.get_latest_redbot_version()
+        if self.notified_version != latest_redbot_version:
             message = (
-                "Hello!\n\n"
                 "There is a newer version of Red-DiscordBot available!\n"
                 "Your version: {}\nLatest version: {}\n\n"
-            ).format(old_version, new_version)
+            ).format(redbot_version, latest_redbot_version)
             if os.environ.get("PCX_DISCORDBOT"):
                 message = message + (
                     "It looks like you're using the `phasecorex/red-discordbot` Docker image!\n"
                     "Simply issue the `[p]restart` command to have me "
                     "restart and update automatically."
                 )
-        else:
+        elif manual:
             message = "You are already running the latest version ({})".format(
-                new_version
+                self.notified_version
             )
+        if message and not manual:
+            message = "Hello!\n\n" + message
+        self.notified_version = latest_redbot_version
         return message.strip()
-
-    async def notify_owner(self, old_version: str, new_version: str):
-        """Notifies the owner of the bot that there is a new version available."""
-        app_info = await self.bot.application_info()
-        await app_info.owner.send(
-            await self.generate_update_text(old_version, new_version)
-        )
 
     async def check_for_updates(self):
         """Loop task that checks for updates and notifies the bot owner."""
         await self.bot.wait_until_ready()
         while self.bot.get_cog("UpdateNotify") == self:
-            latest_version = self.update_check()
-            if latest_version != self.notified_version:
-                self.notified_version = latest_version
-                await self.notify_owner(redbot_version, latest_version)
+            message = await self.update_check()
+            if message:
+                app_info = await self.bot.application_info()
+                await app_info.owner.send(message)
             seconds_to_sleep = await self.config.update_check_interval() * 60
             self.next_check = datetime.datetime.now() + datetime.timedelta(
                 0, seconds_to_sleep
