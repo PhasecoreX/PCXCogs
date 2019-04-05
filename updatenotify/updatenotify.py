@@ -1,7 +1,6 @@
 """UpdateNotify cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
 import datetime
-import json
 import os
 
 import aiohttp
@@ -72,6 +71,11 @@ class UpdateNotify(commands.Cog):
             async with session.get(url) as resp:
                 data = await resp.json()
                 return data["info"]["version"]
+
+    @staticmethod
+    async def get_latest_docker_version():
+        """Check Docker for the latest update to phasecorex/red-discordbot."""
+        return "test"
 
     async def update_check(self, manual: bool = False):
         """Check for all updates."""
