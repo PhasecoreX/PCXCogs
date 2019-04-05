@@ -60,8 +60,8 @@ class BanCheck(commands.Cog):
             await self.config.guild(ctx.message.guild).channel.set(None)
             await ctx.send("Automatic ban check is now disabled.")
 
-    @bancheck.command()
-    async def search(self, ctx: commands.Context, member: discord.Member = None):
+    @bancheck.command(aliases=["search"])
+    async def check(self, ctx: commands.Context, member: discord.Member = None):
         """Check if user is on a ban list."""
         if not member:
             member = ctx.message.author
