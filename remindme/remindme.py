@@ -13,6 +13,7 @@ class RemindMe(commands.Cog):
     """Never forget anything anymore."""
 
     default_global_settings = {"max_user_reminders": 20, "reminders": []}
+    reminder_emoji = "🔔"
 
     def __init__(self, bot):
         """Set up the plugin."""
@@ -38,6 +39,7 @@ class RemindMe(commands.Cog):
         }
         self.time = 5
         self.task = self.bot.loop.create_task(self.check_reminders())
+        self.me_too_reminders = {}
 
     def __unload(self):
         if self.task:
@@ -169,18 +171,31 @@ class RemindMe(commands.Cog):
         future = int(time.time() + seconds)
         future_text = "{} {}".format(str(quantity), time_unit + plural)
 
+        reminder = {
+            "ID": author.id,
+            "FUTURE": future,
+            "TEXT": text,
+            "FUTURE_TEXT": future_text,
+        }
         async with self.config.reminders() as current_reminders:
-            current_reminders.append(
-                {
-                    "ID": author.id,
-                    "FUTURE": future,
-                    "TEXT": text,
-                    "FUTURE_TEXT": future_text,
-                }
-            )
+            current_reminders.append(reminder)
         await self.send_message(
             ctx, "I will remind you that in {}.".format(future_text)
         )
+
+        can_react = ctx.channel.permissions_for(ctx.me).add_reactions
+        can_edit = ctx.channel.permissions_for(ctx.me).manage_messages
+        if can_react and can_edit:
+            query: discord.Message = await ctx.send(
+                "If anyone else would like to be reminded as well, click the {} below!".format(
+                    self.reminder_emoji
+                )
+            )
+            self.me_too_reminders[query.id] = reminder
+            await query.add_reaction(self.reminder_emoji)
+            await asyncio.sleep(30)
+            await query.delete()
+            del self.me_too_reminders[query.id]
 
     async def delete_reminder(self, ctx: commands.Context, index: str):
         """Logic to delete reminders."""
@@ -193,37 +208,37 @@ class RemindMe(commands.Cog):
             await self.send_message(ctx, "You don't have any upcoming reminders.")
             return
 
-        if index == "all":
-            async with self.config.reminders() as current_reminders:
+        async with self.config.reminders() as current_reminders:
+            if index == "all":
                 for reminder in to_remove:
                     current_reminders.remove(reminder)
-            await self.send_message(ctx, "All of your reminders have been removed.")
+                await self.send_message(ctx, "All of your reminders have been removed.")
+                return
 
-        elif index == "last":
-            async with self.config.reminders() as current_reminders:
+            if index == "last":
                 current_reminders.remove(to_remove[len(to_remove) - 1])
-            await self.send_message(
-                ctx, "Your most recently created reminder has been removed."
-            )
+                await self.send_message(
+                    ctx, "Your most recently created reminder has been removed."
+                )
+                return
 
-        try:
-            int_index = int(index)
-        except ValueError:
-            int_index = 0
-        if int_index > 0:
-            if len(to_remove) < int_index:
-                await self.send_message(
-                    ctx,
-                    "You don't have that many reminders! (you only have {})".format(
-                        len(to_remove)
-                    ),
-                )
-            else:
-                async with self.config.reminders() as current_reminders:
+            try:
+                int_index = int(index)
+            except ValueError:
+                return
+            if int_index > 0:
+                if len(to_remove) < int_index:
+                    await self.send_message(
+                        ctx,
+                        "You don't have that many reminders! (you only have {})".format(
+                            len(to_remove)
+                        ),
+                    )
+                else:
                     current_reminders.remove(to_remove[int_index - 1])
-                await self.send_message(
-                    ctx, "Reminder #{} has been removed.".format(int_index)
-                )
+                    await self.send_message(
+                        ctx, "Reminder #{} has been removed.".format(int_index)
+                    )
 
     async def get_user_reminders(self, user_id: int):
         """Return all of a users reminders."""
@@ -247,6 +262,35 @@ class RemindMe(commands.Cog):
             message = ctx.message.author.mention + ", " + message
 
         await ctx.send(message)
+
+    async def on_raw_reaction_add(
+        self, payload: discord.raw_models.RawReactionActionEvent
+    ):
+        """Watches for bell reactions on reminder messages."""
+        if not payload.guild_id:
+            return
+        if str(payload.emoji) != self.reminder_emoji:
+            return
+        guild = self.bot.get_guild(payload.guild_id)
+        if not guild:
+            return
+        member = guild.get_member(payload.user_id)
+        if member.bot:
+            return
+
+        try:
+            reminder = self.me_too_reminders[payload.message_id]
+            reminder["ID"] = member.id
+            async with self.config.reminders() as current_reminders:
+                if not current_reminders.count(reminder):
+                    current_reminders.append(reminder)
+                    await member.send(
+                        "Hello! I will remind you of that in {}.".format(
+                            reminder["FUTURE_TEXT"]
+                        )
+                    )
+        except KeyError:
+            return
 
     async def check_reminders(self):
         """Loop task that sends reminders."""
