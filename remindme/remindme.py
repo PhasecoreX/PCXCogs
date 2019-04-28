@@ -12,7 +12,11 @@ __author__ = "PhasecoreX"
 class RemindMe(commands.Cog):
     """Never forget anything anymore."""
 
-    default_global_settings = {"max_user_reminders": 20, "reminders": []}
+    default_global_settings = {
+        "total_sent": 0,
+        "max_user_reminders": 20,
+        "reminders": [],
+    }
     reminder_emoji = "🔔"
 
     def __init__(self, bot):
@@ -50,8 +54,16 @@ class RemindMe(commands.Cog):
     async def remindmeset(self, ctx: commands.Context):
         """Manage RemindMe settings."""
         if not ctx.invoked_subcommand:
-            msg = "Maximum reminders per user: {}".format(
-                await self.config.max_user_reminders()
+            msg = (
+                "Maximum reminders per user: {}\n"
+                "\n"
+                "--Stats--\n"
+                "Pending reminders:    {}\n"
+                "Total reminders sent: {}"
+            ).format(
+                await self.config.max_user_reminders(),
+                len(await self.config.reminders()),
+                await self.config.total_sent(),
             )
             await ctx.send(box(msg))
 
@@ -266,7 +278,11 @@ class RemindMe(commands.Cog):
     async def on_raw_reaction_add(
         self, payload: discord.raw_models.RawReactionActionEvent
     ):
-        """Watches for bell reactions on reminder messages."""
+        """Watches for bell reactions on reminder messages.
+
+        Thank you SinbadCogs!
+        https://github.com/mikeshardmind/SinbadCogs/blob/v3/rolemanagement/events.py
+        """
         if not payload.guild_id:
             return
         if str(payload.emoji) != self.reminder_emoji:
@@ -309,6 +325,8 @@ class RemindMe(commands.Cog):
                                     reminder["FUTURE_TEXT"], reminder["TEXT"]
                                 )
                             )
+                            total_sent = await self.config.total_sent()
+                            await self.config.total_sent.set(total_sent + 1)
                         else:
                             # Can't see the user (no shared servers)
                             to_remove.append(reminder)
