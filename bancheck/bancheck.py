@@ -65,7 +65,8 @@ class BanCheck(commands.Cog):
         """Check if user is on a ban list."""
         if not member:
             member = ctx.message.author
-        await self.user_lookup(ctx.channel, member)
+        async with ctx.channel.typing():
+            await self.user_lookup(ctx.channel, member)
 
     async def on_member_join(self, member: discord.Member):
         """If enabled, will check users against ban lists when joining the guild."""
