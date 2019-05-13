@@ -15,7 +15,7 @@ __author__ = "PhasecoreX"
 class UpdateNotify(commands.Cog):
     """Get notifications when your bot needs updating."""
 
-    default_global_settings = {"update_check_interval": 60}
+    default_global_settings = {"update_check_interval": 60, "check_pcx_docker": True}
 
     def __init__(self, bot):
         """Set up the plugin."""
@@ -24,6 +24,8 @@ class UpdateNotify(commands.Cog):
         self.config = Config.get_conf(self, 1224364860)
         self.config.register_global(**self.default_global_settings)
         self.notified_version = redbot_version
+        self.docker_version = os.environ.get("PCX_DISCORDBOT_COMMIT")
+        self.notified_docker_version = self.docker_version
         self.task = self.bot.loop.create_task(self.check_for_updates())
         self.next_check = datetime.datetime.now()
 
@@ -73,34 +75,103 @@ class UpdateNotify(commands.Cog):
                 return data["info"]["version"]
 
     @staticmethod
-    async def get_latest_docker_version():
-        """Check Docker for the latest update to phasecorex/red-discordbot."""
-        return "test"
+    async def get_latest_docker_commit():
+        """Check GitHub for the latest update to phasecorex/red-discordbot."""
+        url = "https://api.github.com/repos/phasecorex/docker-red-discordbot/branches/master"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                commit = data["commit"]
+                sha = commit["sha"]
+                commit_date_string = commit["commit"]["committer"]["date"].rstrip("Z")
+                commit_date = datetime.datetime.fromisoformat(commit_date_string)
+                return (sha, commit_date)
+
+    @staticmethod
+    async def get_latest_docker_build_date():
+        """Check Docker for the latest update to phasecorex/red-discordbot:latest."""
+        url = (
+            "https://hub.docker.com/v2/repositories/"
+            "phasecorex/red-discordbot/tags/?page=1&page_size=25"
+        )
+        async with aiohttp.ClientSession() as session:
+            while url:
+                async with session.get(url) as resp:
+                    data = await resp.json()
+                    for docker_image in data["results"]:
+                        if docker_image["name"] == "latest":
+                            return datetime.datetime.fromisoformat(
+                                docker_image["last_updated"].rstrip("Z")
+                            )
+                    url = data["next"]
 
     async def update_check(self, manual: bool = False):
         """Check for all updates."""
-        message = ""
         if manual:
             self.notified_version = redbot_version
+            self.notified_docker_version = self.docker_version
+
         latest_redbot_version = await self.get_latest_redbot_version()
-        if self.notified_version != latest_redbot_version:
-            message = (
-                "There is a newer version of Red-DiscordBot available!\n"
+        update_redbot = (
+            latest_redbot_version and self.notified_version != latest_redbot_version
+        )
+
+        update_docker = False
+        if self.docker_version and await self.config.check_pcx_docker():
+            latest_docker_version = await self.get_latest_docker_commit()
+            if (
+                latest_docker_version
+                and self.notified_docker_version != latest_docker_version[0]
+            ):
+                # If the commit hash differs, we know there is an update.
+                # However, we will need to check if the build has been updated yet.
+                latest_docker_build = await self.get_latest_docker_build_date()
+                if (
+                    latest_docker_build
+                    and latest_docker_build > latest_docker_version[1]
+                ):
+                    update_docker = True
+
+        message = ""
+
+        if update_docker:
+            self.notified_docker_version = latest_docker_version[0]
+            message += (
+                "There is a newer version of the `phasecorex/red-discordbot` Docker image "
+                "available!\n"
+                "You will need to use Docker to manually stop, pull, and restart the new image.\n\n"
+            )
+
+        if update_redbot:
+            self.notified_version = latest_redbot_version
+            also_insert = "also " if update_docker else ""
+            message += (
+                "There is {}a newer version of Red-DiscordBot available!\n"
                 "Your version: {}\nLatest version: {}\n\n"
-            ).format(redbot_version, latest_redbot_version)
-            if os.environ.get("PCX_DISCORDBOT"):
-                message = message + (
+            ).format(also_insert, redbot_version, latest_redbot_version)
+
+            if update_docker:
+                message += (
+                    "When you stop, pull, and restart the new image, I will also "
+                    "update myself automatically as I start up."
+                )
+            elif self.docker_version:
+                message += (
                     "It looks like you're using the `phasecorex/red-discordbot` Docker image!\n"
                     "Simply issue the `[p]restart` command to have me "
                     "restart and update automatically."
                 )
-        elif manual:
-            message = "You are already running the latest version ({})".format(
+
+        if manual and not message:
+            message += "You are already running the latest version ({})".format(
                 self.notified_version
             )
+            if self.docker_version and await self.config.check_pcx_docker():
+                message += (
+                    "\nThe `phasecorex/red-discordbot` Docker image is also up-to-date."
+                )
         if message and not manual:
             message = "Hello!\n\n" + message
-        self.notified_version = latest_redbot_version
         return message.strip()
 
     async def check_for_updates(self):
