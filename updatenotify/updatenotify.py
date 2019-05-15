@@ -29,7 +29,8 @@ class UpdateNotify(commands.Cog):
         self.task = self.bot.loop.create_task(self.check_for_updates())
         self.next_check = datetime.datetime.now()
 
-    def __unload(self):
+    def cog_unload(self):
+        """Clean up when cog shuts down."""
         if self.task:
             self.task.cancel()
 

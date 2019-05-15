@@ -45,7 +45,8 @@ class RemindMe(commands.Cog):
         self.task = self.bot.loop.create_task(self.check_reminders())
         self.me_too_reminders = {}
 
-    def __unload(self):
+    def cog_unload(self):
+        """Clean up when cog shuts down."""
         if self.task:
             self.task.cancel()
 
@@ -275,6 +276,7 @@ class RemindMe(commands.Cog):
 
         await ctx.send(message)
 
+    @commands.Cog.listener()
     async def on_raw_reaction_add(
         self, payload: discord.raw_models.RawReactionActionEvent
     ):

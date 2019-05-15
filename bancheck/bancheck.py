@@ -68,6 +68,7 @@ class BanCheck(commands.Cog):
         async with ctx.channel.typing():
             await self.user_lookup(ctx.channel, member)
 
+    @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         """If enabled, will check users against ban lists when joining the guild."""
         channel_id = await self.config.guild(member.guild).channel()
