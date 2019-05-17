@@ -1,9 +1,10 @@
 # PCXCogs
+PhasecoreX's Cogs for [Red-DiscordBot](https://github.com/Cog-Creators/Red-DiscordBot/releases).
+
 [![Red-DiscordBot](https://img.shields.io/badge/Red--DiscordBot-V3-red.svg)](https://github.com/Cog-Creators/Red-DiscordBot/releases)
 [![Code Style: Black](https://img.shields.io/badge/Code%20Style-Black-000000.svg)](https://github.com/ambv/black)
 [![Donate to support my cogs](https://img.shields.io/badge/Paypal-Donate-blue.svg)](https://paypal.me/pcx)
 
-PhasecoreX's Cogs for [Red-DiscordBot](https://github.com/Cog-Creators/Red-DiscordBot/releases).
 To add these wonderful cogs to your instance, run this command:
 ```
 [p]repo add PCXCogs https://github.com/PhasecoreX/PCXCogs
