@@ -64,16 +64,13 @@ class DecodeBinary(commands.Cog):
             await ctx.send("I will ignore this channel.")
         await self.config.guild(guild).ignored_channels.set(ignored_channels)
 
-    # Come up with a new method to ignore bot commands
     @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
+    async def on_message_without_command(self, message: discord.Message):
         """Grab messages and see if we can decode them from binary."""
         if message.guild is None:
             return
         if message.author.bot:
             return
-        # if self.is_command(message):
-        #     return
         if await self.config.guild(message.guild).ignore_guild():
             return
         if (
