@@ -1,8 +1,10 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
-import aiohttp
 import discord
 from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import box
+
+from .services.globan import globan
+from .services.ksoftsi import ksoftsi
 
 __author__ = "PhasecoreX"
 
@@ -10,7 +12,8 @@ __author__ = "PhasecoreX"
 class BanCheck(commands.Cog):
     """Look up users on various ban lists."""
 
-    default_guild_settings = {"channel": None}
+    default_guild_settings = {"channel": None, "services": {}}
+    supported_services = {"globan": globan, "ksoftsi": ksoftsi}
 
     def __init__(self, bot):
         """Set up the plugin."""
@@ -21,19 +24,84 @@ class BanCheck(commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    async def bancheck(self, ctx: commands.Context):
-        """Check new users against a ban list."""
+    async def bancheckset(self, ctx: commands.Context):
+        """Configure BanCheck."""
         if not ctx.invoked_subcommand:
             channel_name = "Disabled"
             channel_id = await self.config.guild(ctx.message.guild).channel()
             if channel_id:
                 channel_name = self.bot.get_channel(channel_id).name
-            msg = "BanCheck notices channel: {}".format(channel_name)
+            services_list = ""
+            services = await self.config.guild(ctx.message.guild).services()
+            for service in services.copy():
+                if service not in self.supported_services:
+                    services.pop(service, None)
+                    await self.config.guild(ctx.message.guild).services.set(services)
+                    continue
+                services_list += "\n  - {}".format(
+                    self.supported_services[service].SERVICE_NAME
+                )
+            if not services_list:
+                services_list = " None"
+            msg = (
+                "BanCheck notices channel: {}\nEnabled ban checking services:{}"
+            ).format(channel_name, services_list)
             await ctx.send(box(msg))
 
-    @bancheck.command()
+    @bancheckset.command()
     @checks.admin_or_permissions(manage_guild=True)
-    async def channel(self, ctx: commands.Context, channel: discord.TextChannel = None):
+    async def enableservice(self, ctx: commands.Context, service: str, api: str):
+        """Set a service api key in order to enable it."""
+        if service not in self.supported_services:
+            await ctx.send(
+                "The only services we support so far are:{}".format(
+                    "".join(["\n- `" + s + "`" for s in self.supported_services])
+                )
+            )
+            return
+        services = await self.config.guild(ctx.message.guild).services()
+        update = True
+        if service not in services:
+            services[service] = {}
+            update = False
+        services[service]["api_key"] = api
+        await self.config.guild(ctx.message.guild).services.set(services)
+        if update:
+            await ctx.send(
+                "Successfully updated the {} API key!".format(
+                    self.supported_services[service].SERVICE_NAME
+                )
+            )
+        else:
+            await ctx.send(
+                "Ban checking with {} has now been enabled!".format(
+                    self.supported_services[service].SERVICE_NAME
+                )
+            )
+
+    @bancheckset.command()
+    @checks.admin_or_permissions(manage_guild=True)
+    async def disableservice(self, ctx: commands.Context, service: str):
+        """Delete a service api key in order to disable it."""
+        services = await self.config.guild(ctx.message.guild).services()
+        if services.pop(service, None):
+            await self.config.guild(ctx.message.guild).services.set(services)
+            niceName = service
+            try:
+                niceName = self.supported_services[service].SERVICE_NAME
+            except KeyError:
+                pass
+            await ctx.send(
+                "Ban checking with {} has now been disabled!".format(niceName)
+            )
+        else:
+            await ctx.send("`{}` is not an enabled service.".format(service))
+
+    @bancheckset.command()
+    @checks.admin_or_permissions(manage_guild=True)
+    async def enablechannel(
+        self, ctx: commands.Context, channel: discord.TextChannel = None
+    ):
         """Set the channel you want new user ban check notices to go to."""
         if channel is None:
             channel = ctx.message.channel
@@ -50,9 +118,9 @@ class BanCheck(commands.Cog):
         except (discord.errors.Forbidden, discord.errors.NotFound):
             await channel.send(":no_entry: **I'm not allowed to send embeds here.**")
 
-    @bancheck.command()
+    @bancheckset.command()
     @checks.admin_or_permissions(manage_guild=True)
-    async def disable(self, ctx: commands.Context):
+    async def disablechannel(self, ctx: commands.Context):
         """Disable automatically checking new users against ban lists."""
         if await self.config.guild(ctx.message.guild).channel() is None:
             await ctx.send("Automatic ban check is already disabled.")
@@ -60,8 +128,10 @@ class BanCheck(commands.Cog):
             await self.config.guild(ctx.message.guild).channel.set(None)
             await ctx.send("Automatic ban check is now disabled.")
 
-    @bancheck.command(aliases=["search"])
-    async def check(self, ctx: commands.Context, member: discord.Member = None):
+    @commands.command()
+    @commands.guild_only()
+    @checks.admin_or_permissions(manage_guild=True)
+    async def bancheck(self, ctx: commands.Context, member: discord.Member = None):
         """Check if user is on a ban list."""
         if not member:
             member = ctx.message.author
@@ -78,75 +148,78 @@ class BanCheck(commands.Cog):
 
     async def user_lookup(self, channel: discord.TextChannel, member: discord.Member):
         """Perform user lookup, and send results to a specific channel."""
-        response = await self.lookup_discord_services(member.id)
+        services = await self.config.guild(channel.guild).services()
+        is_banned = False
+        is_error = False
+        checked = []
+        description = "**Name:** {}\n**ID:** {}\n\n".format(member.name, member.id)
 
-        if response.result == "ban":
-            niceurl = "[Click Here]({})".format(response.proof)
+        # Get results
+        for name, config in services.items():
+            try:
+                service_class = self.supported_services[name]
+            except KeyError:
+                continue
+            response = await service_class().lookup(member.id, config["api_key"])
+            checked.append(service_class().SERVICE_NAME)
 
-            description = """**Name:** {}\n**ID:** {}\n**Reason:** {}\n**Proof:** {}""".format(
-                response.username, response.userid, response.reason, niceurl
-            )
+            if response.result == "ban":
+                is_banned = True
 
+                proof = " (no proof provided)"
+                if response.proof_url:
+                    proof = " ([proof]({}))".format(response.proof_url)
+
+                description += "**{}:** {}{}\n".format(
+                    service_class().SERVICE_NAME, response.reason, proof
+                )
+
+            elif response.result == "clear":
+                description += "**{}:** (No ban found)\n".format(
+                    service_class().SERVICE_NAME
+                )
+
+            elif response.result == "error":
+                is_error = True
+                if response.reason:
+                    description += "**{}:** Error - {}\n".format(
+                        service_class().SERVICE_NAME, response.reason
+                    )
+                else:
+                    description += "**{}:** Connection Error - Server responded with the HTTP code `{}`\n".format(
+                        service_class().SERVICE_NAME, response.http_status
+                    )
+
+            else:
+                is_error = True
+                description += "**{}:** Fatal Error - You should probably let PhasecoreX know about this -> `{}`.\n".format(
+                    service_class().SERVICE_NAME, response.result
+                )
+        # Display result
+        if is_banned:
             await channel.send(
                 embed=self.embed_maker(
                     "Ban Found", discord.Colour.red(), description, member.avatar_url
                 )
             )
-
-        elif response.result == "clear":
+        elif is_error:
+            await channel.send(
+                embed=self.embed_maker(
+                    "Error (but no ban found otherwise)",
+                    discord.Colour.red(),
+                    description,
+                    member.avatar_url,
+                )
+            )
+        else:
             await channel.send(
                 embed=self.embed_maker(
                     "No ban found for **{}**".format(member.name),
                     discord.Colour.green(),
-                    None,
+                    "Checked: {}".format(", ".join(checked)),
                     member.avatar_url,
                 )
             )
-
-        elif response.result == "error":
-            await channel.send(
-                embed=self.embed_maker(
-                    "Error looking up ban info for **{}**".format(member.name),
-                    discord.Colour.red(),
-                    (
-                        "When attempting to connect to `{}`, "
-                        "the server responded with the HTTP code `{}`."
-                    ).format(response.service, response.reason),
-                    member.avatar_url,
-                )
-            )
-
-        else:
-            await channel.send(
-                embed=self.embed_maker(
-                    "Something is broken...",
-                    discord.Colour.red(),
-                    "You should probably let PhasecoreX know about this -> `{}`.".format(
-                        response.result
-                    ),
-                    self.bot.user.avatar_url,
-                )
-            )
-
-    async def lookup_discord_services(self, user):
-        """Perform user lookup on discord.services."""
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                "https://discord.services/api/ban/" + str(user)
-            ) as resp:
-                if resp.status != 200:
-                    result = Lookup("discord.services", "error")
-                    result.reason = resp.status
-                    return result
-                data = await resp.json()
-                if "ban" in data:
-                    result = Lookup("discord.services", "ban")
-                    result.username = data["ban"]["name"]
-                    result.userid = data["ban"]["id"]
-                    result.reason = data["ban"]["reason"]
-                    result.proof = data["ban"]["proof"]
-                    return result
-                return Lookup("discord.services", "clear")
 
     @staticmethod
     def embed_maker(title, color, description, avatar):
@@ -154,16 +227,3 @@ class BanCheck(commands.Cog):
         embed = discord.Embed(title=title, color=color, description=description)
         embed.set_thumbnail(url=avatar)
         return embed
-
-
-class Lookup:
-    """A user lookup result."""
-
-    def __init__(self, service: str, result: str):
-        """Create the base lookup result."""
-        self.service = service
-        self.result = result
-        self.username = ""
-        self.userid = 0
-        self.reason = "(none specified)"
-        self.proof = ""

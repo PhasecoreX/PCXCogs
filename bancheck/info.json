@@ -5,7 +5,7 @@
     ],
     "short": "Check user accounts on gloabl ban lists.",
     "description": "This cog automatically checks users against global ban lists. You can also manually check users already on the server.",
-    "install_msg": "Thanks for installing BanCheck! Unfortunately, this plugin does not do anything anymore since discord.services went down a while ago. Perhaps in the future it will come back up? Regardless, I will have to take some time and add new ban list sources.",
+    "install_msg": "Thanks for installing BanCheck!",
     "tags": [
         "ban",
         "moderation",
