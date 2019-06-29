@@ -23,9 +23,7 @@ class globan:
             ) as resp:
                 if resp.status != 200:
                     return LookupResult(globan.SERVICE_NAME, resp.status, "error")
-                # Globan isn't configured to return application/json
-                textdata = await resp.read()
-                data = json.loads(textdata)
+                data = await resp.json()
                 if "error" in data:
                     """
                     {
