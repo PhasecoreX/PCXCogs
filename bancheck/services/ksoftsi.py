@@ -17,7 +17,7 @@ class ksoftsi:
             async with session.get(
                 ksoftsi.SERVICE_BASE_URL + "/check",
                 params={"userid": str(user_id)},
-                headers={"Authorization": api_key},
+                headers={"Authorization": "NANI " + api_key},
             ) as resp:
                 """ Response 200 example:
                 {
@@ -34,7 +34,7 @@ class ksoftsi:
             async with session.get(
                 ksoftsi.SERVICE_BASE_URL + "/info",
                 params={"userid": str(user_id)},
-                headers={"Authorization": api_key},
+                headers={"Authorization": "NANI " + api_key},
             ) as resp:
                 """ Response 200 example:
                 {
