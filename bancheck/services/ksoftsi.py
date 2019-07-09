@@ -24,6 +24,17 @@ class ksoftsi:
                     "is_banned": true
                 }
                 """
+                if resp.status == 401:
+                    try:
+                        data = await resp.json()
+                        return LookupResult(
+                            ksoftsi.SERVICE_NAME,
+                            resp.status,
+                            "error",
+                            reason=data["detail"],
+                        )
+                    except aiohttp.client_exceptions.ContentTypeError:
+                        pass  # Drop down to !=200 logic
                 if resp.status != 200:
                     return LookupResult(ksoftsi.SERVICE_NAME, resp.status, "error")
                 data = await resp.json()
@@ -61,6 +72,17 @@ class ksoftsi:
                     "message": "specified user does not exist"
                 }
                 """
+                if resp.status == 401:
+                    try:
+                        data = await resp.json()
+                        return LookupResult(
+                            ksoftsi.SERVICE_NAME,
+                            resp.status,
+                            "error",
+                            reason=data["detail"],
+                        )
+                    except aiohttp.client_exceptions.ContentTypeError:
+                        pass  # Drop down to !=200 logic
                 if resp.status == 404:
                     try:
                         data = await resp.json()
