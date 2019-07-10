@@ -2,6 +2,7 @@
 import json
 
 import aiohttp
+from redbot.core import __version__ as redbot_version
 
 from ..dto.lookup_result import LookupResult
 
@@ -19,7 +20,8 @@ class globan:
                 "https://www.globan.xyz/API?TOKEN="
                 + api_key
                 + "&TYPE=BANCHECK&VALUE="
-                + str(user_id)
+                + str(user_id),
+                headers={"user-agent": "Red-DiscordBot/" + redbot_version},
             ) as resp:
                 if resp.status != 200:
                     return LookupResult(globan.SERVICE_NAME, resp.status, "error")

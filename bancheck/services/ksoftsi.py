@@ -1,5 +1,6 @@
 """Ban lookup for KSoft.Si."""
 import aiohttp
+from redbot.core import __version__ as redbot_version
 
 from ..dto.lookup_result import LookupResult
 
@@ -17,7 +18,10 @@ class ksoftsi:
             async with session.get(
                 ksoftsi.SERVICE_BASE_URL + "/check",
                 params={"user": str(user_id)},
-                headers={"Authorization": "NANI " + api_key},
+                headers={
+                    "Authorization": "NANI " + api_key,
+                    "user-agent": "Red-DiscordBot/" + redbot_version,
+                },
             ) as resp:
                 """ Response 200 example:
                 {
@@ -45,7 +49,10 @@ class ksoftsi:
             async with session.get(
                 ksoftsi.SERVICE_BASE_URL + "/info",
                 params={"user": str(user_id)},
-                headers={"Authorization": "NANI " + api_key},
+                headers={
+                    "Authorization": "NANI " + api_key,
+                    "user-agent": "Red-DiscordBot/" + redbot_version,
+                },
             ) as resp:
                 """ Response 200 example:
                 {

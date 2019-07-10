@@ -1,5 +1,6 @@
 """Ban lookup for discord.services."""
 import aiohttp
+from redbot.core import __version__ as redbot_version
 
 from ..dto.lookup_result import LookupResult
 
@@ -15,7 +16,8 @@ class discordservices:
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.get(
-                    "https://discord.services/api/ban/" + str(user_id)
+                    "https://discord.services/api/ban/" + str(user_id),
+                    headers={"user-agent": "Red-DiscordBot/" + redbot_version},
                 ) as resp:
                     if resp.status != 200:
                         return LookupResult(
