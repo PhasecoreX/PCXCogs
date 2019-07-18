@@ -53,8 +53,8 @@ class BanCheck(commands.Cog):
                     update = True
                     if service_id not in global_services:
                         global_services[service_id] = {}
-                    global_services[service_id]["api_key"] = info["api_key"]
-                    await self.config.services.set(global_services)
+                        global_services[service_id]["api_key"] = info["api_key"]
+                        await self.config.services.set(global_services)
                 await self.config.guild(discord.Object(id=guild_id)).clear_raw(
                     "services"
                 )
