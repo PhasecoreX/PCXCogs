@@ -65,10 +65,15 @@ class BanCheck(commands.Cog):
     async def bancheckset(self, ctx: commands.Context):
         """Configure BanCheck."""
         if not ctx.invoked_subcommand:
-            channel_name = "Disabled"
-            channel_id = await self.config.guild(ctx.message.guild).notify_channel()
-            if channel_id:
-                channel_name = self.bot.get_channel(channel_id)
+            msg = ""
+            try:
+                channel_name = "Disabled"
+                channel_id = await self.config.guild(ctx.message.guild).notify_channel()
+                if channel_id:
+                    channel_name = self.bot.get_channel(channel_id)
+                msg += "BanCheck notices channel: {}\n".format(channel_name)
+            except AttributeError:
+                pass  # This is in a DM
             services_list = ""
             services = await self.config.services()
             for service in services.copy():
@@ -81,9 +86,7 @@ class BanCheck(commands.Cog):
                 )
             if not services_list:
                 services_list = " None"
-            msg = (
-                "BanCheck notices channel: {}\nEnabled ban checking services:{}"
-            ).format(channel_name, services_list)
+            msg += "Enabled ban checking services:{}".format(services_list)
             await ctx.send(box(msg))
 
     @bancheckset.command()
