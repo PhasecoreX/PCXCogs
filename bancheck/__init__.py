@@ -2,6 +2,8 @@
 from .bancheck import BanCheck
 
 
-def setup(bot):
+async def setup(bot):
     """Load BanCheck cog."""
-    bot.add_cog(BanCheck(bot))
+    cog = BanCheck(bot)
+    await cog.initialize()
+    bot.add_cog(cog)

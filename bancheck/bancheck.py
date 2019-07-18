@@ -7,12 +7,14 @@ from .services.globan import globan
 from .services.ksoftsi import ksoftsi
 
 __author__ = "PhasecoreX"
+__version__ = "1.0.0"
 
 
 class BanCheck(commands.Cog):
     """Look up users on various ban lists."""
 
-    default_guild_settings = {"channel": None, "services": {}}
+    default_global_settings = {"services": {}}
+    default_guild_settings = {"notify_channel": None}
     supported_services = {"globan": globan, "ksoftsi": ksoftsi}
 
     def __init__(self, bot):
@@ -20,23 +22,59 @@ class BanCheck(commands.Cog):
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1224364860)
+        self.config.register_global(**self.default_global_settings)
         self.config.register_guild(**self.default_guild_settings)
 
+    async def initialize(self):
+        """Perform setup actions before loading cog."""
+        await self._maybe_update_config()
+
+    async def _maybe_update_config(self):
+        """Perform some configuration migrations."""
+        if await self.config.version():
+            return
+        guild_dict = await self.config.all_guilds()
+        # Migrate channel -> notify_channel
+        for guild_id, info in guild_dict.items():
+            channel = info.get("channel", False)
+            if channel:
+                await self.config.guild(discord.Object(id=guild_id)).notify_channel.set(
+                    channel
+                )
+                await self.config.guild(discord.Object(id=guild_id)).clear_raw(
+                    "channel"
+                )
+        # Migrate guild services to global services
+        for guild_id, info in guild_dict.items():
+            services = info.get("services")
+            if services:
+                for service_id, info in services.items():
+                    global_services = await self.config.services()
+                    update = True
+                    if service_id not in global_services:
+                        global_services[service_id] = {}
+                    global_services[service_id]["api_key"] = info["api_key"]
+                    await self.config.services.set(global_services)
+                await self.config.guild(discord.Object(id=guild_id)).clear_raw(
+                    "services"
+                )
+        await self.config.version.set(__version__)
+
     @commands.group()
-    @commands.guild_only()
+    @checks.admin_or_permissions(manage_guild=True)
     async def bancheckset(self, ctx: commands.Context):
         """Configure BanCheck."""
         if not ctx.invoked_subcommand:
             channel_name = "Disabled"
-            channel_id = await self.config.guild(ctx.message.guild).channel()
+            channel_id = await self.config.guild(ctx.message.guild).notify_channel()
             if channel_id:
-                channel_name = self.bot.get_channel(channel_id).name
+                channel_name = self.bot.get_channel(channel_id)
             services_list = ""
-            services = await self.config.guild(ctx.message.guild).services()
+            services = await self.config.services()
             for service in services.copy():
                 if service not in self.supported_services:
                     services.pop(service, None)
-                    await self.config.guild(ctx.message.guild).services.set(services)
+                    await self.config.services.set(services)
                     continue
                 services_list += "\n  - {}".format(
                     self.supported_services[service].SERVICE_NAME
@@ -49,7 +87,7 @@ class BanCheck(commands.Cog):
             await ctx.send(box(msg))
 
     @bancheckset.command()
-    @checks.admin_or_permissions(manage_guild=True)
+    @checks.is_owner()
     async def enableservice(self, ctx: commands.Context, service: str, api: str):
         """Set a service api key in order to enable it."""
         if service not in self.supported_services:
@@ -59,13 +97,13 @@ class BanCheck(commands.Cog):
                 )
             )
             return
-        services = await self.config.guild(ctx.message.guild).services()
+        services = await self.config.services()
         update = True
         if service not in services:
             services[service] = {}
             update = False
         services[service]["api_key"] = api
-        await self.config.guild(ctx.message.guild).services.set(services)
+        await self.config.services.set(services)
         if update:
             await ctx.send(
                 "Successfully updated the {} API key!".format(
@@ -80,12 +118,12 @@ class BanCheck(commands.Cog):
             )
 
     @bancheckset.command()
-    @checks.admin_or_permissions(manage_guild=True)
+    @checks.is_owner()
     async def disableservice(self, ctx: commands.Context, service: str):
         """Delete a service api key in order to disable it."""
-        services = await self.config.guild(ctx.message.guild).services()
+        services = await self.config.services()
         if services.pop(service, None):
-            await self.config.guild(ctx.message.guild).services.set(services)
+            await self.config.services.set(services)
             niceName = service
             try:
                 niceName = self.supported_services[service].SERVICE_NAME
@@ -98,14 +136,14 @@ class BanCheck(commands.Cog):
             await ctx.send("`{}` is not an enabled service.".format(service))
 
     @bancheckset.command()
-    @checks.admin_or_permissions(manage_guild=True)
+    @commands.guild_only()
     async def enablechannel(
         self, ctx: commands.Context, channel: discord.TextChannel = None
     ):
         """Set the channel you want new user ban check notices to go to."""
         if channel is None:
             channel = ctx.message.channel
-        await self.config.guild(ctx.message.guild).channel.set(channel.id)
+        await self.config.guild(ctx.message.guild).notify_channel.set(channel.id)
 
         try:
             embed = self.embed_maker(
@@ -119,13 +157,13 @@ class BanCheck(commands.Cog):
             await channel.send(":no_entry: **I'm not allowed to send embeds here.**")
 
     @bancheckset.command()
-    @checks.admin_or_permissions(manage_guild=True)
+    @commands.guild_only()
     async def disablechannel(self, ctx: commands.Context):
         """Disable automatically checking new users against ban lists."""
-        if await self.config.guild(ctx.message.guild).channel() is None:
+        if await self.config.guild(ctx.message.guild).notify_channel() is None:
             await ctx.send("Automatic ban check is already disabled.")
         else:
-            await self.config.guild(ctx.message.guild).channel.set(None)
+            await self.config.guild(ctx.message.guild).notify_channel.set(None)
             await ctx.send("Automatic ban check is now disabled.")
 
     @commands.command()
@@ -141,14 +179,14 @@ class BanCheck(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         """If enabled, will check users against ban lists when joining the guild."""
-        channel_id = await self.config.guild(member.guild).channel()
+        channel_id = await self.config.guild(member.guild).notify_channel()
         if channel_id:
             channel = self.bot.get_channel(channel_id)
             await self.user_lookup(channel, member)
 
     async def user_lookup(self, channel: discord.TextChannel, member: discord.Member):
         """Perform user lookup, and send results to a specific channel."""
-        services = await self.config.guild(channel.guild).services()
+        services = await self.config.services()
         is_banned = False
         is_error = False
         checked = []
