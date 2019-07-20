@@ -11,6 +11,7 @@ class globan:
     """Ban lookup for Globan."""
 
     SERVICE_NAME = "Globan"
+    SERVICE_URL = "https://www.globan.xyz"
 
     @staticmethod
     async def lookup(user_id, api_key):

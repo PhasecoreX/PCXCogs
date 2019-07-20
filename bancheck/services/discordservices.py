@@ -9,6 +9,7 @@ class discordservices:
     """Ban lookup for discord.services."""
 
     SERVICE_NAME = "discord.services"
+    SERVICE_URL = "https://discord.services"
 
     @staticmethod
     async def lookup(user_id, api_key=None):

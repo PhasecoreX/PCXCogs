@@ -67,13 +67,10 @@ class BanCheck(commands.Cog):
         if not ctx.invoked_subcommand:
             msg = ""
             try:
-                channel_name = "Disabled"
-                channel_id = await self.config.guild(ctx.message.guild).notify_channel()
-                if channel_id:
-                    channel_name = self.bot.get_channel(channel_id)
-                msg += "BanCheck notices channel: {}\n".format(channel_name)
+                msg += await self.get_channel_message(ctx)
             except AttributeError:
                 pass  # This is in a DM
+
             services_list = ""
             services = await self.config.services()
             for service in services.copy():
@@ -87,18 +84,34 @@ class BanCheck(commands.Cog):
             if not services_list:
                 services_list = " None"
             msg += "Enabled ban checking services:{}".format(services_list)
+
             await ctx.send(box(msg))
 
-    @bancheckset.command()
+    @bancheckset.group()
     @checks.is_owner()
-    async def enableservice(self, ctx: commands.Context, service: str, api: str):
-        """Set a service api key in order to enable it."""
+    async def service(self, ctx: commands.Context):
+        """Manage the services BanCheck will use to lookup users."""
+        if not ctx.invoked_subcommand:
+            msg = "Supported services:"
+            msg += await self.get_available_services()
+            try:
+                embed = self.embed_maker(None, discord.Colour.green(), msg)
+                await ctx.send(embed=embed)
+            except (discord.errors.Forbidden):
+                await ctx.send(msg)  # Embeds not allowed, send ugly message instead.
+
+    @service.command()
+    @checks.is_owner()
+    async def enable(self, ctx: commands.Context, service: str, api: str):
+        """Enable a service by specifying it's API key."""
         if service not in self.supported_services:
-            await ctx.send(
-                "The only services we support so far are:{}".format(
-                    "".join(["\n- `" + s + "`" for s in self.supported_services])
-                )
-            )
+            msg = "The only services we support so far are:"
+            msg += await self.get_available_services()
+            try:
+                embed = self.embed_maker(None, discord.Colour.red(), msg)
+                await ctx.send(embed=embed)
+            except (discord.errors.Forbidden):
+                await ctx.send(msg)  # Embeds not allowed, send ugly message instead.
             return
         services = await self.config.services()
         update = True
@@ -120,10 +133,10 @@ class BanCheck(commands.Cog):
                 )
             )
 
-    @bancheckset.command()
+    @service.command()
     @checks.is_owner()
-    async def disableservice(self, ctx: commands.Context, service: str):
-        """Delete a service api key in order to disable it."""
+    async def disable(self, ctx: commands.Context, service: str):
+        """Disable a service."""
         services = await self.config.services()
         if services.pop(service, None):
             await self.config.services.set(services)
@@ -138,12 +151,20 @@ class BanCheck(commands.Cog):
         else:
             await ctx.send("`{}` is not an enabled service.".format(service))
 
-    @bancheckset.command()
+    @bancheckset.group()
     @commands.guild_only()
-    async def enablechannel(
+    async def channel(self, ctx: commands.Context, channel: discord.TextChannel = None):
+        """Manage the channel used for BanCheck notices."""
+        if not ctx.invoked_subcommand:
+            msg = await self.get_channel_message(ctx)
+            await ctx.send(box(msg))
+
+    @channel.command(name="set")
+    @commands.guild_only()
+    async def set_channel(
         self, ctx: commands.Context, channel: discord.TextChannel = None
     ):
-        """Set the channel you want new user ban check notices to go to."""
+        """Set the channel you want new user BanCheck notices to go to."""
         if channel is None:
             channel = ctx.message.channel
         await self.config.guild(ctx.message.guild).notify_channel.set(channel.id)
@@ -152,22 +173,22 @@ class BanCheck(commands.Cog):
             embed = self.embed_maker(
                 None,
                 discord.Colour.green(),
-                ":white_check_mark: **I will send all ban check notices here.**",
-                avatar=self.bot.user.avatar_url,
+                ":white_check_mark: **I will send all BanCheck notices here.**",
+                self.bot.user.avatar_url,
             )
             await channel.send(embed=embed)
         except (discord.errors.Forbidden, discord.errors.NotFound):
             await channel.send(":no_entry: **I'm not allowed to send embeds here.**")
 
-    @bancheckset.command()
+    @channel.command(name="disable")
     @commands.guild_only()
-    async def disablechannel(self, ctx: commands.Context):
+    async def disable_channel(self, ctx: commands.Context):
         """Disable automatically checking new users against ban lists."""
         if await self.config.guild(ctx.message.guild).notify_channel() is None:
-            await ctx.send("Automatic ban check is already disabled.")
+            await ctx.send("Automatic BanCheck is already disabled.")
         else:
             await self.config.guild(ctx.message.guild).notify_channel.set(None)
-            await ctx.send("Automatic ban check is now disabled.")
+            await ctx.send("Automatic BanCheck is now disabled.")
 
     @commands.command()
     @commands.guild_only()
@@ -262,9 +283,27 @@ class BanCheck(commands.Cog):
                 )
             )
 
+    async def get_available_services(self):
+        """Get the currently supported BanCheck services."""
+        result = ""
+        for service, clazz in self.supported_services.items():
+            result += "\n- `{}` ([{}]({}))".format(
+                service, clazz.SERVICE_NAME, clazz.SERVICE_URL
+            )
+        return result
+
+    async def get_channel_message(self, ctx: commands.Context):
+        """Get the message for BanCheck notices channel."""
+        channel_name = "Disabled"
+        channel_id = await self.config.guild(ctx.message.guild).notify_channel()
+        if channel_id:
+            channel_name = self.bot.get_channel(channel_id)
+        return "BanCheck notices channel: {}\n".format(channel_name)
+
     @staticmethod
-    def embed_maker(title, color, description, avatar):
+    def embed_maker(title, color, description, avatar=None):
         """Create a nice embed."""
         embed = discord.Embed(title=title, color=color, description=description)
-        embed.set_thumbnail(url=avatar)
+        if avatar:
+            embed.set_thumbnail(url=avatar)
         return embed
