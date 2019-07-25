@@ -80,13 +80,20 @@ class UpdateNotify(commands.Cog):
         """Check GitHub for the latest update to phasecorex/red-discordbot."""
         url = "https://api.github.com/repos/phasecorex/docker-red-discordbot/branches/master"
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                data = await resp.json()
-                commit = data["commit"]
-                sha = commit["sha"]
-                commit_date_string = commit["commit"]["committer"]["date"].rstrip("Z")
-                commit_date = datetime.datetime.fromisoformat(commit_date_string)
-                return (sha, commit_date)
+            on_master = True
+            while url:
+                async with session.get(url) as resp:
+                    data = await resp.json()
+                    if on_master:  # That first url has the actual commit data nested.
+                        data = data["commit"]
+                        on_master = False
+                    if "[ci skip]" in data["commit"]["message"]:
+                        url = data["parents"][0]["url"]
+                        continue
+                    sha = data["sha"]
+                    commit_date_string = data["commit"]["committer"]["date"].rstrip("Z")
+                    commit_date = datetime.datetime.fromisoformat(commit_date_string)
+                    return (sha, commit_date)
 
     @staticmethod
     async def get_latest_docker_build_date():
