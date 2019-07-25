@@ -46,8 +46,16 @@ class UpdateNotify(commands.Cog):
         """Manage UpdateNotify settings."""
         if not ctx.invoked_subcommand:
             msg = (
-                "Update check interval: {} minutes\nNext check will happen at {}"
-            ).format(await self.config.update_check_interval(), self.next_check)
+                "Update check interval:     {} minutes\n"
+                "Next check in:             {} minutes"
+            ).format(
+                await self.config.update_check_interval(),
+                round((self.next_check - datetime.datetime.now()).total_seconds() / 60.0, 1),
+            )
+            if self.docker_version:
+                msg += "\nCheck Docker image update: {}".format(
+                    "Enabled" if await self.config.check_pcx_docker() else "Disabled"
+                )
             await ctx.send(box(msg))
 
     @updatenotify.command()
@@ -71,6 +79,53 @@ class UpdateNotify(commands.Cog):
         async with ctx.typing():
             message = await self.update_check(manual=True)
             await ctx.send(message)
+
+    @updatenotify.group()
+    async def docker(self, ctx: commands.Context):
+        """Options for checking for phasecorex/red-discordbot Docker image updates."""
+        pass
+
+    @docker.command()
+    async def toggle(self, ctx: commands.Context):
+        """Toggle checking for phasecorex/red-discordbot Docker image updates."""
+        state = await self.config.check_pcx_docker()
+        state = not state
+        await self.config.check_pcx_docker.set(state)
+        await ctx.send(
+            "Docker image version checking is now {}.".format(
+                "enabled" if state else "disabled"
+            )
+        )
+
+    @docker.command()
+    async def debug(self, ctx: commands.Context):
+        """Print out debug version numbers."""
+        if not self.docker_version:
+            msg = "This debug option is only really useful if you're using the phasecorex/red-discordbot Docker image."
+        else:
+            commit = await self.get_latest_docker_commit()
+            build = await self.get_latest_docker_build_date(self.docker_tag)
+            status = "Up to date"
+            if commit[0] != self.docker_version:
+                status = "Update available"
+            if build < commit[1]:
+                status = "Waiting for build"
+            msg = (
+                "Local Docker tag:          {}\n"
+                "Local Docker version:      {}\n"
+                "Latest Docker commit:      {}\n"
+                "Latest Docker commit date: {}\n"
+                "Latest Docker build date:  {}\n"
+                "Local Docker Status:       {}"
+            ).format(
+                self.docker_tag,
+                self.docker_version,
+                commit[0],
+                commit[1],
+                build,
+                status,
+            )
+        await ctx.send(box(msg))
 
     @staticmethod
     async def get_latest_redbot_version():
