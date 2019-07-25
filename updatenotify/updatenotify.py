@@ -23,11 +23,17 @@ class UpdateNotify(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)
         self.config.register_global(**self.default_global_settings)
-        self.notified_version = redbot_version
+
         self.docker_version = os.environ.get("PCX_DISCORDBOT_COMMIT")
+        self.docker_tag = os.environ.get("PCX_DISCORDBOT_TAG")
+        if not self.docker_tag:
+            self.docker_tag = "latest"
+
+        self.notified_version = redbot_version
         self.notified_docker_version = self.docker_version
-        self.task = self.bot.loop.create_task(self.check_for_updates())
+
         self.next_check = datetime.datetime.now()
+        self.task = self.bot.loop.create_task(self.check_for_updates())
 
     def cog_unload(self):
         """Clean up when cog shuts down."""
@@ -96,7 +102,7 @@ class UpdateNotify(commands.Cog):
                     return (sha, commit_date)
 
     @staticmethod
-    async def get_latest_docker_build_date():
+    async def get_latest_docker_build_date(tag: str):
         """Check Docker for the latest update to phasecorex/red-discordbot:latest."""
         url = (
             "https://hub.docker.com/v2/repositories/"
@@ -107,7 +113,7 @@ class UpdateNotify(commands.Cog):
                 async with session.get(url) as resp:
                     data = await resp.json()
                     for docker_image in data["results"]:
-                        if docker_image["name"] == "latest":
+                        if docker_image["name"] == tag:
                             return datetime.datetime.fromisoformat(
                                 docker_image["last_updated"].rstrip("Z")
                             )
@@ -133,7 +139,9 @@ class UpdateNotify(commands.Cog):
             ):
                 # If the commit hash differs, we know there is an update.
                 # However, we will need to check if the build has been updated yet.
-                latest_docker_build = await self.get_latest_docker_build_date()
+                latest_docker_build = await self.get_latest_docker_build_date(
+                    self.docker_tag
+                )
                 if (
                     latest_docker_build
                     and latest_docker_build > latest_docker_version[1]
