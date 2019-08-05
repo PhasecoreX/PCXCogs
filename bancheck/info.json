@@ -4,7 +4,7 @@
         "PhasecoreX (PhasecoreX#0635)"
     ],
     "short": "Check user accounts on multiple global ban lists.",
-    "description": "This cog automatically checks users against multiple global ban lists. You can also manually check users already on the server.",
+    "description": "This cog automatically checks new users against multiple global ban lists, and optionally bans them on the spot. You can also manually check users already on the server.",
     "install_msg": "Thanks for installing BanCheck!",
     "tags": [
         "ban",

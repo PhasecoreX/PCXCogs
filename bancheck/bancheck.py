@@ -14,7 +14,12 @@ class BanCheck(commands.Cog):
     """Look up users on various ban lists."""
 
     default_global_settings = {"services": {}}
-    default_guild_settings = {"notify_channel": None}
+    default_guild_settings = {
+        "notify_channel": None,
+        "auto_ban": False,
+        "disabled_services": [],
+        "disabled_auto_ban_services": [],
+    }
     supported_services = {"globan": globan, "ksoftsi": ksoftsi}
 
     def __init__(self, bot):
@@ -66,47 +71,31 @@ class BanCheck(commands.Cog):
         """Configure BanCheck."""
         if not ctx.invoked_subcommand:
             msg = ""
-            try:
-                msg += await self.get_channel_message(ctx)
-            except AttributeError:
-                pass  # This is in a DM
-
-            services_list = ""
-            services = await self.config.services()
-            for service in services.copy():
-                if service not in self.supported_services:
-                    services.pop(service, None)
-                    await self.config.services.set(services)
-                    continue
-                services_list += "\n  - {}".format(
-                    self.supported_services[service].SERVICE_NAME
-                )
-            if not services_list:
-                services_list = " None"
-            msg += "Enabled ban checking services:{}".format(services_list)
-
+            msg += await self.get_channel_message(ctx)
+            msg += await self.get_auto_ban_message(ctx)
+            msg += "Ban checking services:"
+            msg += await self.get_available_services(ctx)
             await ctx.send(box(msg))
 
     @bancheckset.group()
     @checks.is_owner()
-    async def service(self, ctx: commands.Context):
-        """Manage the services BanCheck will use to lookup users."""
+    async def api(self, ctx: commands.Context):
+        """Globally set up BanCheck services."""
         if not ctx.invoked_subcommand:
             msg = "Supported services:"
-            msg += await self.get_available_services()
+            msg += await self.get_supported_services()
             try:
                 embed = self.embed_maker(None, discord.Colour.green(), msg)
                 await ctx.send(embed=embed)
             except (discord.errors.Forbidden):
                 await ctx.send(msg)  # Embeds not allowed, send ugly message instead.
 
-    @service.command()
-    @checks.is_owner()
-    async def enable(self, ctx: commands.Context, service: str, api: str):
-        """Enable a service by specifying it's API key."""
+    @api.command(name="enable")
+    async def api_enable(self, ctx: commands.Context, service: str, api: str):
+        """Enable a service globally by specifying it's API key."""
         if service not in self.supported_services:
             msg = "The only services we support so far are:"
-            msg += await self.get_available_services()
+            msg += await self.get_supported_services()
             try:
                 embed = self.embed_maker(None, discord.Colour.red(), msg)
                 await ctx.send(embed=embed)
@@ -123,44 +112,214 @@ class BanCheck(commands.Cog):
         if update:
             await ctx.send(
                 "Successfully updated the {} API key!".format(
-                    self.supported_services[service].SERVICE_NAME
+                    self.get_nice_service_name(service)
                 )
             )
         else:
             await ctx.send(
-                "Ban checking with {} has now been enabled!".format(
-                    self.supported_services[service].SERVICE_NAME
+                "Ban checking with {} has now been enabled globally!".format(
+                    self.get_nice_service_name(service)
                 )
             )
 
-    @service.command()
-    @checks.is_owner()
-    async def disable(self, ctx: commands.Context, service: str):
-        """Disable a service."""
+    @api.command(name="disable")
+    async def api_disable(self, ctx: commands.Context, service: str):
+        """Disable a service globally by removing it's API key."""
         services = await self.config.services()
         if services.pop(service, None):
             await self.config.services.set(services)
-            niceName = service
-            try:
-                niceName = self.supported_services[service].SERVICE_NAME
-            except KeyError:
-                pass
             await ctx.send(
-                "Ban checking with {} has now been disabled!".format(niceName)
+                "Ban checking with {} has now been disabled globally!".format(
+                    self.get_nice_service_name(service)
+                )
             )
         else:
-            await ctx.send("`{}` is not an enabled service.".format(service))
+            await ctx.send(
+                "`{}` is not an enabled service.".format(
+                    self.get_nice_service_name(service)
+                )
+            )
 
     @bancheckset.group()
     @commands.guild_only()
-    async def channel(self, ctx: commands.Context, channel: discord.TextChannel = None):
+    async def service(self, ctx: commands.Context):
+        """Manage the services BanCheck will use to lookup users."""
+        if not ctx.invoked_subcommand:
+            msg = "Available services:"
+            msg += await self.get_available_services(ctx)
+            await ctx.send(box(msg))
+
+    @service.command(name="enable")
+    async def service_enable(self, ctx: commands.Context, service: str):
+        """Enable a service."""
+        disabled_services = await self.config.guild(
+            ctx.message.guild
+        ).disabled_services()
+        if service in self.supported_services:
+            try:
+                disabled_services.remove(service)
+                await self.config.guild(ctx.message.guild).disabled_services.set(
+                    disabled_services
+                )
+                await ctx.send(
+                    "Ban checking with {} has now been enabled for this guild!".format(
+                        self.get_nice_service_name(service)
+                    )
+                )
+            except ValueError:
+                await ctx.send(
+                    "{} is already enabled for this guild.".format(
+                        self.get_nice_service_name(service)
+                    )
+                )
+        else:
+            await ctx.send(
+                "`{}` is not a valid service name.".format(
+                    self.get_nice_service_name(service)
+                )
+            )
+
+    @service.command(name="disable")
+    async def service_disable(self, ctx: commands.Context, service: str):
+        """Disable a service."""
+        disabled_services = await self.config.guild(
+            ctx.message.guild
+        ).disabled_services()
+        if service in self.supported_services and service in disabled_services:
+            await ctx.send(
+                "{} is already disabled for this guild.".format(
+                    self.get_nice_service_name(service)
+                )
+            )
+        elif service in self.supported_services:
+            disabled_services.append(service)
+            await self.config.guild(ctx.message.guild).disabled_services.set(
+                disabled_services
+            )
+            await ctx.send(
+                "Ban checking with {} has now been disabled for this guild!".format(
+                    self.get_nice_service_name(service)
+                )
+            )
+        else:
+            await ctx.send(
+                "`{}` is not a valid service name.".format(
+                    self.get_nice_service_name(service)
+                )
+            )
+
+    @bancheckset.group()
+    @commands.guild_only()
+    async def autoban(self, ctx: commands.Context):
+        """Manage which services are allowed to ban users automatically."""
+        if not ctx.invoked_subcommand:
+            msg = await self.get_auto_ban_message(ctx, False)
+            if await self.config.guild(ctx.message.guild).auto_ban():
+                disabled_auto_ban_services = await self.config.guild(
+                    ctx.message.guild
+                ).disabled_auto_ban_services()
+                if disabled_auto_ban_services:
+                    msg += "\nIt is manually disabled for these services:"
+                    for service in disabled_auto_ban_services.copy():
+                        try:
+                            msg += "\n  - {}".format(
+                                self.get_nice_service_name(service, True)
+                            )
+                        except KeyError:
+                            disabled_auto_ban_services.remove(service)
+                            await self.config.guild(
+                                ctx.message.guild
+                            ).disabled_auto_ban_services.set(disabled_auto_ban_services)
+                else:
+                    msg += " for all services"
+            await ctx.send(box(msg))
+
+    @autoban.command(name="enable")
+    async def autoban_service_enable(self, ctx: commands.Context, service: str):
+        """Allow a service to automatically ban new users."""
+        disabled_auto_ban_services = await self.config.guild(
+            ctx.message.guild
+        ).disabled_auto_ban_services()
+        if service in self.supported_services:
+            try:
+                disabled_auto_ban_services.remove(service)
+                await self.config.guild(
+                    ctx.message.guild
+                ).disabled_auto_ban_services.set(disabled_auto_ban_services)
+                await ctx.send(
+                    "Automatic banning with {} has now been enabled for this guild!".format(
+                        self.get_nice_service_name(service)
+                    )
+                )
+            except ValueError:
+                await ctx.send(
+                    "Automatic banning with {} is already enabled for this guild.".format(
+                        self.get_nice_service_name(service)
+                    )
+                )
+        else:
+            await ctx.send(
+                "`{}` is not a valid service name.".format(
+                    self.get_nice_service_name(service)
+                )
+            )
+
+    @autoban.command(name="disable")
+    async def autoban_service_disable(self, ctx: commands.Context, service: str):
+        """Disallow a service to automatically ban new users."""
+        disabled_auto_ban_services = await self.config.guild(
+            ctx.message.guild
+        ).disabled_auto_ban_services()
+        if service in self.supported_services and service in disabled_auto_ban_services:
+            await ctx.send(
+                "Automatic banning with {} is already disabled for this guild.".format(
+                    self.get_nice_service_name(service)
+                )
+            )
+        elif service in self.supported_services:
+            disabled_auto_ban_services.append(service)
+            await self.config.guild(ctx.message.guild).disabled_auto_ban_services.set(
+                disabled_auto_ban_services
+            )
+            await ctx.send(
+                "Automatic banning with {} has now been disabled for this guild!".format(
+                    self.get_nice_service_name(service)
+                )
+            )
+        else:
+            await ctx.send(
+                "`{}` is not a valid service name.".format(
+                    self.get_nice_service_name(service)
+                )
+            )
+
+    @autoban.command(name="on")
+    async def autoban_on(self, ctx: commands.Context):
+        """Enable auto ban functionality guild wide."""
+        if not await self.config.guild(ctx.message.guild).auto_ban():
+            await self.config.guild(ctx.message.guild).auto_ban.set(True)
+            await ctx.send(box("Auto Ban has been enabled for this guild!"))
+        else:
+            await ctx.send(box("Auto Ban is already enabled for this guild."))
+
+    @autoban.command(name="off")
+    async def autoban_off(self, ctx: commands.Context):
+        """Disable auto ban functionality guild wide."""
+        if await self.config.guild(ctx.message.guild).auto_ban():
+            await self.config.guild(ctx.message.guild).auto_ban.set(False)
+            await ctx.send(box("Auto Ban has been disabled for this guild!"))
+        else:
+            await ctx.send(box("Auto Ban is already disabled for this guild."))
+
+    @bancheckset.group()
+    @commands.guild_only()
+    async def channel(self, ctx: commands.Context):
         """Manage the channel used for BanCheck notices."""
         if not ctx.invoked_subcommand:
             msg = await self.get_channel_message(ctx)
             await ctx.send(box(msg))
 
     @channel.command(name="set")
-    @commands.guild_only()
     async def set_channel(
         self, ctx: commands.Context, channel: discord.TextChannel = None
     ):
@@ -181,7 +340,6 @@ class BanCheck(commands.Cog):
             await channel.send(":no_entry: **I'm not allowed to send embeds here.**")
 
     @channel.command(name="disable")
-    @commands.guild_only()
     async def disable_channel(self, ctx: commands.Context):
         """Disable automatically checking new users against ban lists."""
         if await self.config.guild(ctx.message.guild).notify_channel() is None:
@@ -198,7 +356,7 @@ class BanCheck(commands.Cog):
         if not member:
             member = ctx.message.author
         async with ctx.channel.typing():
-            await self.user_lookup(ctx.channel, member)
+            await self.user_lookup(ctx.channel, member, False)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -206,12 +364,16 @@ class BanCheck(commands.Cog):
         channel_id = await self.config.guild(member.guild).notify_channel()
         if channel_id:
             channel = self.bot.get_channel(channel_id)
-            await self.user_lookup(channel, member)
+            auto_ban = await self.config.guild(member.guild).auto_ban()
+            await self.user_lookup(channel, member, auto_ban)
 
-    async def user_lookup(self, channel: discord.TextChannel, member: discord.Member):
+    async def user_lookup(
+        self, channel: discord.TextChannel, member: discord.Member, auto_ban: bool
+    ):
         """Perform user lookup, and send results to a specific channel."""
         services = await self.config.services()
-        is_banned = False
+        banned_services = ""
+        auto_banned = False
         is_error = False
         checked = []
         description = "**Name:** {}\n**ID:** {}\n\n".format(member.name, member.id)
@@ -222,11 +384,23 @@ class BanCheck(commands.Cog):
                 service_class = self.supported_services[name]
             except KeyError:
                 continue
+            if name in await self.config.guild(channel.guild).disabled_services():
+                continue
             response = await service_class().lookup(member.id, config["api_key"])
             checked.append(service_class().SERVICE_NAME)
 
             if response.result == "ban":
-                is_banned = True
+                if banned_services:
+                    banned_services += ", "
+                banned_services += service_class().SERVICE_NAME
+                if (
+                    auto_ban
+                    and name
+                    not in await self.config.guild(
+                        channel.guild
+                    ).disabled_auto_ban_services()
+                ):
+                    auto_banned = True
 
                 proof = " (no proof provided)"
                 if response.proof_url:
@@ -258,10 +432,31 @@ class BanCheck(commands.Cog):
                     service_class().SERVICE_NAME, response.result
                 )
         # Display result
-        if is_banned:
+        if banned_services:
+            title = "Ban Found"
+            if auto_banned:
+                try:
+                    await member.send(
+                        "Hello! Since you are currently on a global ban list ({}), you have automatically been banned from this guild.".format(
+                            banned_services
+                        )
+                    )
+                except (discord.Forbidden, discord.NotFound):
+                    pass  # Couldn't message user for some reason...
+                try:
+                    await channel.guild.ban(
+                        member,
+                        reason="Automatic ban from BanCheck lookup on {}".format(
+                            banned_services
+                        ),
+                        delete_message_days=1,
+                    )
+                    title += " - Auto Banned"
+                except discord.Forbidden:
+                    title += " - Not allowed to Auto Ban"
             await channel.send(
                 embed=self.embed_maker(
-                    "Ban Found", discord.Colour.red(), description, member.avatar_url
+                    title, discord.Colour.red(), description, member.avatar_url
                 )
             )
         elif is_error:
@@ -283,7 +478,7 @@ class BanCheck(commands.Cog):
                 )
             )
 
-    async def get_available_services(self):
+    async def get_supported_services(self):
         """Get the currently supported BanCheck services."""
         result = ""
         for service, clazz in self.supported_services.items():
@@ -292,13 +487,79 @@ class BanCheck(commands.Cog):
             )
         return result
 
+    async def get_available_services(self, ctx: commands.Context):
+        """Get the message for BanCheck available services."""
+        max_length = 0
+        for service in self.supported_services:
+            max_length = max(max_length, len(self.get_nice_service_name(service)))
+        max_length += 1
+
+        msg = ""
+        enabled_services = await self.config.services()
+        for service in self.supported_services:
+            msg += "\n  {}".format(self.get_nice_service_name(service))
+            msg += " " * (max_length - len(self.get_nice_service_name(service)))
+            if service in enabled_services:
+                try:
+                    if (
+                        service
+                        in await self.config.guild(
+                            ctx.message.guild
+                        ).disabled_services()
+                    ):
+                        msg += "- Disabled"
+                    elif (
+                        service
+                        in await self.config.guild(
+                            ctx.message.guild
+                        ).disabled_auto_ban_services()
+                    ):
+                        msg += "- Enabled (Auto Ban manually disabled)"
+                    else:
+                        msg += "- Enabled"
+                except AttributeError:  # This is in a DM
+                    msg += "- Enabled Globally"
+            else:
+                msg += "- Disabled (Bot owner hasn't set an API key)"
+        return msg
+
     async def get_channel_message(self, ctx: commands.Context):
         """Get the message for BanCheck notices channel."""
-        channel_name = "Disabled"
-        channel_id = await self.config.guild(ctx.message.guild).notify_channel()
-        if channel_id:
-            channel_name = self.bot.get_channel(channel_id)
-        return "BanCheck notices channel: {}\n".format(channel_name)
+        try:
+            channel_name = "Disabled"
+            channel_id = await self.config.guild(ctx.message.guild).notify_channel()
+            if channel_id:
+                channel_name = self.bot.get_channel(channel_id)
+            return "BanCheck notices channel: {}\n".format(channel_name)
+        except AttributeError:
+            return ""  # This is in a DM
+
+    async def get_auto_ban_message(
+        self, ctx: commands.Context, trailing_newline: bool = True
+    ):
+        """Get the message for BanCheck auto ban status."""
+        try:
+            if not await self.config.guild(ctx.message.guild).notify_channel():
+                return "Auto Ban is currently disabled (set BanCheck notices channel first){}".format(
+                    "\n" if trailing_newline else ""
+                )
+            auto_ban_enabled = await self.config.guild(ctx.message.guild).auto_ban()
+            return "Auto Ban is currently {}{}".format(
+                "enabled" if auto_ban_enabled else "disabled",
+                "\n" if trailing_newline else "",
+            )
+        except AttributeError:
+            return ""  # This is in a DM
+
+    def get_nice_service_name(self, service: str, raise_exception: bool = False):
+        """Get the nice name for a service."""
+        nice_name = service
+        try:
+            nice_name = self.supported_services[service].SERVICE_NAME
+        except KeyError:
+            if raise_exception:
+                raise
+        return nice_name
 
     @staticmethod
     def embed_maker(title, color, description, avatar=None):

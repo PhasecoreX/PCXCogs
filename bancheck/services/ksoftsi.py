@@ -9,7 +9,7 @@ class ksoftsi:
     """Ban lookup for KSoft.Si."""
 
     SERVICE_NAME = "KSoft.Si"
-    SERVICE_URL = "https://api.ksoft.si"
+    SERVICE_URL = "https://api.ksoft.si/#get-started"
     SERVICE_BASE_URL = "https://api.ksoft.si/bans"
 
     @staticmethod
