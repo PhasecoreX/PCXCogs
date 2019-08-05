@@ -219,17 +219,15 @@ class BanCheck(commands.Cog):
                     ctx.message.guild
                 ).disabled_auto_ban_services()
                 if disabled_auto_ban_services:
-                    msg += "\nIt is manually disabled for these services:"
-                    for service in disabled_auto_ban_services.copy():
-                        try:
-                            msg += "\n  - {}".format(
-                                self.get_nice_service_name(service, True)
+                    disabled_service_string = ""
+                    for service in disabled_auto_ban_services:
+                        if service in self.supported_services:
+                            disabled_service_string += "\n  - {}".format(
+                                self.get_nice_service_name(service)
                             )
-                        except KeyError:
-                            disabled_auto_ban_services.remove(service)
-                            await self.config.guild(
-                                ctx.message.guild
-                            ).disabled_auto_ban_services.set(disabled_auto_ban_services)
+                    if disabled_service_string:
+                        msg += "\nIt is manually disabled for these services:"
+                        msg += disabled_service_string
                 else:
                     msg += " for all services"
             await ctx.send(box(msg))
@@ -551,14 +549,13 @@ class BanCheck(commands.Cog):
         except AttributeError:
             return ""  # This is in a DM
 
-    def get_nice_service_name(self, service: str, raise_exception: bool = False):
+    def get_nice_service_name(self, service: str):
         """Get the nice name for a service."""
         nice_name = service
         try:
             nice_name = self.supported_services[service].SERVICE_NAME
         except KeyError:
-            if raise_exception:
-                raise
+            pass
         return nice_name
 
     @staticmethod
