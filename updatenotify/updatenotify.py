@@ -50,7 +50,10 @@ class UpdateNotify(commands.Cog):
                 "Next check in:             {} minutes"
             ).format(
                 await self.config.update_check_interval(),
-                round((self.next_check - datetime.datetime.now()).total_seconds() / 60.0, 1),
+                round(
+                    (self.next_check - datetime.datetime.now()).total_seconds() / 60.0,
+                    1,
+                ),
             )
             if self.docker_version:
                 msg += "\nCheck Docker image update: {}".format(
@@ -65,8 +68,10 @@ class UpdateNotify(commands.Cog):
             interval = 5
         await self.config.update_check_interval.set(interval)
         await ctx.send(
-            "Update check interval is now set to {} minutes".format(
-                await self.config.update_check_interval()
+            checkmark(
+                "Update check interval is now set to {} minutes".format(
+                    await self.config.update_check_interval()
+                )
             )
         )
         if self.task:
@@ -92,8 +97,10 @@ class UpdateNotify(commands.Cog):
         state = not state
         await self.config.check_pcx_docker.set(state)
         await ctx.send(
-            "Docker image version checking is now {}.".format(
-                "enabled" if state else "disabled"
+            checkmark(
+                "Docker image version checking is now {}.".format(
+                    "enabled" if state else "disabled"
+                )
             )
         )
 
@@ -258,3 +265,8 @@ class UpdateNotify(commands.Cog):
                 0, seconds_to_sleep
             )
             await asyncio.sleep(seconds_to_sleep)
+
+
+def checkmark(text: str) -> str:
+    """Get text prefixed with a checkmark emoji."""
+    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

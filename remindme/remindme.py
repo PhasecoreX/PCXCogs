@@ -73,8 +73,10 @@ class RemindMe(commands.Cog):
         """Set the maximum number of reminders a user can create at one time."""
         await self.config.max_user_reminders.set(maximum)
         await ctx.send(
-            "Maximum reminders per user is now set to {}".format(
-                await self.config.max_user_reminders()
+            checkmark(
+                "Maximum reminders per user is now set to {}".format(
+                    await self.config.max_user_reminders()
+                )
             )
         )
 
@@ -200,9 +202,7 @@ class RemindMe(commands.Cog):
         can_edit = ctx.channel.permissions_for(ctx.me).manage_messages
         if can_react and can_edit:
             query: discord.Message = await ctx.send(
-                "If anyone else would like to be reminded as well, click the {} below!".format(
-                    self.reminder_emoji
-                )
+                "If anyone else would like to be reminded as well, click the bell below!"
             )
             self.me_too_reminders[query.id] = reminder
             await query.add_reaction(self.reminder_emoji)
@@ -342,3 +342,8 @@ class RemindMe(commands.Cog):
                 async with self.config.reminders() as current_reminders:
                     current_reminders.remove(reminder)
             await asyncio.sleep(self.time)
+
+
+def checkmark(text: str) -> str:
+    """Get text prefixed with a checkmark emoji."""
+    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

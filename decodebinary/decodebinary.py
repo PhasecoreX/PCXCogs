@@ -45,10 +45,10 @@ class DecodeBinary(commands.Cog):
         guild = ctx.message.guild
         if await self.config.guild(guild).ignore_guild():
             await self.config.guild(guild).ignore_guild.set(False)
-            await ctx.send("I will no longer ignore this server.")
+            await ctx.send(checkmark("I will no longer ignore this server."))
         else:
             await self.config.guild(guild).ignore_guild.set(True)
-            await ctx.send("I will ignore this server.")
+            await ctx.send(checkmark("I will ignore this server."))
 
     @decodebinaryignore.command(name="channel")
     async def _decodebinaryignore_channel(self, ctx: commands.Context):
@@ -58,10 +58,10 @@ class DecodeBinary(commands.Cog):
         ignored_channels = await self.config.guild(guild).ignored_channels()
         if channel.id in ignored_channels:
             ignored_channels.remove(channel.id)
-            await ctx.send("I will no longer ignore this channel.")
+            await ctx.send(checkmark("I will no longer ignore this channel."))
         else:
             ignored_channels.append(channel.id)
-            await ctx.send("I will ignore this channel.")
+            await ctx.send(checkmark("I will ignore this channel."))
         await self.config.guild(guild).ignored_channels.set(ignored_channels)
 
     @commands.Cog.listener()
@@ -150,3 +150,8 @@ class DecodeBinary(commands.Cog):
             return True
         except UnicodeEncodeError:
             return False
+
+
+def checkmark(text: str) -> str:
+    """Get text prefixed with a checkmark emoji."""
+    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

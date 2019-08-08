@@ -5,7 +5,7 @@ from io import BytesIO
 from tokenize import NAME, NUMBER, OP, tokenize
 
 from redbot.core import Config, checks, commands
-from redbot.core.utils.chat_formatting import box
+from redbot.core.utils.chat_formatting import box, error, question, warning
 from redbot.core.utils.predicates import MessagePredicate
 
 from .evaluate import eval_expr
@@ -56,10 +56,12 @@ class Dice(commands.Cog):
             action = "has been left at"
             pred = MessagePredicate.yes_or_no(ctx)
             await ctx.send(
-                (
-                    "Are you **sure** you want to set the maximum rolls to {}? (yes/no)\n"
-                    "Setting this over one million will allow other users to "
-                    "slow down/freeze/crash your bot!".format(maximum)
+                question(
+                    (
+                        "Are you **sure** you want to set the maximum rolls to {}? (yes/no)\n"
+                        "Setting this over one million will allow other users to "
+                        "slow down/freeze/crash your bot!".format(maximum)
+                    )
                 )
             )
             try:
@@ -75,8 +77,10 @@ class Dice(commands.Cog):
             await self.config.max_dice_rolls.set(maximum)
             action = "is now set to"
         await ctx.send(
-            "Maximum dice rolls per user {} {}".format(
-                action, await self.config.max_dice_rolls()
+            checkmark(
+                "Maximum dice rolls per user {} {}".format(
+                    action, await self.config.max_dice_rolls()
+                )
             )
         )
 
@@ -90,8 +94,10 @@ class Dice(commands.Cog):
         """
         await self.config.max_die_sides.set(maximum)
         await ctx.send(
-            "Maximum die sides is now set to {}".format(
-                await self.config.max_die_sides()
+            checkmark(
+                "Maximum die sides is now set to {}".format(
+                    await self.config.max_die_sides()
+                )
             )
         )
 
@@ -133,38 +139,48 @@ class Dice(commands.Cog):
                 if len(roll_log) > 1500:
                     roll_log = "\n*(Log too long to display)*"
                 await ctx.send(
-                    "{} rolled {} and got **{}**{}".format(
+                    "\N{GAME DIE} {} rolled {} and got **{}**{}".format(
                         ctx.message.author.mention, roll_friendly, result, roll_log
                     )
                 )
             else:
                 await ctx.send(
-                    "{}, that notation doesn't have any dice for me to roll.".format(
-                        ctx.message.author.mention
+                    warning(
+                        "{}, that notation doesn't have any dice for me to roll.".format(
+                            ctx.message.author.mention
+                        )
                     )
                 )
         except TooManySides as exception:
             await ctx.send(
-                "{}, I don't own a {} sided die to perform that roll.".format(
-                    ctx.message.author.mention, exception.value
+                error(
+                    "{}, I don't own a {} sided die to perform that roll.".format(
+                        ctx.message.author.mention, exception.value
+                    )
                 )
             )
         except TooManyDice:
             await ctx.send(
-                "{}, I don't have that many dice to roll...".format(
-                    ctx.message.author.mention
+                error(
+                    "{}, I don't have that many dice to roll...".format(
+                        ctx.message.author.mention
+                    )
                 )
             )
         except KeyError:
             await ctx.send(
-                "{}, that is too complex for me to roll.".format(
-                    ctx.message.author.mention
+                error(
+                    "{}, that is too complex for me to roll.".format(
+                        ctx.message.author.mention
+                    )
                 )
             )
         except (ValueError, SyntaxError, TypeError):
             await ctx.send(
-                "{}, that doesn't seem like a proper dice equation.".format(
-                    ctx.message.author.mention
+                error(
+                    "{}, that doesn't seem like a proper dice equation.".format(
+                        ctx.message.author.mention
+                    )
                 )
             )
 
@@ -246,3 +262,8 @@ class TooManySides(ValueError):
         """Set the value that is too many sides."""
         super().__init__()
         self.value = value
+
+
+def checkmark(text: str) -> str:
+    """Get text prefixed with a checkmark emoji."""
+    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

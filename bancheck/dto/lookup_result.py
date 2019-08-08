@@ -1,9 +1,5 @@
 """A user lookup result."""
-import re
-
-MASS_MENTION_RE = re.compile(
-    r"(@)(?=everyone|here)"
-)  # This only matches the @ for sanitizing
+from redbot.core.utils.chat_formatting import escape
 
 
 class LookupResult:
@@ -23,5 +19,5 @@ class LookupResult:
         self.service = service
         self.result = result
         self.http_status = http_status
-        self.reason = MASS_MENTION_RE.sub("@\u200b", reason)
+        self.reason = escape(reason, mass_mentions=True)
         self.proof_url = proof_url
