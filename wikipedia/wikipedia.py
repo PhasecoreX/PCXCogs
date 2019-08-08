@@ -1,8 +1,9 @@
 """Wikipedia cog for Red-DiscordBot ported by PhasecoreX."""
 import aiohttp
 import discord
-from redbot.core import commands
 from redbot.core import __version__ as redbot_version
+from redbot.core import commands
+from redbot.core.utils.chat_formatting import error, warning
 
 __author__ = "PhasecoreX"
 
@@ -52,7 +53,11 @@ class Wikipedia(commands.Cog):
 
         except KeyError:
             await ctx.send(
-                "I'm sorry, I couldn't find \"{}\" on Wikipedia".format(query)
+                error("I'm sorry, I couldn't find \"{}\" on Wikipedia".format(query))
+            )
+        except discord.errors.Forbidden:
+            await ctx.send(
+                warning("I'm not allowed to do embeds here...\n{}".format(url))
             )
 
     @staticmethod
