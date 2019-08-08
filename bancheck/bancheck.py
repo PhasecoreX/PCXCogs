@@ -404,7 +404,7 @@ class BanCheck(commands.Cog):
     ):
         """Perform user lookup, and send results to a specific channel."""
         services = await self.config.services()
-        banned_services = ""
+        banned_services: Dict[str, str] = {}
         auto_banned = False
         is_error = False
         checked = []
@@ -422,9 +422,7 @@ class BanCheck(commands.Cog):
             checked.append(service_class().SERVICE_NAME)
 
             if response.result == "ban":
-                if banned_services:
-                    banned_services += ", "
-                banned_services += service_class().SERVICE_NAME
+                banned_services[service_class().SERVICE_NAME] = response.reason
                 if (
                     auto_ban
                     and name
@@ -469,22 +467,27 @@ class BanCheck(commands.Cog):
             if auto_banned:
                 try:
                     await member.send(
-                        "Hello! Since you are currently on a global ban list ({}), you have automatically been banned from this guild.".format(
-                            banned_services
+                        "Hello! Since you are currently on {} ({}), you have automatically been banned from {}.".format(
+                            "a global ban list"
+                            if len(banned_services) == 1
+                            else "multiple global ban lists",
+                            ", ".join(banned_services),
+                            member.guild
                         )
                     )
-                except (discord.Forbidden, discord.NotFound):
+                except (discord.errors.Forbidden, discord.errors.NotFound):
                     pass  # Couldn't message user for some reason...
                 try:
+                    reasons = []
+                    for name, reason in banned_services.items():
+                        reasons.append("{} ({})".format(name, reason))
                     await channel.guild.ban(
                         member,
-                        reason="Automatic ban from BanCheck lookup on {}".format(
-                            banned_services
-                        ),
+                        reason="BanCheck auto ban: {}".format(", ".join(reasons)),
                         delete_message_days=1,
                     )
                     title += " - Auto Banned"
-                except discord.Forbidden:
+                except discord.errors.Forbidden:
                     title += " - Not allowed to Auto Ban"
             await channel.send(
                 embed=self.embed_maker(
