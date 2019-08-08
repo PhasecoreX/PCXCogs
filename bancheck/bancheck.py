@@ -1,4 +1,6 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
+from typing import Any, Dict
+
 import discord
 from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import box, error, info
@@ -13,7 +15,7 @@ __version__ = "1.0.0"
 class BanCheck(commands.Cog):
     """Look up users on various ban lists."""
 
-    default_global_settings = {"services": {}}
+    default_global_settings: Any = {"services": {}}
     default_guild_settings = {
         "notify_channel": None,
         "auto_ban": False,

@@ -3,6 +3,7 @@ import asyncio
 import random
 from io import BytesIO
 from tokenize import NAME, NUMBER, OP, tokenize
+from typing import List, Union
 
 from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import box, error, question, warning
@@ -187,7 +188,7 @@ class Dice(commands.Cog):
     @staticmethod
     def get_equation_tokens(roll: str, max_dice: int, max_sides: int):
         """Tokenize roll string and parse #d# dice."""
-        result = []
+        result: List[Union[int, str, Die]] = []
         previous_number = None
         for toktype, tokval, _, _, _ in tokenize(
             BytesIO(roll.encode("utf-8")).readline
