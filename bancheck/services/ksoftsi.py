@@ -10,6 +10,7 @@ class ksoftsi:
 
     SERVICE_NAME = "KSoft.Si"
     SERVICE_URL = "https://api.ksoft.si/#get-started"
+    SERVICE_HINT = "You only need to do Step 1 in order to get an API key"
     SERVICE_BASE_URL = "https://api.ksoft.si/bans"
 
     @staticmethod

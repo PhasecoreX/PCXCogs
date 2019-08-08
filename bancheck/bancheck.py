@@ -84,25 +84,29 @@ class BanCheck(commands.Cog):
     async def api(self, ctx: commands.Context):
         """Globally set up BanCheck services."""
         if not ctx.invoked_subcommand:
-            msg = "Supported services:"
-            msg += await self.get_supported_services()
+            msg = await self.get_supported_services()
             try:
-                embed = self.embed_maker(None, discord.Colour.green(), msg)
+                embed = self.embed_maker(
+                    "Supported services:", discord.Colour.green(), msg
+                )
                 await ctx.send(embed=embed)
             except (discord.errors.Forbidden):
-                await ctx.send(msg)  # Embeds not allowed, send ugly message instead.
+                await ctx.send("Supported services:\n{}".format(msg))  # Embeds not allowed, send ugly message instead.
 
     @api.command(name="enable")
     async def api_enable(self, ctx: commands.Context, service: str, api: str):
         """Enable a service globally by specifying it's API key."""
         if service not in self.supported_services:
-            msg = "The only services we support so far are:"
-            msg += await self.get_supported_services()
+            msg = await self.get_supported_services()
             try:
-                embed = self.embed_maker(None, discord.Colour.red(), msg)
+                embed = self.embed_maker(
+                    "The only services we support so far are:",
+                    discord.Colour.red(),
+                    msg,
+                )
                 await ctx.send(embed=embed)
             except (discord.errors.Forbidden):
-                await ctx.send(msg)  # Embeds not allowed, send ugly message instead.
+                await ctx.send("The only services we support so far are:\n{}".format(msg))  # Embeds not allowed, send ugly message instead.
             return
         services = await self.config.services()
         update = True
@@ -472,7 +476,7 @@ class BanCheck(commands.Cog):
                             if len(banned_services) == 1
                             else "multiple global ban lists",
                             ", ".join(banned_services),
-                            member.guild
+                            member.guild,
                         )
                     )
                 except (discord.errors.Forbidden, discord.errors.NotFound):
@@ -517,9 +521,13 @@ class BanCheck(commands.Cog):
         """Get the currently supported BanCheck services."""
         result = ""
         for service, clazz in self.supported_services.items():
-            result += "\n- `{}` ([{}]({}))".format(
+            result += "\n- `{}` - [{}]({})".format(
                 service, clazz.SERVICE_NAME, clazz.SERVICE_URL
             )
+            try:
+                result += " ({})".format(clazz.SERVICE_HINT)
+            except AttributeError:
+                pass  # No hint for this service
         return result
 
     async def get_available_services(self, ctx: commands.Context):
