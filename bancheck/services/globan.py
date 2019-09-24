@@ -19,7 +19,7 @@ class globan:
         """Perform user lookup on Globan."""
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                "https://www.globan.xyz/API?TOKEN="
+                "https://www.globan.xyz/API?REV=1&TOKEN="
                 + api_key
                 + "&TYPE=BANCHECK&VALUE="
                 + str(user_id),
