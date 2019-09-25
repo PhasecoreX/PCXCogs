@@ -44,10 +44,16 @@ class ksoftsi:
                 if resp.status != 200:
                     return LookupResult(ksoftsi.SERVICE_NAME, resp.status, "error")
                 data = await resp.json()
+                if not data:
+                    return LookupResult(
+                        ksoftsi.SERVICE_NAME,
+                        resp.status,
+                        "error",
+                        reason="No data returned",
+                    )
                 if not data["is_banned"]:
                     return LookupResult(ksoftsi.SERVICE_NAME, resp.status, "clear")
 
-        async with aiohttp.ClientSession() as session:
             async with session.get(
                 ksoftsi.SERVICE_BASE_URL + "/info",
                 params={"user": str(user_id)},
@@ -106,6 +112,13 @@ class ksoftsi:
                 if resp.status != 200:
                     return LookupResult(ksoftsi.SERVICE_NAME, resp.status, "error")
                 data = await resp.json()
+                if not data:
+                    return LookupResult(
+                        ksoftsi.SERVICE_NAME,
+                        resp.status,
+                        "error",
+                        reason="No data returned",
+                    )
                 return LookupResult(
                     ksoftsi.SERVICE_NAME,
                     resp.status,

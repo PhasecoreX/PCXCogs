@@ -25,6 +25,13 @@ class discordservices:
                             discordservices.SERVICE_NAME, resp.status, "error"
                         )
                     data = await resp.json()
+                    if not data:
+                        return LookupResult(
+                            discordservices.SERVICE_NAME,
+                            resp.status,
+                            "error",
+                            reason="No data returned",
+                        )
                     if "ban" in data:
                         return LookupResult(
                             discordservices.SERVICE_NAME,
