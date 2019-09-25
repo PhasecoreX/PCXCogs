@@ -1,0 +1,12 @@
+{
+    "name": "UwU",
+    "author": [
+        "PhasecoreX (PhasecoreX#0635)"
+    ],
+    "short": "Uwuize messages.",
+    "description": "Takes the pwevious mwessage and uwuizes it. Sowwy.",
+    "install_msg": "Hewwo!! OwO",
+    "tags": [
+        "utility"
+    ]
+}
