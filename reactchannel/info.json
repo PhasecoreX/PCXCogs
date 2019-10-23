@@ -1,0 +1,8 @@
+{
+    "name": "ReactChannel",
+    "author": ["PhasecoreX (PhasecoreX#0635)"],
+    "short": "Per-channel automatic reaction tools.",
+    "description": "Allows for channels to be set up to have reactions automatically added to messages. This can facilitate things such as an upvote/downvote system, a checklist system, or a starboard.",
+    "install_msg": "Thanks for installing ReactChannel!",
+    "tags": ["checklist", "downvote", "starboard", "upvote", "utility", "vote"]
+}
