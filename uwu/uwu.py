@@ -75,5 +75,5 @@ class UwU(commands.Cog):
             async with channel.typing():
                 await asyncio.sleep(len(message) * 0.01)
                 await self.bot.send_filtered(channel, content=message)
-        except discord.errors.Forbidden:
+        except discord.Forbidden:
             pass  # Not awwowed to send mwessages in dis channew

@@ -90,7 +90,7 @@ class BanCheck(commands.Cog):
                     "Supported services:", discord.Colour.green(), msg
                 )
                 await ctx.send(embed=embed)
-            except (discord.errors.Forbidden):
+            except (discord.Forbidden):
                 await ctx.send("Supported services:\n{}".format(msg))  # Embeds not allowed, send ugly message instead.
 
     @api.command(name="enable")
@@ -105,7 +105,7 @@ class BanCheck(commands.Cog):
                     msg,
                 )
                 await ctx.send(embed=embed)
-            except (discord.errors.Forbidden):
+            except (discord.Forbidden):
                 await ctx.send("The only services we support so far are:\n{}".format(msg))  # Embeds not allowed, send ugly message instead.
             return
         services = await self.config.services()
@@ -372,7 +372,7 @@ class BanCheck(commands.Cog):
                 self.bot.user.avatar_url,
             )
             await channel.send(embed=embed)
-        except (discord.errors.Forbidden, discord.errors.NotFound):
+        except (discord.Forbidden, discord.NotFound):
             await channel.send(error("**I'm not allowed to send embeds here.**"))
 
     @channel.command(name="disable")
@@ -479,7 +479,7 @@ class BanCheck(commands.Cog):
                             member.guild,
                         )
                     )
-                except (discord.errors.Forbidden, discord.errors.NotFound):
+                except (discord.Forbidden, discord.NotFound):
                     pass  # Couldn't message user for some reason...
                 try:
                     reasons = []
@@ -491,7 +491,7 @@ class BanCheck(commands.Cog):
                         delete_message_days=1,
                     )
                     title += " - Auto Banned"
-                except discord.errors.Forbidden:
+                except discord.Forbidden:
                     title += " - Not allowed to Auto Ban"
             await channel.send(
                 embed=self.embed_maker(

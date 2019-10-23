@@ -55,7 +55,7 @@ class Wikipedia(commands.Cog):
             await ctx.send(
                 error("I'm sorry, I couldn't find \"{}\" on Wikipedia".format(query))
             )
-        except discord.errors.Forbidden:
+        except discord.Forbidden:
             await ctx.send(
                 warning("I'm not allowed to do embeds here...\n{}".format(url))
             )

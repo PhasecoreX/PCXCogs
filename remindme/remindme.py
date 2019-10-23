@@ -332,9 +332,9 @@ class RemindMe(commands.Cog):
                         else:
                             # Can't see the user (no shared servers)
                             to_remove.append(reminder)
-                    except (discord.errors.Forbidden, discord.errors.NotFound):
+                    except (discord.Forbidden, discord.NotFound):
                         to_remove.append(reminder)
-                    except discord.errors.HTTPException:
+                    except discord.HTTPException:
                         pass
                     else:
                         to_remove.append(reminder)
