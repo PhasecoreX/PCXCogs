@@ -8,7 +8,7 @@ from ..dto.lookup_result import LookupResult
 class ksoftsi:
     """Ban lookup for KSoft.Si."""
 
-    SERVICE_NAME = "KSoft.Si"
+    SERVICE_NAME = "KSoft.Si Bans"
     SERVICE_URL = "https://api.ksoft.si/#get-started"
     SERVICE_HINT = "You only need to do Step 1 in order to get an API key"
     SERVICE_BASE_URL = "https://api.ksoft.si/bans"
