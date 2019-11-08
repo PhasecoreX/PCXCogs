@@ -62,11 +62,14 @@ class UpdateNotify(commands.Cog):
             await ctx.send(box(msg))
 
     @updatenotify.command()
-    async def interval(self, ctx: commands.Context, interval: int):
-        """Set the interval that UpdateNotify should check for updates."""
-        if interval < 5:
-            interval = 5
-        await self.config.update_check_interval.set(interval)
+    async def interval(self, ctx: commands.Context, minutes: int):
+        """Set the interval in minutes that UpdateNotify should check for updates.
+
+        The minimum interval that can be set is 5 minutes.
+        """
+        if minutes < 5:
+            minutes = 5
+        await self.config.update_check_interval.set(minutes)
         await ctx.send(
             checkmark(
                 "Update check interval is now set to {} minutes".format(
