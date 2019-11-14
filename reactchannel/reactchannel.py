@@ -89,38 +89,48 @@ class ReactChannel(commands.Cog):
             await message.add_reaction("\N{DOWNWARDS BLACK ARROW}")
 
     @commands.Cog.listener()
-    async def on_reaction_add(self, reaction: discord.Reaction, member: discord.Member):
+    async def on_raw_reaction_add(self, payload: discord.RawMessageUpdateEvent):
         """Watch for reactions on messages in react channels and perform actions on them."""
-        if not reaction.message or not reaction.message.guild:
+        guild = self.bot.get_guild(payload.guild_id)
+        channel = self.bot.get_channel(payload.channel_id)
+        user = self.bot.get_user(payload.user_id)
+        if not guild or not channel or not user or not payload.message_id:
             return
-        if member.bot:
+        if user.bot:
             return
-        channels = await self.config.guild(reaction.message.guild).channels()
-        channel_type = channels[str(reaction.message.channel.id)]
+        channels = await self.config.guild(guild).channels()
+        if str(payload.channel_id) not in channels:
+            return
+        channel_type = channels[str(payload.channel_id)]
+        message = await channel.fetch_message(payload.message_id)
+        if not message:
+            return
+        # Checklist
         if (
-            str(reaction.emoji) == "\N{WHITE HEAVY CHECK MARK}"
+            str(payload.emoji) == "\N{WHITE HEAVY CHECK MARK}"
             and channel_type == "checklist"
         ):
             try:
-                await reaction.message.delete()
+                await message.delete()
             except (discord.Forbidden, discord.HTTPException):
                 pass
+        # Vote
         elif (
-            str(reaction.emoji) == "\N{UPWARDS BLACK ARROW}"
-            or str(reaction.emoji) == "\N{DOWNWARDS BLACK ARROW}"
+            str(payload.emoji) == "\N{UPWARDS BLACK ARROW}"
+            or str(payload.emoji) == "\N{DOWNWARDS BLACK ARROW}"
         ) and channel_type == "vote":
             opposite_emoji = (
                 "\N{DOWNWARDS BLACK ARROW}"
-                if str(reaction.emoji) == "\N{UPWARDS BLACK ARROW}"
+                if str(payload.emoji) == "\N{UPWARDS BLACK ARROW}"
                 else "\N{UPWARDS BLACK ARROW}"
             )
             opposite_reactions = next(
                 reaction
-                for reaction in reaction.message.reactions
+                for reaction in message.reactions
                 if str(reaction.emoji) == opposite_emoji
             )
             try:
-                await opposite_reactions.remove(member)
+                await opposite_reactions.remove(user)
             except (discord.Forbidden, discord.HTTPException, discord.NotFound):
                 pass
 
