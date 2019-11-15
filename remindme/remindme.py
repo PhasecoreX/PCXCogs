@@ -318,9 +318,7 @@ class RemindMe(commands.Cog):
             for reminder in await self.config.reminders():
                 if reminder["FUTURE"] <= int(time.time()):
                     try:
-                        user = discord.utils.get(
-                            self.bot.get_all_members(), id=reminder["ID"]
-                        )
+                        user = self.bot.get_user(reminder["ID"])
                         if user is not None:
                             await user.send(
                                 "Hello! You asked me to remind you this {} ago:\n{}".format(
