@@ -1,5 +1,6 @@
 """RemindMe cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
 import asyncio
+import re
 import time
 
 import discord
@@ -103,15 +104,20 @@ class RemindMe(commands.Cog):
                 await self.send_message(ctx, "Check your DMs for a full list!")
 
     @reminder.command(aliases=["add"])
-    async def create(
-        self, ctx: commands.Context, quantity: int, time_unit: str, *, text: str
-    ):
+    async def create(self, ctx: commands.Context, time: str, *, text: str):
         """Create a reminder.
 
         Same as [p]remindme
         Accepts: minutes, hours, days, weeks, months
-        Example: [p]reminder create 3 days Have sushi with Ryan and Heather
+        Examples:
+        - [p]reminder create 3 days Have sushi with Ryan and Heather
+        - [p]reminder create 2m Do that thing in 2 minutes
         """
+        try:
+            quantity, time_unit, text = self.get_create_components(time, text)
+        except ValueError:
+            await ctx.send_help()
+            return
         await self.create_reminder(ctx, quantity, time_unit, text=text)
 
     @reminder.command(aliases=["delete"])
@@ -126,14 +132,19 @@ class RemindMe(commands.Cog):
         await self.delete_reminder(ctx, index)
 
     @commands.command()
-    async def remindme(
-        self, ctx: commands.Context, quantity: int, time_unit: str, *, text: str
-    ):
+    async def remindme(self, ctx: commands.Context, time: str, *, text: str):
         """Send you <text> when the time is up.
 
         Accepts: minutes, hours, days, weeks, months
-        Example: [p]remindme 3 days Have sushi with Ryan and Heather
+        Examples:
+        - [p]remindme 3 days Have sushi with Ryan and Heather
+        - [p]remindme 2m Do that thing in 2 minutes
         """
+        try:
+            quantity, time_unit, text = self.get_create_components(time, text)
+        except ValueError:
+            await ctx.send_help()
+            return
         await self.create_reminder(ctx, quantity, time_unit, text=text)
 
     @commands.command()
@@ -168,11 +179,12 @@ class RemindMe(commands.Cog):
             plural = "s"
         if time_unit not in self.units:
             await self.send_message(
-                ctx, "Invalid time unit. Choose minutes/hours/days/weeks/months"
+                ctx,
+                "You specified an invalid time unit. Choose minutes/hours/days/weeks/months instead.",
             )
             return
         if quantity < 1:
-            await self.send_message(ctx, "Quantity must be greater than 0.")
+            await self.send_message(ctx, "Reminder time cannot be negative.")
             return
         if len(text) > 1960:
             await self.send_message(ctx, "Your reminder text is too long.")
@@ -261,6 +273,21 @@ class RemindMe(commands.Cog):
                 if reminder["ID"] == user_id:
                     result.append(reminder)
         return result
+
+    @staticmethod
+    def get_create_components(time: str, text: str):
+        """Convert a time and text into a quantity, time unit, and text."""
+        match = re.fullmatch(r"(-?[0-9]+)([A-z]+)", time)
+        if match:
+            quantity = int(match[1])
+            time_unit = match[2]
+        else:
+            quantity = int(time)
+            time_unit = text.split()[0]
+            text = text[len(time_unit) :].lstrip()
+            if not text:
+                raise ValueError
+        return (quantity, time_unit, text)
 
     @staticmethod
     async def send_message(ctx: commands.Context, message: str):
