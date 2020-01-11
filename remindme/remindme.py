@@ -1,11 +1,12 @@
 """RemindMe cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
 import asyncio
-import re
-import time
+import time as current_time
+from datetime import timedelta
 
 import discord
 from redbot.core import Config, checks, commands
-from redbot.core.utils.chat_formatting import box
+from redbot.core.commands.converter import parse_timedelta
+from redbot.core.utils.chat_formatting import box, humanize_timedelta
 
 __author__ = "PhasecoreX"
 
@@ -26,22 +27,6 @@ class RemindMe(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)
         self.config.register_global(**self.default_global_settings)
-        self.units = {
-            "minute": 60,
-            "min": 60,
-            "m": 60,
-            "hour": 3600,
-            "hr": 3600,
-            "h": 3600,
-            "day": 86400,
-            "d": 86400,
-            "week": 604800,
-            "wk": 604800,
-            "w": 604800,
-            "month": 2592000,
-            "mon": 2592000,
-            "mo": 2592000,
-        }
         self.time = 5
         self.task = self.bot.loop.create_task(self.check_reminders())
         self.me_too_reminders = {}
@@ -73,12 +58,11 @@ class RemindMe(commands.Cog):
     async def max(self, ctx: commands.Context, maximum: int):
         """Set the maximum number of reminders a user can create at one time."""
         await self.config.max_user_reminders.set(maximum)
-        await ctx.send(
-            checkmark(
-                "Maximum reminders per user is now set to {}".format(
-                    await self.config.max_user_reminders()
-                )
-            )
+        await self.confirm(
+            ctx.message,
+            "Maximum reminders per user is now set to {}".format(
+                await self.config.max_user_reminders()
+            ),
         )
 
     @commands.group()
@@ -105,20 +89,15 @@ class RemindMe(commands.Cog):
 
     @reminder.command(aliases=["add"])
     async def create(self, ctx: commands.Context, time: str, *, text: str):
-        """Create a reminder.
+        """Create a reminder. Same as [p]remindme.
 
-        Same as [p]remindme
-        Accepts: minutes, hours, days, weeks, months
+        Accepts: seconds, minutes, hours, days, weeks
         Examples:
+        - [p]reminder create 2min Do that thing soon in 2 minutes
+        - [p]remindme create 3h40m Do that thing later in 3 hours and 40 minutes
         - [p]reminder create 3 days Have sushi with Ryan and Heather
-        - [p]reminder create 2m Do that thing in 2 minutes
         """
-        try:
-            quantity, time_unit, text = self.get_create_components(time, text)
-        except ValueError:
-            await ctx.send_help()
-            return
-        await self.create_reminder(ctx, quantity, time_unit, text=text)
+        await self.create_reminder(ctx, time, text=text)
 
     @reminder.command(aliases=["delete"])
     async def remove(self, ctx: commands.Context, index: str):
@@ -135,26 +114,20 @@ class RemindMe(commands.Cog):
     async def remindme(self, ctx: commands.Context, time: str, *, text: str):
         """Send you <text> when the time is up.
 
-        Accepts: minutes, hours, days, weeks, months
+        Accepts: seconds, minutes, hours, days, weeks
         Examples:
+        - [p]remindme 2min Do that thing in 2 minutes
+        - [p]remindme 3h40m Do that thing in 3 hours and 40 minutes
         - [p]remindme 3 days Have sushi with Ryan and Heather
-        - [p]remindme 2m Do that thing in 2 minutes
         """
-        try:
-            quantity, time_unit, text = self.get_create_components(time, text)
-        except ValueError:
-            await ctx.send_help()
-            return
-        await self.create_reminder(ctx, quantity, time_unit, text=text)
+        await self.create_reminder(ctx, time, text=text)
 
     @commands.command()
     async def forgetme(self, ctx: commands.Context):
         """Remove all of your upcoming reminders."""
         await self.delete_reminder(ctx, "all")
 
-    async def create_reminder(
-        self, ctx: commands.Context, quantity: int, time_unit: str, text: str
-    ):
+    async def create_reminder(self, ctx: commands.Context, time: str, text: str):
         """Logic to create a reminder."""
         author = ctx.message.author
         maximum = await self.config.max_user_reminders()
@@ -171,32 +144,29 @@ class RemindMe(commands.Cog):
             )
             return
 
-        time_unit = time_unit.lower()
-        plural = ""
-        if time_unit.endswith("s"):
-            time_unit = time_unit[:-1]
-        if quantity != 1:
-            plural = "s"
-        if time_unit not in self.units:
-            await self.send_message(
-                ctx,
-                "You specified an invalid time unit. Choose minutes/hours/days/weeks/months instead.",
-            )
+        try:
+            time_delta = parse_timedelta(time, minimum=timedelta(minutes=1))
+            if not time_delta:
+                # Try again if the user is doing the old "[p]remindme 4 hours ..." format
+                time_unit = text.split()[0]
+                time = "{} {}".format(time, time_unit)
+                text = text[len(time_unit) :].strip()
+                time_delta = parse_timedelta(time, minimum=timedelta(minutes=1))
+                if not text or not time_delta:
+                    await ctx.send_help()
+                    return
+        except commands.BadArgument as ba:
+            await self.send_message(ctx, str(ba))
             return
-        if quantity < 1:
-            await self.send_message(ctx, "Reminder time cannot be negative.")
-            return
-        if len(text) > 1960:
+
+        text = text.strip()
+        if len(text) > 1900:
             await self.send_message(ctx, "Your reminder text is too long.")
             return
-        # Get full name of time unit
-        for unit_key, unit_value in self.units.items():
-            if unit_value == self.units[time_unit]:
-                time_unit = unit_key
-                break
-        seconds = self.units[time_unit] * quantity
-        future = int(time.time() + seconds)
-        future_text = "{} {}".format(str(quantity), time_unit + plural)
+
+        seconds = time_delta.total_seconds()
+        future = int(current_time.time() + seconds)
+        future_text = humanize_timedelta(timedelta=time_delta)
 
         reminder = {
             "ID": author.id,
@@ -275,21 +245,6 @@ class RemindMe(commands.Cog):
         return result
 
     @staticmethod
-    def get_create_components(time: str, text: str):
-        """Convert a time and text into a quantity, time unit, and text."""
-        match = re.fullmatch(r"(-?[0-9]+)([A-z]+)", time)
-        if match:
-            quantity = int(match[1])
-            time_unit = match[2]
-        else:
-            quantity = int(time)
-            time_unit = text.split()[0]
-            text = text[len(time_unit) :].lstrip()
-            if not text:
-                raise ValueError
-        return (quantity, time_unit, text)
-
-    @staticmethod
     async def send_message(ctx: commands.Context, message: str):
         """Send a message.
 
@@ -343,7 +298,7 @@ class RemindMe(commands.Cog):
         while self.bot.get_cog("RemindMe") == self:
             to_remove = []
             for reminder in await self.config.reminders():
-                if reminder["FUTURE"] <= int(time.time()):
+                if reminder["FUTURE"] <= int(current_time.time()):
                     try:
                         user = self.bot.get_user(reminder["ID"])
                         if user is not None:
@@ -368,7 +323,14 @@ class RemindMe(commands.Cog):
                     current_reminders.remove(reminder)
             await asyncio.sleep(self.time)
 
+    async def confirm(self, message, text: str, force: bool = False):
+        """Add a checkmark emoji to the specified message.
 
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)
+        If the bot is not allowed to add reactions, responds with text instead.
+        You can also force the display of the message, regardless of react permissions.
+        """
+        can_react = message.channel.permissions_for(message.guild.me).add_reactions
+        if can_react and not force:
+            await message.add_reaction("\N{WHITE HEAVY CHECK MARK}")
+        else:
+            await message.channel.send("\N{WHITE HEAVY CHECK MARK} {}".format(text))
