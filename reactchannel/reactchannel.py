@@ -62,7 +62,9 @@ class ReactChannel(commands.Cog):
         channels[str(channel.id)] = channel_type
         await self.config.guild(ctx.message.guild).channels.set(channels)
         await ctx.send(
-            checkmark("{} is now a {} ReactChannel.".format(channel, channel_type))
+            checkmark(
+                "<#{}> is now a {} ReactChannel.".format(str(channel.id), channel_type)
+            )
         )
 
     @reactchannelset.command()
@@ -79,12 +81,26 @@ class ReactChannel(commands.Cog):
         await self.config.guild(ctx.message.guild).channels.set(channels)
         await ctx.send(
             checkmark(
-                "ReactChannel functionality has been disabled on {}.".format(channel)
+                "ReactChannel functionality has been disabled on <#{}>.".format(
+                    str(channel.id)
+                )
+            )
+        )
+
+    @commands.command()
+    @commands.guild_only()
+    async def karma(self, ctx: commands.Context):
+        """View your total karma for upvoted messages."""
+        member = self.config.member(ctx.message.author)
+        total_karma = await member.karma()
+        await ctx.send(
+            "{}, you have **{}** message karma".format(
+                ctx.message.author.mention, total_karma
             )
         )
 
     @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
+    async def on_message_without_command(self, message: discord.Message):
         """Watch for messages in enabled react channels to add reactions."""
         if message.guild is None or message.channel is None:
             return
@@ -97,7 +113,7 @@ class ReactChannel(commands.Cog):
         channel_type = channels[str(message.channel.id)]
         if channel_type == "checklist":
             await message.add_reaction("\N{WHITE HEAVY CHECK MARK}")
-        elif channel_type == "vote":
+        elif channel_type == "vote" and not message.author.bot:
             await message.add_reaction("\N{UP-POINTING SMALL RED TRIANGLE}")
             await message.add_reaction("\N{DOWN-POINTING SMALL RED TRIANGLE}")
 
@@ -137,16 +153,21 @@ class ReactChannel(commands.Cog):
                 if str(payload.emoji) == "\N{UP-POINTING SMALL RED TRIANGLE}"
                 else (-1, "\N{UP-POINTING SMALL RED TRIANGLE}")
             )
-            opposite_reactions = next(
-                reaction
-                for reaction in message.reactions
-                if str(reaction.emoji) == opposite_emoji
-            )
             try:
-                await opposite_reactions.remove(user)
-            except (discord.Forbidden, discord.HTTPException, discord.NotFound):
-                pass
+                opposite_reactions = next(
+                    reaction
+                    for reaction in message.reactions
+                    if str(reaction.emoji) == opposite_emoji
+                )
+                try:
+                    await opposite_reactions.remove(user)
+                except (discord.Forbidden, discord.HTTPException, discord.NotFound):
+                    pass
+            except StopIteration:
+                pass  # This message doesn't have an opposite reaction on it
 
+            if message.author.bot:
+                return
             member = self.config.member(message.author)
             total_karma = await member.karma()
             total_karma += karma
@@ -173,7 +194,13 @@ class ReactChannel(commands.Cog):
             str(payload.emoji) == "\N{UP-POINTING SMALL RED TRIANGLE}"
             or str(payload.emoji) == "\N{DOWN-POINTING SMALL RED TRIANGLE}"
         ) and channel_type == "vote":
-            karma = 1 if str(payload.emoji) == "\N{DOWN-POINTING SMALL RED TRIANGLE}" else -1
+            if message.author.bot:
+                return
+            karma = (
+                1
+                if str(payload.emoji) == "\N{DOWN-POINTING SMALL RED TRIANGLE}"
+                else -1
+            )
             member = self.config.member(message.author)
             total_karma = await member.karma()
             total_karma += karma
