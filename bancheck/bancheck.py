@@ -42,8 +42,8 @@ class BanCheck(commands.Cog):
             return
         guild_dict = await self.config.all_guilds()
         # Migrate channel -> notify_channel
-        for guild_id, info in guild_dict.items():
-            channel = info.get("channel", False)
+        for guild_id, guild_info in guild_dict.items():
+            channel = guild_info.get("channel", False)
             if channel:
                 await self.config.guild(discord.Object(id=guild_id)).notify_channel.set(
                     channel
@@ -52,15 +52,14 @@ class BanCheck(commands.Cog):
                     "channel"
                 )
         # Migrate guild services to global services
-        for guild_id, info in guild_dict.items():
-            services = info.get("services")
+        for guild_id, guild_info in guild_dict.items():
+            services = guild_info.get("services")
             if services:
-                for service_id, info in services.items():
+                for service_id, service_info in services.items():
                     global_services = await self.config.services()
-                    update = True
                     if service_id not in global_services:
                         global_services[service_id] = {}
-                        global_services[service_id]["api_key"] = info["api_key"]
+                        global_services[service_id]["api_key"] = service_info["api_key"]
                         await self.config.services.set(global_services)
                 await self.config.guild(discord.Object(id=guild_id)).clear_raw(
                     "services"
@@ -91,7 +90,9 @@ class BanCheck(commands.Cog):
                 )
                 await ctx.send(embed=embed)
             except (discord.Forbidden):
-                await ctx.send("Supported services:\n{}".format(msg))  # Embeds not allowed, send ugly message instead.
+                await ctx.send(
+                    "Supported services:\n{}".format(msg)
+                )  # Embeds not allowed, send ugly message instead.
 
     @api.command(name="enable")
     async def api_enable(self, ctx: commands.Context, service: str, api: str):
@@ -106,7 +107,9 @@ class BanCheck(commands.Cog):
                 )
                 await ctx.send(embed=embed)
             except (discord.Forbidden):
-                await ctx.send("The only services we support so far are:\n{}".format(msg))  # Embeds not allowed, send ugly message instead.
+                await ctx.send(
+                    "The only services we support so far are:\n{}".format(msg)
+                )  # Embeds not allowed, send ugly message instead.
             return
         services = await self.config.services()
         update = True
