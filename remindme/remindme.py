@@ -329,8 +329,7 @@ class RemindMe(commands.Cog):
         If the bot is not allowed to add reactions, responds with text instead.
         You can also force the display of the message, regardless of react permissions.
         """
-        can_react = message.channel.permissions_for(message.guild.me).add_reactions
-        if can_react and not force:
+        if not force and message.channel.permissions_for(message.guild.me).add_reactions:
             await message.add_reaction("\N{WHITE HEAVY CHECK MARK}")
         else:
             await message.channel.send("\N{WHITE HEAVY CHECK MARK} {}".format(text))

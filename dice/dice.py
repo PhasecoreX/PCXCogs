@@ -45,17 +45,17 @@ class Dice(commands.Cog):
     async def rolls(self, ctx: commands.Context, maximum: int):
         """Set the maximum number of dice a user can roll at one time.
 
+        More formally, the maximum number of random numbers the bot will generate for any one dice calculation.
         WARNING:
         Setting this too high will allow other users to slow down/freeze/crash your bot!
         Generating random numbers is easily the most CPU consuming process here,
         so keep this number low (less than one million, and way less than that on a Pi)
-        
         """
         action = "is already set at"
+        force = False
         if maximum == await self.config.max_dice_rolls():
             pass
         elif maximum > 1000000:
-            action = "has been left at"
             pred = MessagePredicate.yes_or_no(ctx)
             await ctx.send(
                 question(
@@ -73,17 +73,26 @@ class Dice(commands.Cog):
             if pred.result:
                 await self.config.max_dice_rolls.set(maximum)
                 action = "is now set to"
+                force = True
             else:
-                pass
+                await ctx.send(
+                    error(
+                        "Maximum dice rolls per user has been left at {}".format(
+                            await self.config.max_dice_rolls()
+                        )
+                    )
+                )
+                return
         else:
             await self.config.max_dice_rolls.set(maximum)
             action = "is now set to"
-        await ctx.send(
-            checkmark(
-                "Maximum dice rolls per user {} {}".format(
-                    action, await self.config.max_dice_rolls()
-                )
-            )
+
+        await self.confirm(
+            ctx.message,
+            "Maximum dice rolls per user {} {}".format(
+                action, await self.config.max_dice_rolls()
+            ),
+            force=force,
         )
 
     @diceset.command()
@@ -95,12 +104,11 @@ class Dice(commands.Cog):
         But be honest, do you really need to roll multiple five trillion sided dice at once?
         """
         await self.config.max_die_sides.set(maximum)
-        await ctx.send(
-            checkmark(
-                "Maximum die sides is now set to {}".format(
-                    await self.config.max_die_sides()
-                )
-            )
+        await self.confirm(
+            ctx.message,
+            "Maximum die sides is now set to {}".format(
+                await self.config.max_die_sides()
+            ),
         )
 
     @commands.command()
@@ -220,6 +228,20 @@ class Dice(commands.Cog):
             result.append(previous_number)
         return result
 
+    async def confirm(self, message, text: str, force: bool = False):
+        """Add a checkmark emoji to the specified message.
+
+        If the bot is not allowed to add reactions, responds with text instead.
+        You can also force the display of the message, regardless of react permissions.
+        """
+        if (
+            not force
+            and message.channel.permissions_for(message.guild.me).add_reactions
+        ):
+            await message.add_reaction("\N{WHITE HEAVY CHECK MARK}")
+        else:
+            await message.channel.send("\N{WHITE HEAVY CHECK MARK} {}".format(text))
+
 
 class Die:
     """A die roll."""
@@ -264,8 +286,3 @@ class TooManySides(ValueError):
         """Set the value that is too many sides."""
         super().__init__()
         self.value = value
-
-
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

@@ -96,7 +96,7 @@ class BanCheck(commands.Cog):
 
     @api.command(name="enable")
     async def api_enable(self, ctx: commands.Context, service: str, api: str):
-        """Enable a service globally by specifying it's API key."""
+        """Enable (or update the API key for) a service globally by specifying it's API key."""
         if service not in self.supported_services:
             msg = await self.get_supported_services()
             try:
@@ -119,20 +119,18 @@ class BanCheck(commands.Cog):
         services[service]["api_key"] = api
         await self.config.services.set(services)
         if update:
-            await ctx.send(
-                checkmark(
-                    "Successfully updated the {} API key!".format(
-                        self.get_nice_service_name(service)
-                    )
-                )
+            await self.confirm(
+                ctx.message,
+                "Successfully updated the {} API key!".format(
+                    self.get_nice_service_name(service)
+                ),
             )
         else:
-            await ctx.send(
-                checkmark(
-                    "Ban checking with {} has now been enabled globally!".format(
-                        self.get_nice_service_name(service)
-                    )
-                )
+            await self.confirm(
+                ctx.message,
+                "Ban checking with {} has now been enabled globally!".format(
+                    self.get_nice_service_name(service)
+                ),
             )
 
     @api.command(name="disable")
@@ -141,12 +139,11 @@ class BanCheck(commands.Cog):
         services = await self.config.services()
         if services.pop(service, None):
             await self.config.services.set(services)
-            await ctx.send(
-                checkmark(
-                    "Ban checking with {} has now been disabled globally!".format(
-                        self.get_nice_service_name(service)
-                    )
-                )
+            await self.confirm(
+                ctx.message,
+                "Ban checking with {} has now been disabled globally!".format(
+                    self.get_nice_service_name(service)
+                ),
             )
         else:
             await ctx.send(
@@ -178,12 +175,11 @@ class BanCheck(commands.Cog):
                 await self.config.guild(ctx.message.guild).disabled_services.set(
                     disabled_services
                 )
-                await ctx.send(
-                    checkmark(
-                        "Ban checking with {} has now been enabled for this guild!".format(
-                            self.get_nice_service_name(service)
-                        )
-                    )
+                await self.confirm(
+                    ctx.message,
+                    "Ban checking with {} has now been enabled for this guild!".format(
+                        self.get_nice_service_name(service)
+                    ),
                 )
             except ValueError:
                 await ctx.send(
@@ -221,12 +217,11 @@ class BanCheck(commands.Cog):
             await self.config.guild(ctx.message.guild).disabled_services.set(
                 disabled_services
             )
-            await ctx.send(
-                checkmark(
-                    "Ban checking with {} has now been disabled for this guild!".format(
-                        self.get_nice_service_name(service)
-                    )
-                )
+            await self.confirm(
+                ctx.message,
+                "Ban checking with {} has now been disabled for this guild!".format(
+                    self.get_nice_service_name(service)
+                ),
             )
         else:
             await ctx.send(
@@ -273,12 +268,11 @@ class BanCheck(commands.Cog):
                 await self.config.guild(
                     ctx.message.guild
                 ).disabled_auto_ban_services.set(disabled_auto_ban_services)
-                await ctx.send(
-                    checkmark(
-                        "Automatic banning with {} has now been enabled for this guild!".format(
-                            self.get_nice_service_name(service)
-                        )
-                    )
+                await self.confirm(
+                    ctx.message,
+                    "Automatic banning with {} has now been enabled for this guild!".format(
+                        self.get_nice_service_name(service)
+                    ),
                 )
             except ValueError:
                 await ctx.send(
@@ -316,12 +310,11 @@ class BanCheck(commands.Cog):
             await self.config.guild(ctx.message.guild).disabled_auto_ban_services.set(
                 disabled_auto_ban_services
             )
-            await ctx.send(
-                checkmark(
-                    "Automatic banning with {} has now been disabled for this guild!".format(
-                        self.get_nice_service_name(service)
-                    )
-                )
+            await self.confirm(
+                ctx.message,
+                "Automatic banning with {} has now been disabled for this guild!".format(
+                    self.get_nice_service_name(service)
+                ),
             )
         else:
             await ctx.send(
@@ -337,7 +330,7 @@ class BanCheck(commands.Cog):
         """Enable auto ban functionality guild wide."""
         if not await self.config.guild(ctx.message.guild).auto_ban():
             await self.config.guild(ctx.message.guild).auto_ban.set(True)
-            await ctx.send(checkmark("Auto Ban has been enabled for this guild!"))
+            await self.confirm(ctx.message, "Auto Ban has been enabled for this guild!")
         else:
             await ctx.send(info("Auto Ban is already enabled for this guild."))
 
@@ -346,7 +339,9 @@ class BanCheck(commands.Cog):
         """Disable auto ban functionality guild wide."""
         if await self.config.guild(ctx.message.guild).auto_ban():
             await self.config.guild(ctx.message.guild).auto_ban.set(False)
-            await ctx.send(checkmark("Auto Ban has been disabled for this guild!"))
+            await self.confirm(
+                ctx.message, "Auto Ban has been disabled for this guild!"
+            )
         else:
             await ctx.send(info("Auto Ban is already disabled for this guild."))
 
@@ -371,7 +366,7 @@ class BanCheck(commands.Cog):
             embed = self.embed_maker(
                 None,
                 discord.Colour.green(),
-                checkmark("**I will send all BanCheck notices here.**"),
+                "\N{WHITE HEAVY CHECK MARK} **I will send all BanCheck notices here.**",
                 self.bot.user.avatar_url,
             )
             await channel.send(embed=embed)
@@ -385,7 +380,7 @@ class BanCheck(commands.Cog):
             await ctx.send(info("Automatic BanCheck is already disabled."))
         else:
             await self.config.guild(ctx.message.guild).notify_channel.set(None)
-            await ctx.send(checkmark("Automatic BanCheck is now disabled."))
+            await self.confirm(ctx.message, "Automatic BanCheck is now disabled.")
 
     @commands.command()
     @commands.guild_only()
@@ -614,7 +609,13 @@ class BanCheck(commands.Cog):
             embed.set_thumbnail(url=avatar)
         return embed
 
+    async def confirm(self, message, text: str, force: bool = False):
+        """Add a checkmark emoji to the specified message.
 
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)
+        If the bot is not allowed to add reactions, responds with text instead.
+        You can also force the display of the message, regardless of react permissions.
+        """
+        if not force and message.channel.permissions_for(message.guild.me).add_reactions:
+            await message.add_reaction("\N{WHITE HEAVY CHECK MARK}")
+        else:
+            await message.channel.send("\N{WHITE HEAVY CHECK MARK} {}".format(text))
