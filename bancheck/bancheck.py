@@ -186,36 +186,47 @@ class BanCheck(commands.Cog):
             total_bans = 0
         users = "user" if total_bans == 1 else "users"
         embed.set_footer(text="AutoBanned a total of {} {}".format(total_bans, users))
-        # AutoCheck status
-        notify_channel = None
-        notify_channel_id = await self.config.guild(ctx.message.guild).notify_channel()
-        if notify_channel_id:
-            notify_channel = self.bot.get_channel(notify_channel_id)
-        if notify_channel:
-            embed.add_field(
-                name=checkmark("AutoCheck"), value="**Enabled**\n(On join)",
-            )
-            embed.add_field(
-                name=checkmark("AutoCheck Channel"),
-                value="<#{}>".format(notify_channel.id),
-            )
-        else:
-            embed.add_field(
-                name=error("AutoCheck"),
-                value="**Disabled**\n(AutoCheck notification channel not set)",
-            )
-            embed.add_field(name=error("AutoCheck Channel"), value="**Not set**")
-        # AutoBan status
+        # Get info
+        any_enabled = False
         autoban_services = 0
         config_services = await self.config.guild(ctx.message.guild).services()
         for service_name, service_config in config_services.items():
             if (
                 service_name in self.all_supported_services
-                and service_config.get("autoban", False)
                 and service_config.get("enabled", False)
                 and await self.get_api_key(service_name, config_services)
             ):
-                autoban_services += 1
+                any_enabled = True
+                if service_config.get("autoban", False):
+                    autoban_services += 1
+        # AutoCheck status
+        notify_channel = None
+        notify_channel_id = await self.config.guild(ctx.message.guild).notify_channel()
+        if notify_channel_id:
+            notify_channel = self.bot.get_channel(notify_channel_id)
+        if notify_channel and any_enabled:
+            embed.add_field(
+                name=checkmark("AutoCheck"), value="**Enabled**\n(On join)",
+            )
+        elif not notify_channel:
+            embed.add_field(
+                name=error("AutoCheck"),
+                value="**Disabled**\n(AutoCheck notification channel not set)",
+            )
+        else:
+            embed.add_field(
+                name=error("AutoCheck"),
+                value="**Disabled**\n(No services are enabled)",
+            )
+        # AutoCheck Channel status
+        if notify_channel:
+            embed.add_field(
+                name=checkmark("AutoCheck Channel"),
+                value="<#{}>".format(notify_channel.id),
+            )
+        else:
+            embed.add_field(name=error("AutoCheck Channel"), value="**Not set**")
+        # AutoBan status
         if not notify_channel:
             embed.add_field(
                 name=error("AutoBan"), value="**Disabled**\n(AutoCheck not enabled)",
