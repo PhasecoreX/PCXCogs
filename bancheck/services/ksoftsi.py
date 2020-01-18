@@ -9,16 +9,17 @@ class ksoftsi:
     """Ban lookup for KSoft.Si."""
 
     SERVICE_NAME = "KSoft.Si Bans"
+    SERVICE_API_KEY_REQUIRED = True
     SERVICE_URL = "https://api.ksoft.si/#get-started"
     SERVICE_HINT = "You only need to do Step 1 in order to get an API key"
-    SERVICE_BASE_URL = "https://api.ksoft.si/bans"
+    BASE_URL = "https://api.ksoft.si/bans"
 
     @staticmethod
     async def lookup(user_id, api_key):
         """Perform user lookup on KSoft.Si."""
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                ksoftsi.SERVICE_BASE_URL + "/check",
+                ksoftsi.BASE_URL + "/check",
                 params={"user": str(user_id)},
                 headers={
                     "Authorization": "NANI " + api_key,
@@ -55,7 +56,7 @@ class ksoftsi:
                     return LookupResult(ksoftsi.SERVICE_NAME, resp.status, "clear")
 
             async with session.get(
-                ksoftsi.SERVICE_BASE_URL + "/info",
+                ksoftsi.BASE_URL + "/info",
                 params={"user": str(user_id)},
                 headers={
                     "Authorization": "NANI " + api_key,

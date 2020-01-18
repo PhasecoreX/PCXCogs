@@ -9,6 +9,7 @@ class discordservices:
     """Ban lookup for discord.services."""
 
     SERVICE_NAME = "discord.services"
+    SERVICE_API_KEY_REQUIRED = False
     SERVICE_URL = "https://discord.services"
 
     @staticmethod

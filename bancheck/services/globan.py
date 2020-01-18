@@ -11,6 +11,7 @@ class globan:
     """Ban lookup for Globan."""
 
     SERVICE_NAME = "Globan"
+    SERVICE_API_KEY_REQUIRED = True
     SERVICE_URL = "https://www.globan.xyz"
     SERVICE_HINT = "This service isn't actually in open beta yet"
 
