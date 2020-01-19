@@ -344,20 +344,35 @@ class BanCheck(commands.Cog):
                 )
             )
             return
+        if service in self.supported_global_services:
+            if await ctx.bot.is_owner(ctx.author):
+                await ctx.send(
+                    error(
+                        "The API key for {} can only be set up globally. See `[p]banchecksetglobal` for more information.".format(
+                            self.get_nice_service_name(service)
+                        )
+                    )
+                )
+                return
+            else:
+                await ctx.send(
+                    error(
+                        "The API key for {} can only be set up by the bot owner.".format(
+                            self.get_nice_service_name(service)
+                        )
+                    )
+                )
+                return
         config_services = await self.config.guild(ctx.message.guild).services()
         if service not in config_services:
             config_services[service] = {}
         config_services[service]["api_key"] = api_key
         await self.config.guild(ctx.message.guild).services.set(config_services)
         action = "set"
-        global_prefix = ""
-        if service in self.supported_global_services:
-            action = "overridden"
-            global_prefix = "Global "
         if not api_key:
             action = "removed"
-        response = "{}API key for the {} BanCheck service has been {}.".format(
-            global_prefix, self.get_nice_service_name(service), action
+        response = "API key for the {} BanCheck service has been {}.".format(
+            self.get_nice_service_name(service), action
         )
         await ctx.send(checkmark(response))
 
@@ -387,9 +402,7 @@ class BanCheck(commands.Cog):
             else:
                 response += (
                     "\nThe bot owner has not set this service up yet, so it will not be used. "
-                    "If in the future the bot owner supplies an API key, this service will automatically be used. "
-                    "If you have an API key for this service, you are allowed to set it "
-                    "(overriding any API key the bot owner providers later on)."
+                    "If in the future the bot owner supplies an API key, this service will automatically be used."
                 )
         await ctx.send(checkmark(response))
 
@@ -675,21 +688,27 @@ class BanCheck(commands.Cog):
 
         Returns the first:
         - False if this isn't a valid service
-        - The guild level API key if defined
         - The global API key if defined
+        - The guild level API key if defined
         - True if no API key is required for this
         - False otherwise
         """
-        api_key = guild_service_config.get(service_name, {}).get("api_key", False)
-        if api_key:
-            return api_key
-        service_keys = await self.bot.get_shared_api_tokens(service_name)
-        api_key = service_keys.get("api_key", False)
-        if api_key:
-            return api_key
+        # Global
+        if service_name in self.supported_global_services:
+            service_keys = await self.bot.get_shared_api_tokens(service_name)
+            api_key = service_keys.get("api_key", False)
+            if api_key:
+                return api_key
+        else:
+            # Guild
+            api_key = guild_service_config.get(service_name, {}).get("api_key", False)
+            if api_key:
+                return api_key
+        # API not required
         service_class = self.all_supported_services.get(service_name, False)
         if service_class and not service_class().SERVICE_API_KEY_REQUIRED:
             return True
+        # Fail
         return False
 
     def get_nice_service_name(self, service: str):
