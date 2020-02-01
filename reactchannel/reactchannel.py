@@ -141,7 +141,7 @@ class ReactChannel(commands.Cog):
         ):
             try:
                 await message.delete()
-            except (discord.Forbidden, discord.HTTPException):
+            except (discord.Forbidden, discord.NotFound, discord.HTTPException):
                 pass
         # Vote
         elif (
@@ -161,7 +161,7 @@ class ReactChannel(commands.Cog):
                 )
                 try:
                     await opposite_reactions.remove(user)
-                except (discord.Forbidden, discord.HTTPException, discord.NotFound):
+                except (discord.Forbidden, discord.NotFound, discord.HTTPException):
                     pass
             except StopIteration:
                 pass  # This message doesn't have an opposite reaction on it

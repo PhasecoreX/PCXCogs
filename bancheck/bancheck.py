@@ -635,7 +635,7 @@ class BanCheck(commands.Cog):
                         global_total_bans = 0
                     await self.config.total_bans.set(global_total_bans + 1)
                     title += " - Auto Banned"
-                except discord.Forbidden:
+                except (discord.Forbidden, discord.HTTPException):
                     title += " - Not allowed to Auto Ban"
             await self.send_embed(
                 channel,

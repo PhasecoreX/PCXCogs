@@ -59,11 +59,9 @@ class Dice(commands.Cog):
             pred = MessagePredicate.yes_or_no(ctx)
             await ctx.send(
                 question(
-                    (
-                        "Are you **sure** you want to set the maximum rolls to {}? (yes/no)\n"
-                        "Setting this over one million will allow other users to "
-                        "slow down/freeze/crash your bot!".format(maximum)
-                    )
+                    "Are you **sure** you want to set the maximum rolls to {}? (yes/no)\n"
+                    "Setting this over one million will allow other users to "
+                    "slow down/freeze/crash your bot!".format(maximum)
                 )
             )
             try:
