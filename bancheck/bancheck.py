@@ -204,55 +204,17 @@ class BanCheck(commands.Cog):
                 any_enabled = True
                 if service_config.get("autoban", False):
                     autoban_services += 1
-        # AutoCheck status
         notify_channel = None
         notify_channel_id = await self.config.guild(ctx.message.guild).notify_channel()
         if notify_channel_id:
             notify_channel = self.bot.get_channel(notify_channel_id)
-        if notify_channel and any_enabled:
-            embed.add_field(
-                name=checkmark("AutoCheck"), value="**Enabled**\n(On join)",
-            )
-        elif not notify_channel:
-            embed.add_field(
-                name=error("AutoCheck"),
-                value="**Disabled**\n(AutoCheck notification channel not set)",
-            )
-        else:
-            embed.add_field(
-                name=error("AutoCheck"),
-                value="**Disabled**\n(No services are enabled)",
-            )
-        # AutoCheck Channel status
-        if notify_channel:
-            embed.add_field(
-                name=checkmark("AutoCheck Channel"),
-                value="<#{}>".format(notify_channel.id),
-            )
-        else:
-            embed.add_field(name=error("AutoCheck Channel"), value="**Not set**")
-        # AutoBan status
-        if not notify_channel:
-            embed.add_field(
-                name=error("AutoBan"), value="**Disabled**\n(AutoCheck not enabled)",
-            )
-        elif not autoban_services:
-            embed.add_field(
-                name=error("AutoBan"),
-                value="**Disabled**\n(no BanCheck services are set to AutoBan)",
-            )
-        elif not ctx.guild.me.guild_permissions.ban_members:
-            embed.add_field(
-                name=error("AutoBan"),
-                value="**Disabled**\n(Bot lacks Ban Members permission)",
-            )
-        else:
-            embed.add_field(
-                name=checkmark("AutoBan"),
-                value="**Enabled**\n({} {})".format(
-                    autoban_services, "service" if autoban_services == 1 else "services"
-                ),
-            )
+        self._get_autocheck_status(embed, notify_channel, any_enabled)
+        self._get_autoban_status(
+            embed,
+            notify_channel,
+            autoban_services,
+            ctx.guild.me.guild_permissions.ban_members,
+        )
         # Service status
         enabled_services = ""
         disabled_services = ""
@@ -285,6 +247,60 @@ class BanCheck(commands.Cog):
                 name=error("Disabled Services"), value=disabled_services, inline=False
             )
         await self.send_embed(ctx, embed)
+
+    @staticmethod
+    def _get_autocheck_status(embed, notify_channel, any_enabled):
+        """Add AutoCheck information to the embed."""
+        # AutoCheck status
+        if not notify_channel:
+            embed.add_field(
+                name=error("AutoCheck"),
+                value="**Disabled**\n(AutoCheck notification channel not set)",
+            )
+        elif not any_enabled:
+            embed.add_field(
+                name=error("AutoCheck"),
+                value="**Disabled**\n(No services are enabled)",
+            )
+        else:
+            embed.add_field(
+                name=checkmark("AutoCheck"), value="**Enabled**\n(On join)",
+            )
+        # AutoCheck Channel status
+        if notify_channel:
+            embed.add_field(
+                name=checkmark("AutoCheck Channel"),
+                value="<#{}>".format(notify_channel.id),
+            )
+        else:
+            embed.add_field(name=error("AutoCheck Channel"), value="**Not set**")
+
+    @staticmethod
+    def _get_autoban_status(
+        embed, notify_channel, autoban_services, ban_members_permission
+    ):
+        """Add AutoBan information to the embed."""
+        if not notify_channel:
+            embed.add_field(
+                name=error("AutoBan"), value="**Disabled**\n(AutoCheck not enabled)",
+            )
+        elif not autoban_services:
+            embed.add_field(
+                name=error("AutoBan"),
+                value="**Disabled**\n(no BanCheck services are set to AutoBan)",
+            )
+        elif not ban_members_permission:
+            embed.add_field(
+                name=error("AutoBan"),
+                value="**Disabled**\n(Bot lacks Ban Members permission)",
+            )
+        else:
+            embed.add_field(
+                name=checkmark("AutoBan"),
+                value="**Enabled**\n({} {})".format(
+                    autoban_services, "service" if autoban_services == 1 else "services"
+                ),
+            )
 
     @bancheckset.group()
     async def service(self, ctx: commands.Context):
