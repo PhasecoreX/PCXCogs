@@ -716,7 +716,7 @@ class BanCheck(commands.Cog):
                 pass  # No hint for this service
         return result
 
-    async def get_api_key(self, service_name: str, guild_service_config={}):
+    async def get_api_key(self, service_name: str, guild_service_config=None):
         """Get the API key for this service.
 
         Returns the first:
@@ -734,6 +734,8 @@ class BanCheck(commands.Cog):
                 return api_key
         else:
             # Guild
+            if not guild_service_config:
+                guild_service_config = {}
             api_key = guild_service_config.get(service_name, {}).get("api_key", False)
             if api_key:
                 return api_key
