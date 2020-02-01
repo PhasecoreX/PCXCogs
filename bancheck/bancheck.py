@@ -95,7 +95,7 @@ class BanCheck(commands.Cog):
         embed = discord.Embed(
             title="BanCheck Global Settings",
             description=(
-                "Setting an API key here will allow any guild this bot is in to use that service for ban checking. "
+                "Setting an API key globally will allow any guild this bot is in to use that service for ban checking. "
                 "These services require the bot itself to go through an approval process, and "
                 "only allow one API key per bot."
             ),
@@ -137,18 +137,23 @@ class BanCheck(commands.Cog):
     async def global_api(
         self, ctx: commands.Context, service: str, api_key: str = None
     ):
-        """Set an API key for a global service."""
-        if not api_key:
-            # This is because Redbot would show this default value in the help, which looks dumb
-            api_key = "YOUR_API_KEY_HERE"
+        """Get information on setting an API key for a global service."""
+        if api_key:
+            # Try deleting the command as fast as possible, so that others can't see the API key
+            try:
+                await ctx.message.delete()
+            except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+                pass
         if service in self.supported_guild_services:
             await ctx.send(
-                error(
+                info(
                     "{} is not a global service, and should be set up per guild ".format(
                         self.get_nice_service_name(service)
                     )
                     + "using the command:\n\n"
-                    + "`[p]bancheckset service api {} {}`".format(service, api_key)
+                    + "`[p]bancheckset service api {} <your_api_key_here>`".format(
+                        service
+                    )
                 )
             )
             return
@@ -162,9 +167,9 @@ class BanCheck(commands.Cog):
             )
             return
         await ctx.send(
-            error(
+            info(
                 "Global API keys are no longer set here. You should run this command instead:\n\n"
-                + "`[p]set api {} api_key,{}`".format(service, api_key)
+                + "`[p]set api {} api_key <your_api_key_here>`".format(service)
             )
         )
 
@@ -323,6 +328,12 @@ class BanCheck(commands.Cog):
         self, ctx: commands.Context, service: str, api_key: str = None
     ):
         """Set (or delete) an API key for a service."""
+        message_guild = ctx.message.guild
+        # Try deleting the command as fast as possible, so that others can't see the API key
+        try:
+            await ctx.message.delete()
+        except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+            pass
         if service not in self.all_supported_services:
             await ctx.send(
                 error(
@@ -347,13 +358,12 @@ class BanCheck(commands.Cog):
         if service in self.supported_global_services:
             if await ctx.bot.is_owner(ctx.author):
                 await ctx.send(
-                    error(
+                    info(
                         "The API key for {} can only be set up globally. See `[p]banchecksetglobal` for more information.".format(
                             self.get_nice_service_name(service)
                         )
                     )
                 )
-                return
             else:
                 await ctx.send(
                     error(
@@ -362,12 +372,12 @@ class BanCheck(commands.Cog):
                         )
                     )
                 )
-                return
-        config_services = await self.config.guild(ctx.message.guild).services()
+            return
+        config_services = await self.config.guild(message_guild).services()
         if service not in config_services:
             config_services[service] = {}
         config_services[service]["api_key"] = api_key
-        await self.config.guild(ctx.message.guild).services.set(config_services)
+        await self.config.guild(message_guild).services.set(config_services)
         action = "set"
         if not api_key:
             action = "removed"
@@ -412,7 +422,7 @@ class BanCheck(commands.Cog):
         config_services = await self.config.guild(ctx.message.guild).services()
         if not config_services.get(service, {}).get("enabled", False):
             await ctx.send(
-                error(
+                info(
                     "{} is not an enabled service.".format(
                         self.get_nice_service_name(service)
                     )
@@ -465,7 +475,7 @@ class BanCheck(commands.Cog):
         config_services = await self.config.guild(ctx.message.guild).services()
         if not config_services.get(service, {}).get("autoban", False):
             await ctx.send(
-                error(
+                info(
                     "Automatic banning with {} is already disabled.".format(
                         self.get_nice_service_name(service)
                     )
