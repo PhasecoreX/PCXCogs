@@ -241,6 +241,11 @@ class BanCheck(commands.Cog):
                 name=error("AutoBan"),
                 value="**Disabled**\n(no BanCheck services are set to AutoBan)",
             )
+        elif not ctx.guild.me.guild_permissions.ban_members:
+            embed.add_field(
+                name=error("AutoBan"),
+                value="**Disabled**\n(Bot lacks Ban Members permission)",
+            )
         else:
             embed.add_field(
                 name=checkmark("AutoBan"),
@@ -467,6 +472,8 @@ class BanCheck(commands.Cog):
             )
         if not await self.get_api_key(service, config_services):
             response += "\nAn API key is needed in order for this to take effect."
+        if not ctx.message.guild.me.guild_permissions.ban_members:
+            response += "\nI will need to be granted the Ban Members permission for this to take effect."
         await ctx.send(checkmark(response))
 
     @autoban.command(name="disable")
@@ -522,7 +529,7 @@ class BanCheck(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    @checks.admin_or_permissions(manage_guild=True)
+    @checks.admin_or_permissions(ban_members=True)
     async def bancheck(self, ctx: commands.Context, member: discord.Member = None):
         """Check if user is on a ban list."""
         if not member:
@@ -600,7 +607,7 @@ class BanCheck(commands.Cog):
         # Display result
         if banned_services:
             title = "Ban Found"
-            if auto_banned:
+            if auto_banned and channel.guild.me.guild_permissions.ban_members:
                 try:
                     await member.send(
                         "Hello! Since you are currently on {} ({}), you have automatically been banned from {}.".format(
