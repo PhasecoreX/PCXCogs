@@ -1,13 +1,15 @@
 """Ban lookup for Globan."""
-import json
-
 import aiohttp
 from redbot.core import __version__ as redbot_version
 
 from ..dto.lookup_result import LookupResult
 
+user_agent = "Red-DiscordBot/{} BanCheck (https://github.com/PhasecoreX/PCXCogs)".format(
+    redbot_version
+)
 
-class globan:
+
+class Globan:
     """Ban lookup for Globan."""
 
     SERVICE_NAME = "Globan"
@@ -16,7 +18,7 @@ class globan:
     SERVICE_HINT = "This service isn't actually in open beta yet"
 
     @staticmethod
-    async def lookup(user_id, api_key):
+    async def lookup(user_id: int, api_key: str):
         """Perform user lookup on Globan."""
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -24,14 +26,14 @@ class globan:
                 + api_key
                 + "&TYPE=BANCHECK&VALUE="
                 + str(user_id),
-                headers={"user-agent": "Red-DiscordBot/" + redbot_version},
+                headers={"user-agent": user_agent},
             ) as resp:
                 if resp.status != 200:
-                    return LookupResult(globan.SERVICE_NAME, resp.status, "error")
+                    return LookupResult(Globan.SERVICE_NAME, resp.status, "error")
                 data = await resp.json()
                 if not data:
                     return LookupResult(
-                        globan.SERVICE_NAME,
+                        Globan.SERVICE_NAME,
                         resp.status,
                         "error",
                         reason="No data returned",
@@ -43,7 +45,7 @@ class globan:
                     }
                     """
                     return LookupResult(
-                        globan.SERVICE_NAME, resp.status, "error", reason=data["error"]
+                        Globan.SERVICE_NAME, resp.status, "error", reason=data["error"]
                     )
                 if data["banned"] == "true":
                     """
@@ -54,6 +56,6 @@ class globan:
                     }
                     """
                     return LookupResult(
-                        globan.SERVICE_NAME, resp.status, "ban", reason=data["reason"]
+                        Globan.SERVICE_NAME, resp.status, "ban", reason=data["reason"]
                     )
-                return LookupResult(globan.SERVICE_NAME, resp.status, "clear")
+                return LookupResult(Globan.SERVICE_NAME, resp.status, "clear")

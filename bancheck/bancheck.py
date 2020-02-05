@@ -1,13 +1,16 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
+import asyncio
 from typing import Any, Dict
 
 import discord
 from redbot.core import Config, checks, commands
-from redbot.core.utils.chat_formatting import error, info
+from redbot.core.utils.chat_formatting import error, info, question
+from redbot.core.utils.predicates import MessagePredicate
 
-from .services.alertbot import alertbot
-from .services.globan import globan
-from .services.ksoftsi import ksoftsi
+from .services.alertbot import Alertbot
+from .services.globan import Globan
+from .services.imgur import Imgur
+from .services.ksoftsi import KSoftSi
 
 __author__ = "PhasecoreX"
 __version__ = "1.2.0"
@@ -17,8 +20,8 @@ class BanCheck(commands.Cog):
     """Look up users on various ban lists."""
 
     default_guild_settings: Any = {"notify_channel": None, "services": {}}
-    supported_global_services = {"globan": globan, "ksoftsi": ksoftsi}
-    supported_guild_services = {"alertbot": alertbot}
+    supported_global_services = {"globan": Globan, "ksoftsi": KSoftSi}
+    supported_guild_services = {"alertbot": Alertbot}
     all_supported_services = {**supported_global_services, **supported_guild_services}
 
     def __init__(self, bot):
@@ -545,13 +548,166 @@ class BanCheck(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
+    # Only the owner for now, until I do some research on who to open it up to
+    @checks.is_owner()
+    # @checks.admin_or_permissions(ban_members=True)
+    async def banreport(
+        self, ctx: commands.Context, member: discord.Member, *, ban_message: str
+    ):
+        """Send a ban report to all enabled global ban lists.
+
+        This command can only be run as a comment on an uploaded image (ban proof).
+        """
+        if not ctx.message.attachments or not ctx.message.attachments[0].height:
+            await ctx.send_help()
+            return
+        proof_image_url = ctx.message.attachments[0].url
+        await self._user_report(ctx, proof_image_url, True, member, ban_message)
+
+    @commands.command()
+    @commands.guild_only()
+    # Only the owner for now, until I do some research on who to open it up to
+    @checks.is_owner()
+    # @checks.admin_or_permissions(ban_members=True)
+    async def banreportmanual(
+        self,
+        ctx: commands.Context,
+        member: discord.Member,
+        proof_image_url: str,
+        *,
+        ban_message: str
+    ):
+        """Send a ban report to all enabled global ban lists.
+
+        This command requires an uploaded image URL (ban proof).
+        If you want to upload an image via Discord,
+        use the [p]banreport command instead.
+        """
+        await self._user_report(ctx, proof_image_url, False, member, ban_message)
+
+    async def _user_report(
+        self,
+        ctx: commands.Context,
+        image_proof_url: str,
+        do_imgur_upload: bool,
+        member: discord.Member,
+        ban_message: str,
+    ):
+        """Perform user report."""
+        description = ""
+        sent = []
+        is_error = False
+        config_services = await self.config.guild(ctx.guild).services()
+        for service_name, service_config in config_services.items():
+            if not service_config.get("enabled", False):
+                continue
+            service_class = self.all_supported_services.get(service_name, False)
+            if not service_class:
+                continue
+            api_key = await self.get_api_key(service_name, config_services)
+            if not api_key:
+                continue
+            try:
+                service_class().report
+            except AttributeError:
+                continue  # This service does not support reporting
+            if do_imgur_upload:
+                service_keys = await self.bot.get_shared_api_tokens("imgur")
+                imgur_client_id = service_keys.get("client_id", False)
+                if not imgur_client_id:
+                    await ctx.send(
+                        error(
+                            "This command requires that you have an Imgur Client ID. Please set one with `.imgurcreds`."
+                        )
+                    )
+                    return
+                image_proof_url = await Imgur.upload(image_proof_url, imgur_client_id)
+                if not image_proof_url:
+                    await ctx.send(
+                        error(
+                            "Uploading image to Imgur failed. Ban report has not been sent."
+                        )
+                    )
+                    return
+            pred = MessagePredicate.yes_or_no(ctx)
+            await ctx.send(
+                question(
+                    "Are you **sure** you want to send this ban report for {}? (yes/no)".format(
+                        member
+                    )
+                )
+            )
+            try:
+                await ctx.bot.wait_for("message", check=pred, timeout=30)
+            except asyncio.TimeoutError:
+                pass
+            if pred.result:
+                pass
+            else:
+                await ctx.send(error("Sending ban report has been canceled."))
+                return
+            response = await service_class().report(
+                member.id, api_key, ctx.author.id, ban_message, image_proof_url
+            )
+            sent.append(response.service)
+            if response.result and response.reason:
+                description += "**{}:** Sent ({})\n".format(
+                    response.service, response.reason
+                )
+            elif response.result:
+                description += "**{}:** Sent\n".format(response.service)
+            elif not response.result and response.reason:
+                is_error = True
+                description += "**{}:** Failure ({})\n".format(
+                    response.service, response.reason
+                )
+            else:
+                is_error = True
+                description += "**{}:** Failure (HTTP error {})\n".format(
+                    response.service, response.http_status
+                )
+        if is_error:
+            await self.send_embed(
+                ctx.channel,
+                self.embed_maker(
+                    "Errors occured while sending reports for **{}**".format(
+                        member.name
+                    ),
+                    discord.Colour.red(),
+                    description,
+                    member.avatar_url,
+                ),
+            )
+        elif not sent:
+            await self.send_embed(
+                ctx.channel,
+                self.embed_maker(
+                    "Error",
+                    discord.Colour.red(),
+                    "No services have been set up. Please check `[p]bancheckset` for more details.",
+                    member.avatar_url,
+                ),
+            )
+        else:
+            await self.send_embed(
+                ctx.channel,
+                self.embed_maker(
+                    "Reports sent for **{}**".format(member.name),
+                    discord.Colour.green(),
+                    "Services: {}".format(", ".join(sent)),
+                    member.avatar_url,
+                ),
+            )
+
+    @commands.command()
+    @commands.guild_only()
     @checks.admin_or_permissions(ban_members=True)
     async def bancheck(self, ctx: commands.Context, member: discord.Member = None):
         """Check if user is on a ban list."""
         if not member:
             member = ctx.message.author
         async with ctx.channel.typing():
-            await self.user_lookup(ctx.channel, member, False)
+            await self._user_lookup(ctx.channel, member, False)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -560,9 +716,9 @@ class BanCheck(commands.Cog):
         if channel_id:
             channel = self.bot.get_channel(channel_id)
             if channel:
-                await self.user_lookup(channel, member, True)
+                await self._user_lookup(channel, member, True)
 
-    async def user_lookup(
+    async def _user_lookup(
         self, channel: discord.TextChannel, member: discord.Member, on_member_join: bool
     ):
         """Perform user lookup, and send results to a specific channel."""
@@ -584,6 +740,10 @@ class BanCheck(commands.Cog):
             api_key = await self.get_api_key(service_name, config_services)
             if not api_key:
                 continue
+            try:
+                service_class().lookup
+            except AttributeError:
+                continue  # This service does not support lookup
             response = await service_class().lookup(member.id, api_key)
             checked.append(response.service)
 

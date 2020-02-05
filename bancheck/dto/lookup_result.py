@@ -17,7 +17,7 @@ class LookupResult:
     ):
         """Create the base lookup result."""
         self.service = service
-        self.result = result
         self.http_status = http_status
+        self.result = result
         self.reason = escape(reason, mass_mentions=True)
         self.proof_url = proof_url

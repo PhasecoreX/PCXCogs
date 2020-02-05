@@ -4,8 +4,12 @@ from redbot.core import __version__ as redbot_version
 
 from ..dto.lookup_result import LookupResult
 
+user_agent = "Red-DiscordBot/{} BanCheck (https://github.com/PhasecoreX/PCXCogs)".format(
+    redbot_version
+)
 
-class discordservices:
+
+class DiscordServices:
     """Ban lookup for discord.services."""
 
     SERVICE_NAME = "discord.services"
@@ -13,41 +17,38 @@ class discordservices:
     SERVICE_URL = "https://discord.services"
 
     @staticmethod
-    async def lookup(user_id, api_key=None):
+    async def lookup(user_id: int, api_key: str = None):
         """Perform user lookup on discord.services."""
-        async with aiohttp.ClientSession() as session:
-            try:
+        try:
+            async with aiohttp.ClientSession() as session:
                 async with session.get(
                     "https://discord.services/api/ban/" + str(user_id),
-                    headers={"user-agent": "Red-DiscordBot/" + redbot_version},
+                    headers={"user-agent": user_agent},
                 ) as resp:
                     if resp.status != 200:
                         return LookupResult(
-                            discordservices.SERVICE_NAME, resp.status, "error"
+                            DiscordServices.SERVICE_NAME, resp.status, "error"
                         )
                     data = await resp.json()
                     if not data:
                         return LookupResult(
-                            discordservices.SERVICE_NAME,
+                            DiscordServices.SERVICE_NAME,
                             resp.status,
                             "error",
                             reason="No data returned",
                         )
                     if "ban" in data:
                         return LookupResult(
-                            discordservices.SERVICE_NAME,
+                            DiscordServices.SERVICE_NAME,
                             resp.status,
                             "ban",
                             reason=data["ban"]["reason"],
                             proof_url=data["ban"]["proof"],
                         )
                     return LookupResult(
-                        discordservices.SERVICE_NAME, resp.status, "clear"
+                        DiscordServices.SERVICE_NAME, resp.status, "clear"
                     )
-            except aiohttp.client_exceptions.ClientConnectorError:
-                return LookupResult(
-                    discordservices.SERVICE_NAME,
-                    0,
-                    "error",
-                    reason="Connection refused",
-                )
+        except aiohttp.client_exceptions.ClientConnectorError:
+            return LookupResult(
+                DiscordServices.SERVICE_NAME, 0, "error", reason="Connection error",
+            )
