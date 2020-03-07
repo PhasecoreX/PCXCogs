@@ -30,7 +30,15 @@ class Globan:
             ) as resp:
                 if resp.status != 200:
                     return LookupResult(Globan.SERVICE_NAME, resp.status, "error")
-                data = await resp.json()
+                try:
+                    data = await resp.json()
+                except aiohttp.client_exceptions.ContentTypeError:
+                    return LookupResult(
+                        Globan.SERVICE_NAME,
+                        resp.status,
+                        "error",
+                        reason="Lookup data malformed",
+                    )
                 if not data:
                     return LookupResult(
                         Globan.SERVICE_NAME,
