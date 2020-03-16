@@ -8,7 +8,6 @@ from redbot.core.utils.chat_formatting import error, info, question
 from redbot.core.utils.predicates import MessagePredicate
 
 from .services.alertbot import Alertbot
-from .services.globan import Globan
 from .services.imgur import Imgur
 from .services.ksoftsi import KSoftSi
 
@@ -20,7 +19,7 @@ class BanCheck(commands.Cog):
     """Look up users on various ban lists."""
 
     default_guild_settings: Any = {"notify_channel": None, "services": {}}
-    supported_global_services = {"globan": Globan, "ksoftsi": KSoftSi}
+    supported_global_services = {"ksoftsi": KSoftSi}
     supported_guild_services = {"alertbot": Alertbot}
     all_supported_services = {**supported_global_services, **supported_guild_services}
 
