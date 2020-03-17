@@ -1,0 +1,17 @@
+{
+    "name": "Heartbeat",
+    "author": [
+        "PhasecoreX (PhasecoreX#0635)"
+    ],
+    "short": "A heartbeat uptime client.",
+    "description": "Monitor the uptime of your bot by having it send heartbeat pings to a configurable URL (healthchecks.io for instance).",
+    "install_msg": "Thanks for installing Heartbeat!",
+    "tags": [
+        "health",
+        "healthcheck",
+        "ping",
+        "schedule",
+        "uptime",
+        "utility"
+    ]
+}
