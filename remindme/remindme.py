@@ -77,11 +77,12 @@ class RemindMe(commands.Cog):
     async def max(self, ctx: commands.Context, maximum: int):
         """Set the maximum number of reminders a user can create at one time."""
         await self.config.max_user_reminders.set(maximum)
-        await self.confirm(
-            ctx.message,
-            "Maximum reminders per user is now set to {}".format(
-                await self.config.max_user_reminders()
-            ),
+        await ctx.send(
+            checkmark(
+                "Maximum reminders per user is now set to {}".format(
+                    await self.config.max_user_reminders()
+                )
+            )
         )
 
     @commands.group()
@@ -346,13 +347,7 @@ class RemindMe(commands.Cog):
             async with self.config.reminders() as current_reminders:
                 current_reminders.remove(reminder)
 
-    async def confirm(self, message, text: str, force: bool = False):
-        """Add a checkmark emoji to the specified message.
 
-        If the bot is not allowed to add reactions, responds with text instead.
-        You can also force the display of the message, regardless of react permissions.
-        """
-        if not force and message.channel.permissions_for(message.guild.me).add_reactions:
-            await message.add_reaction("\N{WHITE HEAVY CHECK MARK}")
-        else:
-            await message.channel.send("\N{WHITE HEAVY CHECK MARK} {}".format(text))
+def checkmark(text: str) -> str:
+    """Get text prefixed with a checkmark emoji."""
+    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

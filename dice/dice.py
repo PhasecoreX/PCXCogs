@@ -52,7 +52,6 @@ class Dice(commands.Cog):
         so keep this number low (less than one million, and way less than that on a Pi)
         """
         action = "is already set at"
-        force = False
         if maximum == await self.config.max_dice_rolls():
             pass
         elif maximum > 1000000:
@@ -71,7 +70,6 @@ class Dice(commands.Cog):
             if pred.result:
                 await self.config.max_dice_rolls.set(maximum)
                 action = "is now set to"
-                force = True
             else:
                 await ctx.send(
                     error(
@@ -85,12 +83,12 @@ class Dice(commands.Cog):
             await self.config.max_dice_rolls.set(maximum)
             action = "is now set to"
 
-        await self.confirm(
-            ctx.message,
-            "Maximum dice rolls per user {} {}".format(
-                action, await self.config.max_dice_rolls()
-            ),
-            force=force,
+        await ctx.send(
+            checkmark(
+                "Maximum dice rolls per user {} {}".format(
+                    action, await self.config.max_dice_rolls()
+                )
+            )
         )
 
     @diceset.command()
@@ -102,11 +100,12 @@ class Dice(commands.Cog):
         But be honest, do you really need to roll multiple five trillion sided dice at once?
         """
         await self.config.max_die_sides.set(maximum)
-        await self.confirm(
-            ctx.message,
-            "Maximum die sides is now set to {}".format(
-                await self.config.max_die_sides()
-            ),
+        await ctx.send(
+            checkmark(
+                "Maximum die sides is now set to {}".format(
+                    await self.config.max_die_sides()
+                )
+            )
         )
 
     @commands.command()
@@ -226,20 +225,6 @@ class Dice(commands.Cog):
             result.append(previous_number)
         return result
 
-    async def confirm(self, message, text: str, force: bool = False):
-        """Add a checkmark emoji to the specified message.
-
-        If the bot is not allowed to add reactions, responds with text instead.
-        You can also force the display of the message, regardless of react permissions.
-        """
-        if (
-            not force
-            and message.channel.permissions_for(message.guild.me).add_reactions
-        ):
-            await message.add_reaction("\N{WHITE HEAVY CHECK MARK}")
-        else:
-            await message.channel.send("\N{WHITE HEAVY CHECK MARK} {}".format(text))
-
 
 class Die:
     """A die roll."""
@@ -284,3 +269,8 @@ class TooManySides(ValueError):
         """Set the value that is too many sides."""
         super().__init__()
         self.value = value
+
+
+def checkmark(text: str) -> str:
+    """Get text prefixed with a checkmark emoji."""
+    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)
