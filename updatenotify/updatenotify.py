@@ -1,21 +1,24 @@
 """UpdateNotify cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
 import datetime
+import logging
 import os
 
 import aiohttp
 from redbot.core import Config
 from redbot.core import __version__ as redbot_version
 from redbot.core import checks, commands
-from redbot.core.utils.chat_formatting import box
+from redbot.core.utils.chat_formatting import box, humanize_timedelta
 
 __author__ = "PhasecoreX"
+__version__ = "1.1.0"
+log = logging.getLogger("red.pcxcogs.updatenotify")
 
 
 class UpdateNotify(commands.Cog):
     """Get notifications when your bot needs updating."""
 
-    default_global_settings = {"update_check_interval": 60, "check_pcx_docker": True}
+    default_global_settings = {"frequency": 3600, "check_pcx_docker": True}
 
     def __init__(self, bot):
         """Set up the plugin."""
@@ -33,12 +36,42 @@ class UpdateNotify(commands.Cog):
         self.notified_docker_version = self.docker_version
 
         self.next_check = datetime.datetime.now()
-        self.task = self.bot.loop.create_task(self.check_for_updates())
+        self.bg_loop_task = None
+
+    async def config_migrate(self):
+        """Perform some configuration migrations."""
+        if await self.config.version() == __version__:
+            return
+        update_check_interval = await self.config.update_check_interval()
+        if update_check_interval:
+            await self.config.frequency.set(update_check_interval * 60.0)
+            await self.config.clear_raw("update_check_interval")
+        await self.config.version.set(__version__)
+
+    def enable_bg_loop(self):
+        """Set up the background loop task."""
+        if self.bg_loop_task:
+            self.bg_loop_task.cancel()
+        self.bg_loop_task = asyncio.create_task(self.bg_loop())
+
+        def done_callback(fut: asyncio.Future):
+            try:
+                fut.exception()
+            except asyncio.CancelledError:
+                pass
+            except asyncio.InvalidStateError as exc:
+                log.exception(
+                    "We somehow have a done callback when not done?", exc_info=exc
+                )
+            except Exception as exc:
+                log.exception("Unexpected exception in UpdateNotify: ", exc_info=exc)
+
+        self.bg_loop_task.add_done_callback(done_callback)
 
     def cog_unload(self):
         """Clean up when cog shuts down."""
-        if self.task:
-            self.task.cancel()
+        if self.bg_loop_task:
+            self.bg_loop_task.cancel()
 
     @commands.group()
     @checks.is_owner()
@@ -46,13 +79,11 @@ class UpdateNotify(commands.Cog):
         """Manage UpdateNotify settings."""
         if not ctx.invoked_subcommand:
             msg = (
-                "Update check interval:     {} minutes\n"
-                "Next check in:             {} minutes"
+                "Update check interval:     {}\nNext check in:             {}"
             ).format(
-                await self.config.update_check_interval(),
-                round(
-                    (self.next_check - datetime.datetime.now()).total_seconds() / 60.0,
-                    1,
+                humanize_timedelta(seconds=await self.config.frequency()),
+                humanize_timedelta(
+                    seconds=(self.next_check - datetime.datetime.now()).total_seconds()
                 ),
             )
             if self.docker_version:
@@ -62,24 +93,25 @@ class UpdateNotify(commands.Cog):
             await ctx.send(box(msg))
 
     @updatenotify.command()
-    async def interval(self, ctx: commands.Context, minutes: int):
-        """Set the interval in minutes that UpdateNotify should check for updates.
-
-        The minimum interval that can be set is 5 minutes.
-        """
-        if minutes < 5:
-            minutes = 5
-        await self.config.update_check_interval.set(minutes)
+    async def frequency(
+        self,
+        ctx: commands.Context,
+        frequency: commands.TimedeltaConverter(
+            minimum=datetime.timedelta(minutes=5),
+            maximum=datetime.timedelta(days=30),
+            default_unit="minutes",
+        ),
+    ):
+        """Set the frequency that UpdateNotify should check for updates."""
+        await self.config.frequency.set(frequency.total_seconds())
         await ctx.send(
             checkmark(
-                "Update check interval is now set to {} minutes".format(
-                    await self.config.update_check_interval()
+                "Update check frequency has been set to {}.".format(
+                    humanize_timedelta(timedelta=frequency)
                 )
             )
         )
-        if self.task:
-            self.task.cancel()
-        self.task = self.bot.loop.create_task(self.check_for_updates())
+        self.enable_bg_loop()
 
     @updatenotify.command()
     async def check(self, ctx: commands.Context):
@@ -255,19 +287,22 @@ class UpdateNotify(commands.Cog):
             message = "Hello!\n\n" + message
         return message.strip()
 
-    async def check_for_updates(self):
-        """Loop task that checks for updates and notifies the bot owner."""
+    async def bg_loop(self):
+        """Background loop."""
         await self.bot.wait_until_ready()
-        while self.bot.get_cog("UpdateNotify") == self:
-            message = await self.update_check()
-            if message:
-                app_info = await self.bot.application_info()
-                await app_info.owner.send(message)
-            seconds_to_sleep = await self.config.update_check_interval() * 60
-            self.next_check = datetime.datetime.now() + datetime.timedelta(
-                0, seconds_to_sleep
-            )
-            await asyncio.sleep(seconds_to_sleep)
+        frequency = await self.config.frequency()
+        if not frequency or frequency < 300.0:
+            frequency = 300.0
+        while True:
+            await self.check_for_updates()
+            self.next_check = datetime.datetime.now() + datetime.timedelta(0, frequency)
+            await asyncio.sleep(frequency)
+
+    async def check_for_updates(self):
+        """Check for updates and notify the bot owner."""
+        message = await self.update_check()
+        if message:
+            await bot.send_to_owners(message)
 
 
 def checkmark(text: str) -> str:

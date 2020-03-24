@@ -1,5 +1,6 @@
 """RemindMe cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
 import asyncio
+import logging
 import time as current_time
 from datetime import timedelta
 
@@ -9,6 +10,7 @@ from redbot.core.commands.converter import parse_timedelta
 from redbot.core.utils.chat_formatting import box, humanize_timedelta
 
 __author__ = "PhasecoreX"
+log = logging.getLogger("red.pcxcogs.remindme")
 
 
 class RemindMe(commands.Cog):
@@ -27,14 +29,31 @@ class RemindMe(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)
         self.config.register_global(**self.default_global_settings)
-        self.time = 5
-        self.task = self.bot.loop.create_task(self.check_reminders())
+        self.bg_loop_task = None
         self.me_too_reminders = {}
+
+    def enable_bg_loop(self):
+        """Set up the background loop task."""
+        self.bg_loop_task = asyncio.create_task(self.bg_loop())
+
+        def done_callback(fut: asyncio.Future):
+            try:
+                fut.exception()
+            except asyncio.CancelledError:
+                pass
+            except asyncio.InvalidStateError as exc:
+                log.exception(
+                    "We somehow have a done callback when not done?", exc_info=exc
+                )
+            except Exception as exc:
+                log.exception("Unexpected exception in RemindMe: ", exc_info=exc)
+
+        self.bg_loop_task.add_done_callback(done_callback)
 
     def cog_unload(self):
         """Clean up when cog shuts down."""
-        if self.task:
-            self.task.cancel()
+        if self.bg_loop_task:
+            self.bg_loop_task.cancel()
 
     @commands.group()
     @checks.is_owner()
@@ -292,36 +311,40 @@ class RemindMe(commands.Cog):
         except KeyError:
             return
 
-    async def check_reminders(self):
-        """Loop task that sends reminders."""
+    async def bg_loop(self):
+        """Background loop."""
         await self.bot.wait_until_ready()
-        while self.bot.get_cog("RemindMe") == self:
-            to_remove = []
-            for reminder in await self.config.reminders():
-                if reminder["FUTURE"] <= int(current_time.time()):
-                    try:
-                        user = self.bot.get_user(reminder["ID"])
-                        if user is not None:
-                            await user.send(
-                                "Hello! You asked me to remind you this {} ago:\n{}".format(
-                                    reminder["FUTURE_TEXT"], reminder["TEXT"]
-                                )
+        while True:
+            await self.check_reminders()
+            await asyncio.sleep(5)
+
+    async def check_reminders(self):
+        """Send reminders that have expired."""
+        to_remove = []
+        for reminder in await self.config.reminders():
+            if reminder["FUTURE"] <= int(current_time.time()):
+                try:
+                    user = self.bot.get_user(reminder["ID"])
+                    if user is not None:
+                        await user.send(
+                            "Hello! You asked me to remind you this {} ago:\n{}".format(
+                                reminder["FUTURE_TEXT"], reminder["TEXT"]
                             )
-                            total_sent = await self.config.total_sent()
-                            await self.config.total_sent.set(total_sent + 1)
-                        else:
-                            # Can't see the user (no shared servers)
-                            to_remove.append(reminder)
-                    except (discord.Forbidden, discord.NotFound):
-                        to_remove.append(reminder)
-                    except discord.HTTPException:
-                        pass
+                        )
+                        total_sent = await self.config.total_sent()
+                        await self.config.total_sent.set(total_sent + 1)
                     else:
+                        # Can't see the user (no shared servers)
                         to_remove.append(reminder)
-            for reminder in to_remove:
-                async with self.config.reminders() as current_reminders:
-                    current_reminders.remove(reminder)
-            await asyncio.sleep(self.time)
+                except (discord.Forbidden, discord.NotFound):
+                    to_remove.append(reminder)
+                except discord.HTTPException:
+                    pass
+                else:
+                    to_remove.append(reminder)
+        for reminder in to_remove:
+            async with self.config.reminders() as current_reminders:
+                current_reminders.remove(reminder)
 
     async def confirm(self, message, text: str, force: bool = False):
         """Add a checkmark emoji to the specified message.

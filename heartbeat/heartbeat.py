@@ -1,5 +1,6 @@
 """Heartbeat cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
+import logging
 from datetime import timedelta
 
 import aiohttp
@@ -13,6 +14,7 @@ __author__ = "PhasecoreX"
 user_agent = "Red-DiscordBot/{} Heartbeat (https://github.com/PhasecoreX/PCXCogs)".format(
     redbot_version
 )
+log = logging.getLogger("red.pcxcogs.heartbeat")
 
 
 class Heartbeat(commands.Cog):
@@ -26,12 +28,34 @@ class Heartbeat(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)
         self.config.register_global(**self.default_global_settings)
-        self.task = self.bot.loop.create_task(self.send_heartbeat())
+        self.session = aiohttp.ClientSession()
+        self.bg_loop_task = None
+
+    def enable_bg_loop(self):
+        """Set up the background loop task."""
+        if self.bg_loop_task:
+            self.bg_loop_task.cancel()
+        self.bg_loop_task = asyncio.create_task(self.bg_loop())
+
+        def done_callback(fut: asyncio.Future):
+            try:
+                fut.exception()
+            except asyncio.CancelledError:
+                pass
+            except asyncio.InvalidStateError as exc:
+                log.exception(
+                    "We somehow have a done callback when not done?", exc_info=exc
+                )
+            except Exception as exc:
+                log.exception("Unexpected exception in Heartbeat: ", exc_info=exc)
+
+        self.bg_loop_task.add_done_callback(done_callback)
 
     def cog_unload(self):
         """Clean up when cog shuts down."""
-        if self.task:
-            self.task.cancel()
+        if self.bg_loop_task:
+            self.bg_loop_task.cancel()
+        asyncio.create_task(self.session.close())
 
     @commands.group()
     @checks.is_owner()
@@ -50,9 +74,7 @@ class Heartbeat(commands.Cog):
         await delete(ctx.message)
         await self.config.url.set(url)
         await ctx.send(checkmark("Heartbeat URL has been set and enabled."))
-        if self.task:
-            self.task.cancel()
-        self.task = self.bot.loop.create_task(self.send_heartbeat())
+        self.enable_bg_loop()
 
     @heartbeatset.command()
     async def frequency(
@@ -73,24 +95,25 @@ class Heartbeat(commands.Cog):
                 )
             )
         )
-        if self.task:
-            self.task.cancel()
-        self.task = self.bot.loop.create_task(self.send_heartbeat())
+        self.enable_bg_loop()
+
+    async def bg_loop(self):
+        """Background loop."""
+        await self.bot.wait_until_ready()
+        frequency = await self.config.frequency()
+        if not frequency:
+            frequency = 60.0
+        while True:
+            await self.send_heartbeat()
+            await asyncio.sleep(frequency)
 
     async def send_heartbeat(self):
-        """Loop task that sends heartbeat pings."""
-        await self.bot.wait_until_ready()
-        while self.bot.get_cog("Heartbeat") == self:
-            url = await self.config.url()
-            frequency = await self.config.frequency()
-            if url:
-                async with aiohttp.ClientSession() as session:
-                    await session.get(
-                        url, headers={"user-agent": user_agent},
-                    )
-            if not frequency:
-                frequency = 60.0
-            await asyncio.sleep(frequency)
+        """Send a heartbeat ping."""
+        url = await self.config.url()
+        if url:
+            await self.session.get(
+                url, headers={"user-agent": user_agent},
+            )
 
 
 async def delete(message: discord.Message):

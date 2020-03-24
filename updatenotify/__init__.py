@@ -2,6 +2,9 @@
 from .updatenotify import UpdateNotify
 
 
-def setup(bot):
+async def setup(bot):
     """Load UpdateNotify cog."""
-    bot.add_cog(UpdateNotify(bot))
+    cog = UpdateNotify(bot)
+    await cog.config_migrate()
+    bot.add_cog(cog)
+    cog.enable_bg_loop()
