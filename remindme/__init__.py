@@ -6,4 +6,3 @@ def setup(bot):
     """Load RemindMe cog."""
     cog = RemindMe(bot)
     bot.add_cog(cog)
-    cog.enable_bg_loop()

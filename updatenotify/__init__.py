@@ -7,4 +7,3 @@ async def setup(bot):
     cog = UpdateNotify(bot)
     await cog.config_migrate()
     bot.add_cog(cog)
-    cog.enable_bg_loop()

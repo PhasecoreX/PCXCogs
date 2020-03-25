@@ -37,6 +37,7 @@ class UpdateNotify(commands.Cog):
 
         self.next_check = datetime.datetime.now()
         self.bg_loop_task = None
+        self.enable_bg_loop()
 
     async def config_migrate(self):
         """Perform some configuration migrations."""
@@ -52,21 +53,26 @@ class UpdateNotify(commands.Cog):
         """Set up the background loop task."""
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
-        self.bg_loop_task = asyncio.create_task(self.bg_loop())
+        self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
+        self.bg_loop_task.add_done_callback(self._error_handler)
 
-        def done_callback(fut: asyncio.Future):
-            try:
-                fut.exception()
-            except asyncio.CancelledError:
-                pass
-            except asyncio.InvalidStateError as exc:
-                log.exception(
-                    "We somehow have a done callback when not done?", exc_info=exc
+    def _error_handler(self, fut: asyncio.Future):
+        try:
+            fut.result()
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            log.exception(
+                "Unexpected exception occurred in background loop of UpdateNotify: ",
+                exc_info=exc,
+            )
+            asyncio.create_task(
+                self.bot.send_to_owners(
+                    "An unexpected exception occurred in the background loop of UpdateNotify.\n"
+                    "Updates will not be checked until UpdateNotify is reloaded.\n"
+                    "Check your console or logs for details, and consider opening a bug report for this."
                 )
-            except Exception as exc:
-                log.exception("Unexpected exception in UpdateNotify: ", exc_info=exc)
-
-        self.bg_loop_task.add_done_callback(done_callback)
+            )
 
     def cog_unload(self):
         """Clean up when cog shuts down."""
@@ -212,7 +218,7 @@ class UpdateNotify(commands.Cog):
                     for docker_image in data["results"]:
                         if docker_image["name"] == tag:
                             return datetime.datetime.fromisoformat(
-                                docker_image["last_updated"].rstrip("Z")
+                                docker_image["last_updated"][:19]
                             )
                     url = data["next"]
 
@@ -302,7 +308,7 @@ class UpdateNotify(commands.Cog):
         """Check for updates and notify the bot owner."""
         message = await self.update_check()
         if message:
-            await bot.send_to_owners(message)
+            await self.bot.send_to_owners(message)
 
 
 def checkmark(text: str) -> str:

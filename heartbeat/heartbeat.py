@@ -30,26 +30,32 @@ class Heartbeat(commands.Cog):
         self.config.register_global(**self.default_global_settings)
         self.session = aiohttp.ClientSession()
         self.bg_loop_task = None
+        self.enable_bg_loop()
 
     def enable_bg_loop(self):
         """Set up the background loop task."""
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
-        self.bg_loop_task = asyncio.create_task(self.bg_loop())
+        self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
+        self.bg_loop_task.add_done_callback(self._error_handler)
 
-        def done_callback(fut: asyncio.Future):
-            try:
-                fut.exception()
-            except asyncio.CancelledError:
-                pass
-            except asyncio.InvalidStateError as exc:
-                log.exception(
-                    "We somehow have a done callback when not done?", exc_info=exc
+    def _error_handler(self, fut: asyncio.Future):
+        try:
+            fut.result()
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            log.exception(
+                "Unexpected exception occurred in background loop of Heartbeat: ",
+                exc_info=exc,
+            )
+            asyncio.create_task(
+                self.bot.send_to_owners(
+                    "An unexpected exception occurred in the background loop of Heartbeat.\n"
+                    "Heartbeat pings will not be sent until Heartbeat is reloaded.\n"
+                    "Check your console or logs for details, and consider opening a bug report for this."
                 )
-            except Exception as exc:
-                log.exception("Unexpected exception in Heartbeat: ", exc_info=exc)
-
-        self.bg_loop_task.add_done_callback(done_callback)
+            )
 
     def cog_unload(self):
         """Clean up when cog shuts down."""
