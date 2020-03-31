@@ -306,9 +306,12 @@ class UpdateNotify(commands.Cog):
 
     async def check_for_updates(self):
         """Check for updates and notify the bot owner."""
-        message = await self.update_check()
-        if message:
-            await self.bot.send_to_owners(message)
+        try:
+            message = await self.update_check()
+            if message:
+                await self.bot.send_to_owners(message)
+        except aiohttp.ClientConnectorError:
+            pass
 
 
 def checkmark(text: str) -> str:

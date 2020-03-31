@@ -65,7 +65,7 @@ class Heartbeat(commands.Cog):
 
     @commands.group()
     @checks.is_owner()
-    async def heartbeatset(self, ctx: commands.Context):
+    async def heartbeat(self, ctx: commands.Context):
         """Manage Heartbeat settings."""
         if not ctx.invoked_subcommand:
             msg = ("Heartbeat: {}\n" "Frequency: {}").format(
@@ -74,7 +74,7 @@ class Heartbeat(commands.Cog):
             )
             await ctx.send(box(msg))
 
-    @heartbeatset.command()
+    @heartbeat.command()
     async def url(self, ctx: commands.Context, url: str):
         """Set the URL Heartbeat will send pings to."""
         await delete(ctx.message)
@@ -82,7 +82,7 @@ class Heartbeat(commands.Cog):
         await ctx.send(checkmark("Heartbeat URL has been set and enabled."))
         self.enable_bg_loop()
 
-    @heartbeatset.command()
+    @heartbeat.command()
     async def frequency(
         self,
         ctx: commands.Context,
@@ -117,9 +117,12 @@ class Heartbeat(commands.Cog):
         """Send a heartbeat ping."""
         url = await self.config.url()
         if url:
-            await self.session.get(
-                url, headers={"user-agent": user_agent},
-            )
+            try:
+                await self.session.get(
+                    url, headers={"user-agent": user_agent},
+                )
+            except aiohttp.ClientConnectorError:
+                pass
 
 
 async def delete(message: discord.Message):
