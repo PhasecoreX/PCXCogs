@@ -18,7 +18,11 @@ log = logging.getLogger("red.pcxcogs.updatenotify")
 class UpdateNotify(commands.Cog):
     """Get notifications when your bot needs updating."""
 
-    default_global_settings = {"frequency": 3600, "check_pcx_docker": True}
+    default_global_settings = {
+        "frequency": 3600,
+        "check_red_discordbot": True,
+        "check_pcx_docker": True,
+    }
 
     def __init__(self, bot):
         """Set up the plugin."""
@@ -85,15 +89,18 @@ class UpdateNotify(commands.Cog):
         """Manage UpdateNotify settings."""
         if not ctx.invoked_subcommand:
             msg = (
-                "Update check interval:     {}\nNext check in:             {}"
+                "Update check interval:       {}\n"
+                "Next check in:               {}\n"
+                "Check Red-DiscordBot update: {}"
             ).format(
                 humanize_timedelta(seconds=await self.config.frequency()),
                 humanize_timedelta(
                     seconds=(self.next_check - datetime.datetime.now()).total_seconds()
                 ),
+                "Enabled" if await self.config.check_red_discordbot() else "Disabled",
             )
             if self.docker_version:
-                msg += "\nCheck Docker image update: {}".format(
+                msg += "\nCheck Docker image update:   {}".format(
                     "Enabled" if await self.config.check_pcx_docker() else "Disabled"
                 )
             await ctx.send(box(msg))
@@ -126,13 +133,30 @@ class UpdateNotify(commands.Cog):
             message = await self.update_check(manual=True)
             await ctx.send(message)
 
+    @updatenotify.command(name="toggle")
+    async def redbot_toggle(self, ctx: commands.Context):
+        """Toggle checking for Red-DiscordBot updates.
+
+        Useful if you only want to check for Docker image updates.
+        """
+        state = await self.config.check_red_discordbot()
+        state = not state
+        await self.config.check_red_discordbot.set(state)
+        await ctx.send(
+            checkmark(
+                "Red-DiscordBot version checking is now {}.".format(
+                    "enabled" if state else "disabled"
+                )
+            )
+        )
+
     @updatenotify.group()
     async def docker(self, ctx: commands.Context):
         """Options for checking for phasecorex/red-discordbot Docker image updates."""
         pass
 
-    @docker.command()
-    async def toggle(self, ctx: commands.Context):
+    @docker.command(name="toggle")
+    async def docker_toggle(self, ctx: commands.Context):
         """Toggle checking for phasecorex/red-discordbot Docker image updates."""
         state = await self.config.check_pcx_docker()
         state = not state
@@ -228,7 +252,9 @@ class UpdateNotify(commands.Cog):
             self.notified_version = redbot_version
             self.notified_docker_version = self.docker_version
 
-        latest_redbot_version = await self.get_latest_redbot_version()
+        latest_redbot_version = None
+        if await self.config.check_red_discordbot():
+            latest_redbot_version = await self.get_latest_redbot_version()
         update_redbot = (
             latest_redbot_version and self.notified_version != latest_redbot_version
         )
@@ -282,13 +308,16 @@ class UpdateNotify(commands.Cog):
                 )
 
         if manual and not message:
-            message += "You are already running the latest version ({})".format(
-                self.notified_version
-            )
+            if await self.config.check_red_discordbot():
+                message += "You are already running the latest version ({})".format(
+                    self.notified_version
+                )
             if self.docker_version and await self.config.check_pcx_docker():
                 message += (
-                    "\nThe `phasecorex/red-discordbot` Docker image is also up-to-date."
-                )
+                    "\nThe `phasecorex/red-discordbot` Docker image is {}up-to-date."
+                ).format("also " if message else "")
+            if not message:
+                message += "You do not have Red-DiscordBot update checking enabled."
         if message and not manual:
             message = "Hello!\n\n" + message
         return message.strip()
