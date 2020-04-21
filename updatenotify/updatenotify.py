@@ -204,29 +204,50 @@ class UpdateNotify(commands.Cog):
         """Check PyPI for the latest update to Red-DiscordBot."""
         url = "https://pypi.org/pypi/Red-DiscordBot/json"
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                data = await resp.json()
-                return data["info"]["version"]
+            try:
+                async with session.get(url) as resp:
+                    if resp.status != 200:
+                        raise aiohttp.client_exceptions.ServerConnectionError
+                    data = await resp.json()
+                    return data["info"]["version"]
+            except aiohttp.client_exceptions.ServerConnectionError:
+                log.warning(
+                    "PyPI seems to be having some issues at the moment while checking for the latest Red-DiscordBot update. "
+                    "If this keeps happening, and PyPI is indeed up, consider opening a bug report for this."
+                )
 
     @staticmethod
     async def get_latest_docker_commit():
         """Check GitHub for the latest update to phasecorex/red-discordbot."""
         url = "https://api.github.com/repos/phasecorex/docker-red-discordbot/branches/master"
         async with aiohttp.ClientSession() as session:
-            on_master = True
-            while url:
-                async with session.get(url) as resp:
-                    data = await resp.json()
-                    if on_master:  # That first url has the actual commit data nested.
-                        data = data["commit"]
-                        on_master = False
-                    if "[ci skip]" in data["commit"]["message"]:
-                        url = data["parents"][0]["url"]
-                        continue
-                    sha = data["sha"]
-                    commit_date_string = data["commit"]["committer"]["date"].rstrip("Z")
-                    commit_date = datetime.datetime.fromisoformat(commit_date_string)
-                    return (sha, commit_date)
+            try:
+                on_master = True
+                while url:
+                    async with session.get(url) as resp:
+                        if resp.status != 200:
+                            raise aiohttp.client_exceptions.ServerConnectionError
+                        data = await resp.json()
+                        if on_master:
+                            # That first url has the actual commit data nested.
+                            data = data["commit"]
+                            on_master = False
+                        if "[ci skip]" in data["commit"]["message"]:
+                            url = data["parents"][0]["url"]
+                            continue
+                        sha = data["sha"]
+                        commit_date_string = data["commit"]["committer"]["date"].rstrip(
+                            "Z"
+                        )
+                        commit_date = datetime.datetime.fromisoformat(
+                            commit_date_string
+                        )
+                        return (sha, commit_date)
+            except aiohttp.client_exceptions.ServerConnectionError:
+                log.warning(
+                    "GitHub seems to be having some issues at the moment while checking for the latest Docker commit. "
+                    "If this keeps happening, and GitHub is indeed up, consider opening a bug report for this."
+                )
 
     @staticmethod
     async def get_latest_docker_build_date(tag: str):
@@ -236,15 +257,23 @@ class UpdateNotify(commands.Cog):
             "phasecorex/red-discordbot/tags/?page=1&page_size=25"
         )
         async with aiohttp.ClientSession() as session:
-            while url:
-                async with session.get(url) as resp:
-                    data = await resp.json()
-                    for docker_image in data["results"]:
-                        if docker_image["name"] == tag:
-                            return datetime.datetime.fromisoformat(
-                                docker_image["last_updated"][:19]
-                            )
-                    url = data["next"]
+            try:
+                while url:
+                    async with session.get(url) as resp:
+                        if resp.status != 200:
+                            raise aiohttp.client_exceptions.ServerConnectionError
+                        data = await resp.json()
+                        for docker_image in data["results"]:
+                            if docker_image["name"] == tag:
+                                return datetime.datetime.fromisoformat(
+                                    docker_image["last_updated"][:19]
+                                )
+                        url = data["next"]
+            except aiohttp.client_exceptions.ServerConnectionError:
+                log.warning(
+                    "Docker Hub seems to be having some issues at the moment while checking for the latest update. "
+                    "If this keeps happening, and Docker Hub is indeed up, consider opening a bug report for this."
+                )
 
     async def update_check(self, manual: bool = False):
         """Check for all updates."""
