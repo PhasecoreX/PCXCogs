@@ -601,6 +601,13 @@ class BanCheck(commands.Cog):
         sent = []
         is_error = False
         config_services = await self.config.guild(ctx.guild).services()
+        if isinstance(member, discord.Member):
+            member_id = member.id
+            member_avatar_url = member.avatar_url
+        else:
+            member_id = member
+            member_avatar_url = None
+
         for service_name, service_config in config_services.items():
             if not service_config.get("enabled", False):
                 continue
@@ -649,13 +656,6 @@ class BanCheck(commands.Cog):
             else:
                 await ctx.send(error("Sending ban report has been canceled."))
                 return
-
-            if isinstance(member, discord.Member):
-                member_id = member.id
-                member_avatar_url = member.avatar_url
-            else:
-                member_id = member
-                member_avatar_url = None
 
             response = await service_class().report(
                 member_id, api_key, ctx.author.id, ban_message, image_proof_url
