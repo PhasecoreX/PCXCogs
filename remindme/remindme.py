@@ -215,7 +215,10 @@ class RemindMe(commands.Cog):
             self.me_too_reminders[query.id] = reminder
             await query.add_reaction(self.reminder_emoji)
             await asyncio.sleep(30)
-            await query.delete()
+            try:
+                await query.delete()
+            except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+                pass
             del self.me_too_reminders[query.id]
 
     async def delete_reminder(self, ctx: commands.Context, index: str):
