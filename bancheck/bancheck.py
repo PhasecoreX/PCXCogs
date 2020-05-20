@@ -604,56 +604,78 @@ class BanCheck(commands.Cog):
             member_id = member
             member_avatar_url = None
 
+        # Gather services that can have reports sent to them
+        report_services = []
         for service_name, service_config in config_services.items():
             if not service_config.get("enabled", False):
-                continue
+                continue  # This service is not enabled
             service_class = self.all_supported_services.get(service_name, False)
             if not service_class:
-                continue
-            api_key = await self.get_api_key(service_name, config_services)
-            if not api_key:
-                continue
+                continue  # This service is not supported
             try:
                 service_class().report
             except AttributeError:
                 continue  # This service does not support reporting
-            if do_imgur_upload:
-                service_keys = await self.bot.get_shared_api_tokens("imgur")
-                imgur_client_id = service_keys.get("client_id", False)
-                if not imgur_client_id:
-                    await ctx.send(
-                        error(
-                            "This command requires that you have an Imgur Client ID. Please set one with `.imgurcreds`."
-                        )
-                    )
-                    return
-                image_proof_url = await Imgur.upload(image_proof_url, imgur_client_id)
-                if not image_proof_url:
-                    await ctx.send(
-                        error(
-                            "Uploading image to Imgur failed. Ban report has not been sent."
-                        )
-                    )
-                    return
-            pred = MessagePredicate.yes_or_no(ctx)
-            await ctx.send(
-                question(
-                    "Are you **sure** you want to send this ban report for **{}**? (yes/no)".format(
-                        member
+            api_key = await self.get_api_key(service_name, config_services)
+            if not api_key:
+                continue  # This service needs an API key set to work
+            report_services.append(service_class())
+
+        # Send error if there are no services to send to
+        if not report_services:
+            await self.send_embed(
+                ctx.channel,
+                self.embed_maker(
+                    "Error",
+                    discord.Colour.red(),
+                    "No services have been set up. Please check `[p]bancheckset` for more details.",
+                    member_avatar_url,
+                ),
+            )
+            return
+
+        # Upload to Imgur if needed
+        if do_imgur_upload:
+            service_keys = await self.bot.get_shared_api_tokens("imgur")
+            imgur_client_id = service_keys.get("client_id", False)
+            if not imgur_client_id:
+                await ctx.send(
+                    error(
+                        "This command requires that you have an Imgur Client ID. Please set one with `.imgurcreds`."
                     )
                 )
-            )
-            try:
-                await ctx.bot.wait_for("message", check=pred, timeout=30)
-            except asyncio.TimeoutError:
-                pass
-            if pred.result:
-                pass
-            else:
-                await ctx.send(error("Sending ban report has been canceled."))
+                return
+            image_proof_url = await Imgur.upload(image_proof_url, imgur_client_id)
+            if not image_proof_url:
+                await ctx.send(
+                    error(
+                        "Uploading image to Imgur failed. Ban report has not been sent."
+                    )
+                )
                 return
 
-            response = await service_class().report(
+        # Ask if the user really wants to do this
+        pred = MessagePredicate.yes_or_no(ctx)
+        await ctx.send(
+            question(
+                "Are you **sure** you want to send this ban report for **{}**? (yes/no)".format(
+                    member
+                )
+            )
+        )
+        try:
+            await ctx.bot.wait_for("message", check=pred, timeout=30)
+        except asyncio.TimeoutError:
+            pass
+        if pred.result:
+            pass
+        else:
+            await ctx.send(error("Sending ban report has been canceled."))
+            return
+
+        # Send report to services
+        for report_service in report_services:
+            response = await report_service.report(
                 member_id, api_key, ctx.author.id, ban_message, image_proof_url
             )
             sent.append(response.service)
@@ -673,6 +695,8 @@ class BanCheck(commands.Cog):
                 description += "**{}:** Failure (HTTP error {})\n".format(
                     response.service, response.http_status
                 )
+
+        # Generate results
         if is_error:
             await self.send_embed(
                 ctx.channel,
@@ -680,16 +704,6 @@ class BanCheck(commands.Cog):
                     "Errors occured while sending reports for **{}**".format(member),
                     discord.Colour.red(),
                     description,
-                    member_avatar_url,
-                ),
-            )
-        elif not sent:
-            await self.send_embed(
-                ctx.channel,
-                self.embed_maker(
-                    "Error",
-                    discord.Colour.red(),
-                    "No services have been set up. Please check `[p]bancheckset` for more details.",
                     member_avatar_url,
                 ),
             )
