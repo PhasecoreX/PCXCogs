@@ -10,6 +10,7 @@ from redbot.core.utils.chat_formatting import box, error, question, warning
 from redbot.core.utils.predicates import MessagePredicate
 
 from .evaluate import eval_expr
+from .pcx_lib import checkmark
 
 __author__ = "PhasecoreX"
 
@@ -269,8 +270,3 @@ class TooManySides(ValueError):
         """Set the value that is too many sides."""
         super().__init__()
         self.value = value
-
-
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

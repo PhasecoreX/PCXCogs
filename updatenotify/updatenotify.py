@@ -10,6 +10,8 @@ from redbot.core import __version__ as redbot_version
 from redbot.core import checks, commands
 from redbot.core.utils.chat_formatting import box, humanize_timedelta
 
+from .pcx_lib import checkmark
+
 __author__ = "PhasecoreX"
 __version__ = "1.1.0"
 log = logging.getLogger("red.pcxcogs.updatenotify")
@@ -370,8 +372,3 @@ class UpdateNotify(commands.Cog):
                 await self.bot.send_to_owners(message)
         except aiohttp.ClientConnectorError:
             pass
-
-
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

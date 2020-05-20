@@ -5,6 +5,8 @@ import discord
 from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import error
 
+from .pcx_lib import checkmark, delete
+
 __author__ = "PhasecoreX"
 
 
@@ -139,10 +141,7 @@ class ReactChannel(commands.Cog):
             str(payload.emoji) == "\N{WHITE HEAVY CHECK MARK}"
             and channel_type == "checklist"
         ):
-            try:
-                await message.delete()
-            except (discord.Forbidden, discord.NotFound, discord.HTTPException):
-                pass
+            await delete(message)
         # Vote
         elif (
             str(payload.emoji) == "\N{UP-POINTING SMALL RED TRIANGLE}"
@@ -208,8 +207,3 @@ class ReactChannel(commands.Cog):
             if await member.created_at() == 0:
                 time = int(datetime.datetime.utcnow().timestamp())
                 await member.created_at.set(time)
-
-
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

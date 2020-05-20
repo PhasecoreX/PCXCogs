@@ -6,6 +6,8 @@ import discord
 from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import box
 
+from .pcx_lib import checkmark
+
 __author__ = "PhasecoreX"
 
 
@@ -150,8 +152,3 @@ class DecodeBinary(commands.Cog):
             return True
         except UnicodeEncodeError:
             return False
-
-
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

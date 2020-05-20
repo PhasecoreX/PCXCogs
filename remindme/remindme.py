@@ -9,6 +9,8 @@ from redbot.core import Config, checks, commands
 from redbot.core.commands.converter import parse_timedelta
 from redbot.core.utils.chat_formatting import box, humanize_timedelta
 
+from .pcx_lib import checkmark, delete
+
 __author__ = "PhasecoreX"
 log = logging.getLogger("red.pcxcogs.remindme")
 
@@ -215,10 +217,7 @@ class RemindMe(commands.Cog):
             self.me_too_reminders[query.id] = reminder
             await query.add_reaction(self.reminder_emoji)
             await asyncio.sleep(30)
-            try:
-                await query.delete()
-            except (discord.Forbidden, discord.NotFound, discord.HTTPException):
-                pass
+            await delete(query)
             del self.me_too_reminders[query.id]
 
     async def delete_reminder(self, ctx: commands.Context, index: str):
@@ -355,8 +354,3 @@ class RemindMe(commands.Cog):
         for reminder in to_remove:
             async with self.config.reminders() as current_reminders:
                 current_reminders.remove(reminder)
-
-
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

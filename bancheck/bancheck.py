@@ -7,6 +7,8 @@ from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import error, info, question
 from redbot.core.utils.predicates import MessagePredicate
 
+from .pcx_lib import checkmark, delete
+
 from .services.alertbot import Alertbot
 from .services.imgur import Imgur
 from .services.ksoftsi import KSoftSi
@@ -142,10 +144,7 @@ class BanCheck(commands.Cog):
         """Get information on setting an API key for a global service."""
         if api_key:
             # Try deleting the command as fast as possible, so that others can't see the API key
-            try:
-                await ctx.message.delete()
-            except (discord.Forbidden, discord.NotFound, discord.HTTPException):
-                pass
+            await delete(ctx.message)
         if service in self.supported_guild_services:
             await ctx.send(
                 info(
@@ -353,10 +352,7 @@ class BanCheck(commands.Cog):
         """Set (or delete) an API key for a service."""
         message_guild = ctx.message.guild
         # Try deleting the command as fast as possible, so that others can't see the API key
-        try:
-            await ctx.message.delete()
-        except (discord.Forbidden, discord.NotFound, discord.HTTPException):
-            pass
+        await delete(ctx.message)
         if service not in self.all_supported_services:
             await ctx.send(
                 error(
@@ -957,8 +953,3 @@ class BanCheck(commands.Cog):
         if avatar:
             embed.set_thumbnail(url=avatar)
         return embed
-
-
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)

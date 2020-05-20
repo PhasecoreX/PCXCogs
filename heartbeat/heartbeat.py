@@ -10,6 +10,8 @@ from redbot.core import __version__ as redbot_version
 from redbot.core import checks, commands
 from redbot.core.utils.chat_formatting import box, humanize_timedelta
 
+from .pcx_lib import checkmark, delete
+
 __author__ = "PhasecoreX"
 user_agent = "Red-DiscordBot/{} Heartbeat (https://github.com/PhasecoreX/PCXCogs)".format(
     redbot_version
@@ -123,22 +125,3 @@ class Heartbeat(commands.Cog):
                 )
             except aiohttp.ClientConnectorError:
                 pass
-
-
-async def delete(message: discord.Message):
-    """Attempt to delete a message.
-
-    Returns True if successful, False otherwise.
-    """
-    try:
-        await message.delete()
-    except discord.NotFound:
-        return True  # Already deleted
-    except (discord.HTTPException):
-        return False
-    return True
-
-
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)
