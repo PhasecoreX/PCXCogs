@@ -33,27 +33,27 @@ class KSoftSi:
                     "is_banned": true
                 }
                 """
-                if resp.status == 401:
-                    try:
-                        data = await resp.json()
-                        return LookupResult(
-                            KSoftSi.SERVICE_NAME,
-                            resp.status,
-                            "error",
-                            reason=data["detail"],
-                        )
-                    except aiohttp.client_exceptions.ContentTypeError:
-                        pass  # Drop down to !=200 logic
-                if resp.status != 200:
-                    return LookupResult(KSoftSi.SERVICE_NAME, resp.status, "error")
-                data = await resp.json()
-                if not data:
+                data = None
+                try:
+                    data = await resp.json()
+                except aiohttp.client_exceptions.ContentTypeError:
                     return LookupResult(
                         KSoftSi.SERVICE_NAME,
                         resp.status,
                         "error",
-                        reason="No data returned",
+                        reason="Failure to parse /check response",
                     )
+                # Some other error
+                if resp.status != 200:
+                    reason = ""
+                    if "detail" in data:
+                        reason = data["detail"]
+                    if "message" in data:
+                        reason = data["message"]
+                    return LookupResult(
+                        KSoftSi.SERVICE_NAME, resp.status, "error", reason=reason
+                    )
+                # Successful lookup
                 if not data["is_banned"]:
                     return LookupResult(KSoftSi.SERVICE_NAME, resp.status, "clear")
 
@@ -87,38 +87,27 @@ class KSoftSi:
                     "message": "specified user does not exist"
                 }
                 """
-                if resp.status == 401:
-                    try:
-                        data = await resp.json()
-                        return LookupResult(
-                            KSoftSi.SERVICE_NAME,
-                            resp.status,
-                            "error",
-                            reason=data["detail"],
-                        )
-                    except aiohttp.client_exceptions.ContentTypeError:
-                        pass  # Drop down to !=200 logic
-                if resp.status == 404:
-                    try:
-                        data = await resp.json()
-                        return LookupResult(
-                            KSoftSi.SERVICE_NAME,
-                            resp.status,
-                            "error",
-                            reason=data["message"],
-                        )
-                    except aiohttp.client_exceptions.ContentTypeError:
-                        pass  # Drop down to !=200 logic
-                if resp.status != 200:
-                    return LookupResult(KSoftSi.SERVICE_NAME, resp.status, "error")
-                data = await resp.json()
-                if not data:
+                data = None
+                try:
+                    data = await resp.json()
+                except aiohttp.client_exceptions.ContentTypeError:
                     return LookupResult(
                         KSoftSi.SERVICE_NAME,
                         resp.status,
                         "error",
-                        reason="No data returned",
+                        reason="Failure to parse /info response",
                     )
+                # Some other error
+                if resp.status != 200:
+                    reason = ""
+                    if "detail" in data:
+                        reason = data["detail"]
+                    if "message" in data:
+                        reason = data["message"]
+                    return LookupResult(
+                        KSoftSi.SERVICE_NAME, resp.status, "error", reason=reason
+                    )
+                # Successful lookup
                 return LookupResult(
                     KSoftSi.SERVICE_NAME,
                     resp.status,
@@ -145,35 +134,35 @@ class KSoftSi:
                         "user-agent": user_agent,
                     },
                 ) as resp:
-                    if resp.status == 401:
-                        try:
-                            data = await resp.json()
-                            return ReportResult(
-                                KSoftSi.SERVICE_NAME,
-                                resp.status,
-                                False,
-                                reason=data["detail"],
-                            )
-                        except aiohttp.client_exceptions.ContentTypeError:
-                            pass  # Drop down to !=200 logic
-                    if resp.status == 409:
+                    data = None
+                    try:
                         data = await resp.json()
+                    except aiohttp.client_exceptions.ContentTypeError:
+                        return ReportResult(
+                            KSoftSi.SERVICE_NAME,
+                            resp.status,
+                            False,
+                            reason="Failure to parse response",
+                        )
+                    # User already banned
+                    if resp.status == 409:
                         return ReportResult(
                             KSoftSi.SERVICE_NAME,
                             resp.status,
                             True,
                             reason=data["message"],
                         )
-                    if resp.status == 400:
-                        data = await resp.json()
-                        return ReportResult(
-                            KSoftSi.SERVICE_NAME,
-                            resp.status,
-                            False,
-                            reason=data["message"],
-                        )
+                    # Some other error
                     if resp.status != 200:
-                        return ReportResult(KSoftSi.SERVICE_NAME, resp.status, False)
+                        reason = ""
+                        if "detail" in data:
+                            reason = data["detail"]
+                        if "message" in data:
+                            reason = data["message"]
+                        return ReportResult(
+                            KSoftSi.SERVICE_NAME, resp.status, False, reason=reason
+                        )
+                    # Successful report
                     return ReportResult(KSoftSi.SERVICE_NAME, resp.status, True)
         except aiohttp.client_exceptions.ClientError:
             pass
