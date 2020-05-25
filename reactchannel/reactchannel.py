@@ -188,6 +188,26 @@ class ReactChannel(commands.Cog):
             )
         )
 
+    @commands.command()
+    @commands.guild_only()
+    async def upvote(self, ctx: commands.Context):
+        """View this guilds upvote reaction."""
+        upvote = await self._get_emoji(ctx.message.guild, "upvote")
+        if upvote:
+            await ctx.send("This guilds upvote emoji is {}".format(upvote))
+        else:
+            await ctx.send("This guild does not have an upvote emoji set")
+
+    @commands.command()
+    @commands.guild_only()
+    async def downvote(self, ctx: commands.Context):
+        """View this guilds downvote reaction."""
+        downvote = await self._get_emoji(ctx.message.guild, "downvote")
+        if downvote:
+            await ctx.send("This guilds downvote emoji is {}".format(downvote))
+        else:
+            await ctx.send("This guild does not have a downvote emoji set")
+
     @commands.Cog.listener()
     async def on_message_without_command(self, message: discord.Message):
         """Watch for messages in enabled react channels to add reactions."""
