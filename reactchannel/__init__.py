@@ -2,6 +2,8 @@
 from .reactchannel import ReactChannel
 
 
-def setup(bot):
+async def setup(bot):
     """Load ReactChannel cog."""
-    bot.add_cog(ReactChannel(bot))
+    cog = ReactChannel(bot)
+    await cog.initialize()
+    bot.add_cog(cog)
