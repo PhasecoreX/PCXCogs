@@ -64,39 +64,75 @@ class ReactChannel(commands.Cog):
             message = ""
             channels = await self.config.guild(ctx.message.guild).channels()
             for channel_id, channel_type in channels.items():
-                message += "\n  - <#{}>: {}".format(channel_id, channel_type)
+                if isinstance(channel_type, list):
+                    channel_type = "custom ({})".format(", ".join(channel_type))
+                message += "\n  - <#{}>: {}".format(
+                    channel_id, channel_type.capitalize()
+                )
             if not message:
                 message = " None"
             message = "ReactChannels configured:" + message
             await ctx.send(message)
 
-    @reactchannelset.command()
-    async def enable(
+    @reactchannelset.group()
+    async def enable(self, ctx: commands.Context):
+        """Enable ReactChannel functionality in a channel."""
+        pass
+
+    @enable.command()
+    async def checklist(
+        self, ctx: commands.Context, channel: discord.TextChannel = None
+    ):
+        """All messages will have a checkmark. Clicking it will delete the message."""
+        await self._save_channel(ctx, channel, "checklist")
+
+    @enable.command()
+    async def vote(self, ctx: commands.Context, channel: discord.TextChannel = None):
+        """All user messages will have an up and down arrow. Clicking them will affect a users karma total."""
+        await self._save_channel(ctx, channel, "vote")
+
+    @enable.command()
+    async def custom(self, ctx: commands.Context, *, emojis: str):
+        """All messages will have the specified emoji(s). When specifying multiple, make sure there's a space between each emoji."""
+        await self._save_channel(ctx, None, list(dict.fromkeys(emojis.split())))
+
+    async def _save_channel(
         self,
         ctx: commands.Context,
-        channel_type: str,
-        channel: discord.TextChannel = None,
+        channel: discord.TextChannel,
+        channel_type: Union[str, list],
     ):
-        """Enable ReactChannel functionality in a channel.
-
-        `channel_type` can be any of:
-        - `checklist`: All messages will have a checkmark. Clicking it will delete the message.
-        - `vote`: All messages will have an up and down arrow.
-        """
+        """Actually save the ReactChannel settings."""
         if channel is None:
             channel = ctx.message.channel
-        if channel_type not in ["checklist", "vote"]:
-            await ctx.send(
-                error("`{}` is not a supported channel type.".format(channel_type))
-            )
-            return
-
+        if isinstance(channel_type, list):
+            try:
+                for emoji in channel_type:
+                    await ctx.message.add_reaction(emoji)
+                for emoji in channel_type:
+                    await ctx.message.remove_reaction(emoji, self.bot.user)
+            except discord.HTTPException:
+                await ctx.send(
+                    error(
+                        "{} is not a valid emoji I can use!".format(
+                            "That" if len(channel_type) == 1 else "One of those emojis"
+                        )
+                    )
+                )
+                return
         channels = await self.config.guild(ctx.message.guild).channels()
         channels[str(channel.id)] = channel_type
         await self.config.guild(ctx.message.guild).channels.set(channels)
+        channel_type_name = channel_type
+        custom_emojis = ""
+        if isinstance(channel_type_name, list):
+            channel_type_name = "custom"
+            custom_emojis = " ({})".format(", ".join(channel_type))
         await ctx.send(
             checkmark(
-                "<#{}> is now a {} ReactChannel.".format(str(channel.id), channel_type)
+                "<#{}> is now a {} ReactChannel.{}".format(
+                    str(channel.id), channel_type_name, custom_emojis
+                )
             )
         )
 
@@ -226,7 +262,17 @@ class ReactChannel(commands.Cog):
             for emoji_type in ["upvote", "downvote"]:
                 emoji = await self._get_emoji(message.guild, emoji_type)
                 if emoji:
+                    try:
+                        await message.add_reaction(emoji)
+                    except discord.HTTPException:
+                        pass
+        elif isinstance(channel_type, list):
+            # Custom reactions
+            for emoji in channel_type:
+                try:
                     await message.add_reaction(emoji)
+                except discord.HTTPException:
+                    pass
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
