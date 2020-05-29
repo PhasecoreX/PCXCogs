@@ -19,14 +19,42 @@ If you'd like to contact me, test out my cogs, or stay up to date on my cogs, co
 
 ## The List of Cogs
 
-| Name         | Status      | Description (Click for more details)                                                                                                                                                                                                                                               |
-| ------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| BanCheck     | **Release** | <details><summary>Automatically check users against global ban lists.</summary>Other features include automatic banning, manually checking users already on the server, and sending ban reports to supported services.</details>                                                   |
-| DecodeBinary | **Release** | <details><summary>Automatically decode binary strings in chat.</summary>Any message that the bot thinks is binary will be decoded to regular text.</details>                                                                                                                       |
-| Dice         | **Release** | <details><summary>Perform complex dice rolling.</summary>Supports dice notation (such as 3d6+3), shows all roll results, and can be configured to limit the number of dice a user can roll at once.</details>                                                                      |
-| Heartbeat    | **Release** | <details><summary>Send uptime heartbeat pings</summary>Configurable URL and heartbeat frequency.</details>                                                                                                                                                                         |
-| ReactChannel | **Release** | <details><summary>Per-channel automatic reaction tools.</summary>Supports turning a channel into a checklist, or into an upvote-like system.</details>                                                                                                                             |
-| RemindMe     | **Release** | <details><summary>Set reminders for yourself.</summary>Ported from v2; originally by Twentysix26. I've made many enhancements to it as well.</details>                                                                                                                             |
-| UpdateNotify | **Release** | <details><summary>Automatically check for updates to Red-Discordbot.</summary>Will check for updates to Red-DiscordBot and notify the owner. Will also check for updates to [my docker image](https://hub.docker.com/r/phasecorex/red-discordbot) if you are using that.</details> |
-| UwU          | **Beta**    | <details><summary>Uwuize messages.</summary>Takes the pwevious mwessage and uwuizes it. Sowwy.</details>                                                                                                                                                                           |
-| Wikipedia    | **Release** | <details><summary>Look up articles on Wikipedia.</summary>Ported from v2; originally by PaddoInWonderland. I've made some enhancements to it as well.</details>                                                                                                                    |
+### BanCheck
+
+Automatically check users against multiple global ban lists on server join. Other features include automatic banning, manually checking users already on the server, and sending ban reports to supported services.
+
+### DecodeBinary
+
+Automatically decode binary strings in chat. Any message that the bot thinks is binary will be decoded to regular text. Based on a Reddit bot, and was my first cog!
+
+### Dice
+
+Perform complex dice rolling. Supports dice notation (such as 3d6+3), shows all roll results, and can be configured to limit the number of dice a user can roll at once.
+
+### Heartbeat
+
+Monitor the uptime of your bot by having it send heartbeat pings to a configurable URL (healthchecks.io for instance).
+
+### NetSpeed
+
+Test your servers internet speed. Runs an internet speedtest and prints the results. Only the owner can run this.
+
+### ReactChannel
+
+Per-channel automatic reaction tools, where every message in a channel will have reactions added to them. Supports turning a channel into a checklist (checkmark will delete the message), an upvote-like system (affects a users karma total), or a custom channel.
+
+### RemindMe
+
+Set reminders for yourself. Ported from v2; originally by Twentysix26. I've made many enhancements to it as well.
+
+### UpdateNotify
+
+Automatically check for updates to Red-Discordbot, notifying the owner. Also checks for updates to [my docker image](https://hub.docker.com/r/phasecorex/red-discordbot) if you are using that.
+
+### UwU
+
+Uwuize messages. Takes the pwevious mwessage and uwuizes it. Sowwy.
+
+### Wikipedia
+
+Look up articles on Wikipedia. Ported from v2; originally by PaddoInWonderland. I've made some enhancements to it as well.                                                                                                                 |

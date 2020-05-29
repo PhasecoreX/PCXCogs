@@ -1,0 +1,16 @@
+{
+    "name": "NetSpeed",
+    "author": [
+        "PhasecoreX (PhasecoreX#0635)"
+    ],
+    "short": "Test your servers internet speed.",
+    "description": "Runs an internet speedtest and prints the results. Only the owner can run this.",
+    "install_msg": "Thanks for installing NetSpeed!",
+    "requirements": [
+        "speedtest-cli"
+    ],
+    "tags": [
+        "utility",
+        "system"
+    ]
+}
