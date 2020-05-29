@@ -26,7 +26,7 @@ class BanCheck(commands.Cog):
     all_supported_services = {**supported_global_services, **supported_guild_services}
 
     def __init__(self, bot):
-        """Set up the plugin."""
+        """Set up the cog."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1224364860)

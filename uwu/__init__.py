@@ -4,4 +4,5 @@ from .uwu import UwU
 
 def setup(bot):
     """Load UwU cog."""
-    bot.add_cog(UwU(bot))
+    cog = UwU(bot)
+    bot.add_cog(cog)

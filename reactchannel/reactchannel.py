@@ -23,7 +23,7 @@ class ReactChannel(commands.Cog):
     default_member_settings = {"karma": 0, "created_at": 0}
 
     def __init__(self, bot):
-        """Set up the plugin."""
+        """Set up the cog."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)

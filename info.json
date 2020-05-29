@@ -1,7 +1,9 @@
 {
-    "name" : "PCXCogs",
-    "author" : ["PhasecoreX (PhasecoreX#0635)"],
-    "short" : "PhasecoreX's Cogs for Red-DiscordBot.",
-    "description" : "My cogs focus on automation, where the bot will automatically respond or perform actions when needed, even if commands are not used. There's also other stuff thrown in there for fun.",
-    "install_msg" : "Thank you for installing my repo!\nFor more information on my cogs, or to report any bugs/suggestions, go to my GitHub here: <https://github.com/PhasecoreX/PCXCogs>.\nYou can also find me in the Red Cog Support Discord server, or in my own PCXSupport Discord server here: https://discord.gg/QzdPp2b"
+    "name": "PCXCogs",
+    "author": [
+        "PhasecoreX (PhasecoreX#0635)"
+    ],
+    "short": "PhasecoreX's Cogs for Red-DiscordBot.",
+    "description": "My cogs focus on automation, where the bot will automatically respond or perform actions when needed, even if commands are not used. There's also other stuff thrown in there for fun.",
+    "install_msg": "Thank you for installing my repo!\nFor more information on my cogs, or to report any bugs/suggestions, go to my GitHub here: <https://github.com/PhasecoreX/PCXCogs>.\nYou can also find me in the Red Cog Support Discord server, or in my own PCXSupport Discord server here: https://discord.gg/QzdPp2b"
 }

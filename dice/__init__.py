@@ -4,4 +4,5 @@ from .dice import Dice
 
 def setup(bot):
     """Load Dice cog."""
-    bot.add_cog(Dice(bot))
+    cog = Dice(bot)
+    bot.add_cog(cog)

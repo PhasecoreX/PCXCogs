@@ -26,7 +26,7 @@ class RemindMe(commands.Cog):
     reminder_emoji = "🔔"
 
     def __init__(self, bot):
-        """Set up the plugin."""
+        """Set up the cog."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)

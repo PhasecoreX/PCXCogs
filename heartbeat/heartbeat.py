@@ -25,7 +25,7 @@ class Heartbeat(commands.Cog):
     default_global_settings = {"url": "", "frequency": 60}
 
     def __init__(self, bot):
-        """Set up the plugin."""
+        """Set up the cog."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)

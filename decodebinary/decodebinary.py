@@ -17,7 +17,7 @@ class DecodeBinary(commands.Cog):
     default_guild_settings = {"ignore_guild": False, "ignored_channels": []}
 
     def __init__(self, bot):
-        """Set up the plugin."""
+        """Set up the cog."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1224364860)

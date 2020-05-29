@@ -21,7 +21,7 @@ class Dice(commands.Cog):
     default_global_settings = {"max_dice_rolls": 10000, "max_die_sides": 1000}
 
     def __init__(self, bot):
-        """Set up the plugin."""
+        """Set up the cog."""
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, 1224364860)

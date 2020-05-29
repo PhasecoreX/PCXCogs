@@ -4,4 +4,5 @@ from .decodebinary import DecodeBinary
 
 def setup(bot):
     """Load DecodeBinary cog."""
-    bot.add_cog(DecodeBinary(bot))
+    cog = DecodeBinary(bot)
+    bot.add_cog(cog)

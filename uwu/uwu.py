@@ -11,7 +11,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     def __init__(self, bot):
-        """Set up the pwugin."""
+        """Set up the cog."""
         super().__init__()
         self.bot = bot
 
