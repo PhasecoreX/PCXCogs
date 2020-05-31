@@ -106,12 +106,27 @@ class RemindMe(commands.Cog):
         if not to_send:
             await self.send_message(ctx, "You don't have any upcoming reminders.")
         else:
-            message_dm = "Here is a list of all of your current reminders:"
+            embed = discord.Embed(
+                title="Reminders for {}".format(author.name),
+                color=await ctx.embed_color(),
+            )
+            embed.set_thumbnail(url=author.avatar_url)
+            current_timestamp = int(current_time.time())
             count = 0
             for reminder in to_send:
                 count += 1
-                message_dm += "\n\n#" + str(count) + ". " + reminder["TEXT"]
-            await author.send(message_dm)
+                delta = reminder["FUTURE"] - current_timestamp
+                embed.add_field(
+                    name="#{} - {}".format(
+                        count,
+                        "In {}".format(humanize_timedelta(seconds=delta))
+                        if delta > 0
+                        else "Now!",
+                    ),
+                    value=reminder["TEXT"],
+                    inline=False,
+                )
+            await author.send(embed=embed)
             if ctx.message.guild is not None:
                 await self.send_message(ctx, "Check your DMs for a full list!")
 
