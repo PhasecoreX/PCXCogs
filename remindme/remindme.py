@@ -8,6 +8,7 @@ import discord
 from redbot.core import Config, checks, commands
 from redbot.core.commands.converter import parse_timedelta
 from redbot.core.utils.chat_formatting import box, humanize_timedelta
+from redbot.core.utils.predicates import MessagePredicate
 
 from .pcx_lib import checkmark, delete
 
@@ -248,6 +249,21 @@ class RemindMe(commands.Cog):
 
         async with self.config.reminders() as current_reminders:
             if index == "all":
+                # Ask if the user really wants to do this
+                pred = MessagePredicate.yes_or_no(ctx)
+                await self.send_message(
+                    ctx,
+                    "Are you **sure** you want to remove all of your reminders? (yes/no)",
+                )
+                try:
+                    await ctx.bot.wait_for("message", check=pred, timeout=30)
+                except asyncio.TimeoutError:
+                    pass
+                if pred.result:
+                    pass
+                else:
+                    await self.send_message(ctx, "I have left your reminders alone.")
+                    return
                 for reminder in to_remove:
                     current_reminders.remove(reminder)
                 await self.send_message(ctx, "All of your reminders have been removed.")
