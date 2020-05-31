@@ -366,11 +366,15 @@ class RemindMe(commands.Cog):
                 try:
                     user = self.bot.get_user(reminder["ID"])
                     if user is not None:
-                        await user.send(
-                            "Hello! You asked me to remind you this {} ago:\n{}".format(
-                                reminder["FUTURE_TEXT"], reminder["TEXT"]
-                            )
+                        embed = discord.Embed(
+                            title=":bell: Reminder! :bell:",
+                            color=await self.bot.get_embed_color(self),
                         )
+                        embed.add_field(
+                            name="From {} ago:".format(reminder["FUTURE_TEXT"]),
+                            value=reminder["TEXT"],
+                        )
+                        await user.send(embed=embed)
                         total_sent = await self.config.total_sent()
                         await self.config.total_sent.set(total_sent + 1)
                     else:
