@@ -4,21 +4,20 @@ from typing import Union
 
 import discord
 from redbot.core import Config, checks, commands
-from redbot.core.utils.chat_formatting import error
+from redbot.core.utils.chat_formatting import error, info
 
 from .pcx_lib import checkmark, delete
 
 __author__ = "PhasecoreX"
-__version__ = "1.1.0"
 
 
 class ReactChannel(commands.Cog):
     """Per-channel auto reaction tools."""
 
+    default_global_settings = {"schema_version": 0}
     default_guild_settings = {
         "channels": {},
-        "upvote": None,
-        "downvote": None,
+        "emojis": {"upvote": None, "downvote": None},
     }
     default_member_settings = {"karma": 0, "created_at": 0}
 
@@ -26,7 +25,10 @@ class ReactChannel(commands.Cog):
         """Set up the cog."""
         super().__init__()
         self.bot = bot
-        self.config = Config.get_conf(self, 1224364860)
+        self.config = Config.get_conf(
+            self, identifier=1224364860, force_registration=True
+        )
+        self.config.register_global(**self.default_global_settings)
         self.config.register_guild(**self.default_guild_settings)
         self.config.register_member(**self.default_member_settings)
         self.emoji_cache = {}
@@ -37,23 +39,27 @@ class ReactChannel(commands.Cog):
 
     async def _maybe_update_config(self):
         """Perform some configuration migrations."""
-        if await self.config.version() == __version__:
-            return
-        guild_dict = await self.config.all_guilds()
-        for guild_id, guild_info in guild_dict.items():
+        if not await self.config.schema_version():
             # If guild had a vote channel, set up default upvote and downvote emojis
-            channels = guild_info.get("channels", {})
-            if channels:
-                for channel_id, channel_type in channels.items():
-                    if channel_type == "vote":
-                        await self.config.guild(discord.Object(id=guild_id)).upvote.set(
-                            "\ud83d\udd3c"
-                        )
-                        await self.config.guild(
-                            discord.Object(id=guild_id)
-                        ).downvote.set("\ud83d\udd3d")
-                        break
-        await self.config.version.set(__version__)
+            guild_dict = await self.config.all_guilds()
+            for guild_id, guild_info in guild_dict.items():
+                channels = guild_info.get("channels", {})
+                if channels:
+                    for channel_id, channel_type in channels.items():
+                        if channel_type == "vote":
+                            await self.config.guild_from_id(guild_id).emojis.upvote.set(
+                                guild_info.get("upvote", "\ud83d\udd3c")
+                            )
+                            await self.config.guild_from_id(
+                                guild_id
+                            ).emojis.downvote.set(
+                                guild_info.get("downvote", "\ud83d\udd3d")
+                            )
+                            break
+                await self.config.guild_from_id(guild_id).clear_raw("upvote")
+                await self.config.guild_from_id(guild_id).clear_raw("downvote")
+            await self.config.clear_raw("version")
+            await self.config.schema_version.set(1)
 
     @commands.group()
     @commands.guild_only()
@@ -64,10 +70,26 @@ class ReactChannel(commands.Cog):
             message = ""
             channels = await self.config.guild(ctx.message.guild).channels()
             for channel_id, channel_type in channels.items():
+                emojis = "???"
+                if channel_type == "checklist":
+                    emojis = "\N{WHITE HEAVY CHECK MARK}"
+                if channel_type == "vote":
+                    emojis = ""
+                    upvote = await self._get_emoji(ctx.message.guild, "upvote")
+                    downvote = await self._get_emoji(ctx.message.guild, "downvote")
+                    if upvote:
+                        emojis += upvote
+                    if downvote:
+                        if emojis:
+                            emojis += " "
+                        emojis += downvote
+                    if not emojis:
+                        emojis = "(disabled, see `[p]reactchannelset emoji`)"
                 if isinstance(channel_type, list):
-                    channel_type = "custom ({})".format(", ".join(channel_type))
-                message += "\n  - <#{}>: {}".format(
-                    channel_id, channel_type.capitalize()
+                    emojis = " ".join(channel_type)
+                    channel_type = "custom"
+                message += "\n  - <#{}>: {} - {}".format(
+                    channel_id, channel_type.capitalize(), emojis
                 )
             if not message:
                 message = " None"
@@ -134,6 +156,18 @@ class ReactChannel(commands.Cog):
                 )
             )
         )
+        if (
+            channel_type == "vote"
+            and not await self._get_emoji(ctx.message.guild, "upvote")
+            and not await self._get_emoji(ctx.message.guild, "downvote")
+        ):
+            await ctx.send(
+                info(
+                    "You do not have an upvote or downvote emoji set for this guild. "
+                    "You will need at least one set in order for this ReactChannel to work. "
+                    "Check `[p]reactchannelset emoji` for more information."
+                )
+            )
 
     @reactchannelset.command()
     async def disable(self, ctx: commands.Context, channel: discord.TextChannel = None):
@@ -178,7 +212,7 @@ class ReactChannel(commands.Cog):
     ):
         """Actually save the emoji."""
         if emoji == "none":
-            setting = getattr(self.config.guild(ctx.guild), emoji_type)
+            setting = getattr(self.config.guild(ctx.guild).emojis, emoji_type)
             await setting.set(None)
             await ctx.send(
                 checkmark(
@@ -197,7 +231,7 @@ class ReactChannel(commands.Cog):
                 raise discord.HTTPException
             if isinstance(emoji, discord.Emoji):
                 save = emoji.id
-            setting = getattr(self.config.guild(ctx.guild), emoji_type)
+            setting = getattr(self.config.guild(ctx.guild).emojis, emoji_type)
             await setting.set(save)
             await ctx.send(
                 checkmark(
@@ -356,7 +390,7 @@ class ReactChannel(commands.Cog):
             self.emoji_cache[guild.id] = {}
         if emoji_type in self.emoji_cache[guild.id] and not refresh:
             return self.emoji_cache[guild.id][emoji_type]
-        emoji = await getattr(self.config.guild(guild), emoji_type)()
+        emoji = await getattr(self.config.guild(guild).emojis, emoji_type)()
         if isinstance(emoji, int):
             emoji = self.bot.get_emoji(emoji)
         self.emoji_cache[guild.id][emoji_type] = emoji
