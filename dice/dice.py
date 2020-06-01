@@ -24,7 +24,9 @@ class Dice(commands.Cog):
         """Set up the cog."""
         super().__init__()
         self.bot = bot
-        self.config = Config.get_conf(self, 1224364860)
+        self.config = Config.get_conf(
+            self, identifier=1224364860, force_registration=True
+        )
         self.config.register_global(**self.default_global_settings)
 
     @commands.group()
