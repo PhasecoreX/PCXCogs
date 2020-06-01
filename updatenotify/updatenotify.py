@@ -13,7 +13,6 @@ from redbot.core.utils.chat_formatting import box, humanize_timedelta
 from .pcx_lib import checkmark
 
 __author__ = "PhasecoreX"
-__version__ = "1.1.0"
 log = logging.getLogger("red.pcxcogs.updatenotify")
 
 
@@ -21,6 +20,7 @@ class UpdateNotify(commands.Cog):
     """Get notifications when your bot needs updating."""
 
     default_global_settings = {
+        "schema_version": 0,
         "frequency": 3600,
         "check_red_discordbot": True,
         "check_pcx_docker": True,
@@ -30,7 +30,9 @@ class UpdateNotify(commands.Cog):
         """Set up the cog."""
         super().__init__()
         self.bot = bot
-        self.config = Config.get_conf(self, 1224364860)
+        self.config = Config.get_conf(
+            self, identifier=1224364860, force_registration=True
+        )
         self.config.register_global(**self.default_global_settings)
 
         self.docker_version = os.environ.get("PCX_DISCORDBOT_COMMIT")
@@ -45,15 +47,22 @@ class UpdateNotify(commands.Cog):
         self.bg_loop_task = None
         self.enable_bg_loop()
 
-    async def config_migrate(self):
+    async def initialize(self):
+        """Perform setup actions before loading cog."""
+        await self._maybe_update_config()
+
+    async def _maybe_update_config(self):
         """Perform some configuration migrations."""
-        if await self.config.version() == __version__:
-            return
-        update_check_interval = await self.config.update_check_interval()
-        if update_check_interval:
-            await self.config.frequency.set(update_check_interval * 60.0)
-            await self.config.clear_raw("update_check_interval")
-        await self.config.version.set(__version__)
+        if not await self.config.schema_version():
+            # Migrate old update_check_interval (minutes) to frequency (seconds)
+            update_check_interval = await self.config.get_raw(
+                "update_check_interval", default=False
+            )
+            if update_check_interval:
+                await self.config.frequency.set(update_check_interval * 60.0)
+                await self.config.clear_raw("update_check_interval")
+            await self.config.clear_raw("version")
+            await self.config.schema_version.set(1)
 
     def enable_bg_loop(self):
         """Set up the background loop task."""

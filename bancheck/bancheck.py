@@ -8,18 +8,17 @@ from redbot.core.utils.chat_formatting import error, info, question
 from redbot.core.utils.predicates import MessagePredicate
 
 from .pcx_lib import checkmark, delete
-
 from .services.alertbot import Alertbot
 from .services.imgur import Imgur
 from .services.ksoftsi import KSoftSi
 
 __author__ = "PhasecoreX"
-__version__ = "1.2.0"
 
 
 class BanCheck(commands.Cog):
     """Look up users on various ban lists."""
 
+    default_global_settings = {"schema_version": 0}
     default_guild_settings: Any = {"notify_channel": None, "services": {}}
     supported_global_services = {"ksoftsi": KSoftSi}
     supported_guild_services = {"alertbot": Alertbot}
@@ -29,7 +28,10 @@ class BanCheck(commands.Cog):
         """Set up the cog."""
         super().__init__()
         self.bot = bot
-        self.config = Config.get_conf(self, identifier=1224364860)
+        self.config = Config.get_conf(
+            self, identifier=1224364860, force_registration=True
+        )
+        self.config.register_global(**self.default_global_settings)
         self.config.register_guild(**self.default_guild_settings)
 
     async def initialize(self):
@@ -38,57 +40,54 @@ class BanCheck(commands.Cog):
 
     async def _maybe_update_config(self):
         """Perform some configuration migrations."""
-        if await self.config.version() == __version__:
-            return
-        guild_dict = await self.config.all_guilds()
-        for guild_id, guild_info in guild_dict.items():
-            # Migrate channel -> notify_channel
-            channel = guild_info.get("channel", False)
-            if channel:
-                await self.config.guild(discord.Object(id=guild_id)).notify_channel.set(
-                    channel
+        if not await self.config.schema_version():
+            guild_dict = await self.config.all_guilds()
+            for guild_id, guild_info in guild_dict.items():
+                # Migrate channel -> notify_channel
+                channel = guild_info.get("channel", False)
+                if channel:
+                    await self.config.guild_from_id(guild_id).notify_channel.set(
+                        channel
+                    )
+                    await self.config.guild_from_id(guild_id).clear_raw("channel")
+                # Migrate enabled/disabled global services per guild
+                auto_ban = guild_info.get("auto_ban", False)
+                disabled_services = guild_info.get("disabled_services", [])
+                disabled_auto_ban_services = guild_info.get(
+                    "disabled_auto_ban_services", []
                 )
-                await self.config.guild(discord.Object(id=guild_id)).clear_raw(
-                    "channel"
+                async with self.config.guild_from_id(
+                    guild_id
+                ).services() as config_services:
+                    for service in self.supported_global_services:
+                        if service in config_services:
+                            continue  # Already migrated
+                        config_services[service] = {}
+                        config_services[service]["autoban"] = (
+                            auto_ban and service not in disabled_auto_ban_services
+                        )
+                        config_services[service]["enabled"] = (
+                            service not in disabled_services
+                        )
+                # Delete old config keys
+                await self.config.guild_from_id(guild_id).clear_raw("auto_ban")
+                await self.config.guild_from_id(guild_id).clear_raw("disabled_services")
+                await self.config.guild_from_id(guild_id).clear_raw(
+                    "disabled_auto_ban_services"
                 )
-            # Migrate enabled/disabled global services per guild
-            auto_ban = guild_info.get("auto_ban", False)
-            disabled_services = guild_info.get("disabled_services", [])
-            disabled_auto_ban_services = guild_info.get(
-                "disabled_auto_ban_services", []
-            )
-            config_services = await self.config.guild(
-                discord.Object(id=guild_id)
-            ).services()
-            for service in self.supported_global_services:
-                if service in config_services:
-                    continue
-                config_services[service] = {}
-                config_services[service]["autoban"] = (
-                    auto_ban and service not in disabled_auto_ban_services
-                )
-                config_services[service]["enabled"] = service not in disabled_services
-            await self.config.guild(discord.Object(id=guild_id)).services.set(
-                config_services
-            )
-            # Delete old config keys
-            await self.config.guild(discord.Object(id=guild_id)).clear_raw("auto_ban")
-            await self.config.guild(discord.Object(id=guild_id)).clear_raw(
-                "disabled_services"
-            )
-            await self.config.guild(discord.Object(id=guild_id)).clear_raw(
-                "disabled_auto_ban_services"
-            )
-        # Migrate global API keys to Red core
-        services_dict = await self.config.services()
-        if services_dict:
-            for service_id, service_info in services_dict.items():
-                api_key = service_info.get("api_key", False)
-                service_keys = await self.bot.get_shared_api_tokens(service_id)
-                if api_key and not service_keys.get("api_key", False):
-                    await self.bot.set_shared_api_tokens(service_id, api_key=api_key)
-            await self.config.clear_raw("services")
-        await self.config.version.set(__version__)
+            # Migrate global API keys to Red core
+            services_dict = await self.config.get_raw("services", default=False)
+            if services_dict:
+                for service_id, service_info in services_dict.items():
+                    api_key = service_info.get("api_key", False)
+                    service_keys = await self.bot.get_shared_api_tokens(service_id)
+                    if api_key and not service_keys.get("api_key", False):
+                        await self.bot.set_shared_api_tokens(
+                            service_id, api_key=api_key
+                        )
+                await self.config.clear_raw("services")
+            await self.config.clear_raw("version")
+            await self.config.schema_version.set(1)
 
     @commands.group()
     @checks.is_owner()
