@@ -120,9 +120,8 @@ class ReactChannel(commands.Cog):
                     )
                 )
                 return
-        channels = await self.config.guild(ctx.message.guild).channels()
-        channels[str(channel.id)] = channel_type
-        await self.config.guild(ctx.message.guild).channels.set(channels)
+        async with self.config.guild(ctx.message.guild).channels() as channels:
+            channels[str(channel.id)] = channel_type
         channel_type_name = channel_type
         custom_emojis = ""
         if isinstance(channel_type_name, list):
@@ -142,12 +141,11 @@ class ReactChannel(commands.Cog):
         if channel is None:
             channel = ctx.message.channel
 
-        channels = await self.config.guild(ctx.message.guild).channels()
-        try:
-            del channels[str(channel.id)]
-        except KeyError:
-            pass
-        await self.config.guild(ctx.message.guild).channels.set(channels)
+        async with self.config.guild(ctx.message.guild).channels() as channels:
+            try:
+                del channels[str(channel.id)]
+            except KeyError:
+                pass
         await ctx.send(
             checkmark(
                 "ReactChannel functionality has been disabled on <#{}>.".format(

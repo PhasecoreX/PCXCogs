@@ -392,11 +392,10 @@ class BanCheck(commands.Cog):
                     )
                 )
             return
-        config_services = await self.config.guild(message_guild).services()
-        if service not in config_services:
-            config_services[service] = {}
-        config_services[service]["api_key"] = api_key
-        await self.config.guild(message_guild).services.set(config_services)
+        async with self.config.guild(message_guild).services() as config_services:
+            if service not in config_services:
+                config_services[service] = {}
+            config_services[service]["api_key"] = api_key
         action = "set"
         if not api_key:
             action = "removed"
@@ -417,39 +416,37 @@ class BanCheck(commands.Cog):
                 )
             )
             return
-        config_services = await self.config.guild(ctx.message.guild).services()
-        if service not in config_services:
-            config_services[service] = {}
-        config_services[service]["enabled"] = True
-        await self.config.guild(ctx.message.guild).services.set(config_services)
-        response = "Enabled the {} BanCheck service.".format(
-            self.get_nice_service_name(service)
-        )
-        if not await self.get_api_key(service, config_services):
-            if service in self.supported_guild_services:
-                response += "\nYou will need to set an API key for this service in order for it to be used."
-            else:
-                response += (
-                    "\nThe bot owner has not set this service up yet, so it will not be used. "
-                    "If in the future the bot owner supplies an API key, this service will automatically be used."
-                )
-        await ctx.send(checkmark(response))
+        async with self.config.guild(ctx.message.guild).services() as config_services:
+            if service not in config_services:
+                config_services[service] = {}
+            config_services[service]["enabled"] = True
+            response = "Enabled the {} BanCheck service.".format(
+                self.get_nice_service_name(service)
+            )
+            if not await self.get_api_key(service, config_services):
+                if service in self.supported_guild_services:
+                    response += "\nYou will need to set an API key for this service in order for it to be used."
+                else:
+                    response += (
+                        "\nThe bot owner has not set this service up yet, so it will not be used. "
+                        "If in the future the bot owner supplies an API key, this service will automatically be used."
+                    )
+            await ctx.send(checkmark(response))
 
     @service.command(name="disable")
     async def service_disable(self, ctx: commands.Context, service: str):
         """Disable a service."""
-        config_services = await self.config.guild(ctx.message.guild).services()
-        if not config_services.get(service, {}).get("enabled", False):
-            await ctx.send(
-                info(
-                    "{} is not an enabled service.".format(
-                        self.get_nice_service_name(service)
+        async with self.config.guild(ctx.message.guild).services() as config_services:
+            if not config_services.get(service, {}).get("enabled", False):
+                await ctx.send(
+                    info(
+                        "{} is not an enabled service.".format(
+                            self.get_nice_service_name(service)
+                        )
                     )
                 )
-            )
-            return
-        config_services[service]["enabled"] = False
-        await self.config.guild(ctx.message.guild).services.set(config_services)
+                return
+            config_services[service]["enabled"] = False
         response = "Disabled the {} BanCheck service.".format(
             self.get_nice_service_name(service)
         )
@@ -471,40 +468,36 @@ class BanCheck(commands.Cog):
                 )
             )
             return
-        config_services = await self.config.guild(ctx.message.guild).services()
-        if service not in config_services:
-            config_services[service] = {}
-        config_services[service]["autoban"] = True
-        config_services[service]["enabled"] = True
-        await self.config.guild(ctx.message.guild).services.set(config_services)
-        response = "Automatic banning with {} has now been enabled.".format(
-            self.get_nice_service_name(service)
-        )
-        if not await self.config.guild(ctx.message.guild).notify_channel():
-            response += (
-                "\nYou will need to set up AutoCheck in order for this to take effect."
+        async with self.config.guild(ctx.message.guild).services() as config_services:
+            if service not in config_services:
+                config_services[service] = {}
+            config_services[service]["autoban"] = True
+            config_services[service]["enabled"] = True
+            response = "Automatic banning with {} has now been enabled.".format(
+                self.get_nice_service_name(service)
             )
-        if not await self.get_api_key(service, config_services):
-            response += "\nAn API key is needed in order for this to take effect."
-        if not ctx.message.guild.me.guild_permissions.ban_members:
-            response += "\nI will need to be granted the Ban Members permission for this to take effect."
-        await ctx.send(checkmark(response))
+            if not await self.config.guild(ctx.message.guild).notify_channel():
+                response += "\nYou will need to set up AutoCheck in order for this to take effect."
+            if not await self.get_api_key(service, config_services):
+                response += "\nAn API key is needed in order for this to take effect."
+            if not ctx.message.guild.me.guild_permissions.ban_members:
+                response += "\nI will need to be granted the Ban Members permission for this to take effect."
+            await ctx.send(checkmark(response))
 
     @autoban.command(name="disable")
     async def autoban_disable(self, ctx: commands.Context, service: str):
         """Disable a service from banning users automatically."""
-        config_services = await self.config.guild(ctx.message.guild).services()
-        if not config_services.get(service, {}).get("autoban", False):
-            await ctx.send(
-                info(
-                    "Automatic banning with {} is already disabled.".format(
-                        self.get_nice_service_name(service)
+        async with self.config.guild(ctx.message.guild).services() as config_services:
+            if not config_services.get(service, {}).get("autoban", False):
+                await ctx.send(
+                    info(
+                        "Automatic banning with {} is already disabled.".format(
+                            self.get_nice_service_name(service)
+                        )
                     )
                 )
-            )
-            return
-        config_services[service]["autoban"] = False
-        await self.config.guild(ctx.message.guild).services.set(config_services)
+                return
+            config_services[service]["autoban"] = False
         response = "Automatic banning with {} has now been disabled.".format(
             self.get_nice_service_name(service)
         )

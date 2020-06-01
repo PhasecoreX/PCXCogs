@@ -57,14 +57,13 @@ class DecodeBinary(commands.Cog):
         """Ignore/Unignore the current channel."""
         channel = ctx.message.channel
         guild = ctx.message.guild
-        ignored_channels = await self.config.guild(guild).ignored_channels()
-        if channel.id in ignored_channels:
-            ignored_channels.remove(channel.id)
-            await ctx.send(checkmark("I will no longer ignore this channel."))
-        else:
-            ignored_channels.append(channel.id)
-            await ctx.send(checkmark("I will ignore this channel."))
-        await self.config.guild(guild).ignored_channels.set(ignored_channels)
+        async with self.config.guild(guild).ignored_channels() as ignored_channels:
+            if channel.id in ignored_channels:
+                ignored_channels.remove(channel.id)
+                await ctx.send(checkmark("I will no longer ignore this channel."))
+            else:
+                ignored_channels.append(channel.id)
+                await ctx.send(checkmark("I will ignore this channel."))
 
     @commands.Cog.listener()
     async def on_message_without_command(self, message: discord.Message):
