@@ -123,7 +123,7 @@ class KSoftSi:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     KSoftSi.BASE_URL + "/add",
-                    params={
+                    data={
                         "user": user_id,
                         "mod": mod_id,
                         "reason": reason,
