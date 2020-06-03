@@ -18,8 +18,12 @@ __author__ = "PhasecoreX"
 class BanCheck(commands.Cog):
     """Look up users on various ban lists."""
 
-    default_global_settings = {"schema_version": 0}
-    default_guild_settings: Any = {"notify_channel": None, "services": {}}
+    default_global_settings = {"schema_version": 0, "total_bans": 0}
+    default_guild_settings: Any = {
+        "notify_channel": None,
+        "total_bans": 0,
+        "services": {},
+    }
     supported_global_services = {"ksoftsi": KSoftSi}
     supported_guild_services = {"alertbot": Alertbot}
     all_supported_services = {**supported_global_services, **supported_guild_services}
@@ -105,8 +109,6 @@ class BanCheck(commands.Cog):
             color=await ctx.embed_color(),
         )
         total_bans = await self.config.total_bans()
-        if not total_bans:
-            total_bans = 0
         users = "user" if total_bans == 1 else "users"
         total_guilds = len(self.bot.guilds)
         guilds = "guild" if total_guilds == 1 else "guilds"
@@ -186,11 +188,11 @@ class BanCheck(commands.Cog):
             if ctx.guild.icon_url
             else "https://cdn.discordapp.com/embed/avatars/1.png"
         )
-        total_bans = await self.config.total_bans()
-        if not total_bans:
-            total_bans = 0
+        total_bans = await self.config.guild(ctx.message.guild).total_bans()
         users = "user" if total_bans == 1 else "users"
-        embed.set_footer(text="AutoBanned a total of {} {}".format(total_bans, users))
+        embed.set_footer(
+            text="AutoBanned a total of {} {} in this guild".format(total_bans, users)
+        )
         # Get info
         any_enabled = False
         autoban_services = 0
@@ -834,15 +836,11 @@ class BanCheck(commands.Cog):
                     )
                     # Update guild ban totals
                     total_bans = await self.config.guild(channel.guild).total_bans()
-                    if not total_bans:
-                        total_bans = 0
                     await self.config.guild(channel.guild).total_bans.set(
                         total_bans + 1
                     )
                     # Update global ban totals
                     global_total_bans = await self.config.total_bans()
-                    if not global_total_bans:
-                        global_total_bans = 0
                     await self.config.total_bans.set(global_total_bans + 1)
                     title += " - Auto Banned"
                 except (discord.Forbidden, discord.HTTPException):
