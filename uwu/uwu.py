@@ -1,8 +1,7 @@
 """UwU cog for Red-DiscordBot by PhasecoreX."""
-import asyncio
-
-import discord
 from redbot.core import commands
+
+from .pcx_lib import type_message
 
 __author__ = "PhasecoreX"
 
@@ -10,18 +9,13 @@ __author__ = "PhasecoreX"
 class UwU(commands.Cog):
     """UwU."""
 
-    def __init__(self, bot):
-        """Set up the cog."""
-        super().__init__()
-        self.bot = bot
-
     @commands.command(aliases=["owo"])
     async def uwu(self, ctx: commands.Context):
         """Uwuize the pwevious comment."""
         message = (await ctx.channel.history(limit=2).flatten())[1].content
         if not message:
             message = "I can't translate that!"
-        await self.send_message(ctx.channel, self.uwuize_string(message))
+        await type_message(ctx.channel, self.uwuize_string(message))
 
     @staticmethod
     def uwuize_string(string: str):
@@ -64,16 +58,3 @@ class UwU(commands.Cog):
         if current_word:
             converted += uwuize_word(current_word)
         return converted
-
-    async def send_message(self, channel: discord.TextChannel, message: str):
-        """Send a mwessage to a channew.
-
-        Wiww send a typing indicatow, and wiww wait a vawiabwe amount of time
-        based on the wength of the text (to simuwate typing speed)
-        """
-        try:
-            async with channel.typing():
-                await asyncio.sleep(len(message) * 0.01)
-                await self.bot.send_filtered(channel, content=message)
-        except discord.Forbidden:
-            pass  # Not awwowed to send mwessages in dis channew

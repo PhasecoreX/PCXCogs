@@ -1,12 +1,11 @@
 """DecodeBinary cog for Red-DiscordBot by PhasecoreX."""
-import asyncio
 import re
 
 import discord
 from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import box
 
-from .pcx_lib import checkmark
+from .pcx_lib import checkmark, type_message
 
 __author__ = "PhasecoreX"
 
@@ -94,7 +93,7 @@ class DecodeBinary(commands.Cog):
             translated_messages.append(self.decode_binary_string(encoded))
 
         if len(translated_messages) == 1 and translated_messages[0]:
-            await self.send_message(
+            await type_message(
                 orig_message.channel,
                 '{}\'s message said:\n"{}"'.format(
                     orig_message.author.display_name, translated_messages[0]
@@ -117,20 +116,7 @@ class DecodeBinary(commands.Cog):
                         translated_counter
                     )
             if one_was_translated:
-                await self.send_message(orig_message.channel, msg)
-
-    async def send_message(self, channel: discord.TextChannel, message: str):
-        """Send a message to a channel.
-
-        Will send a typing indicator, and will wait a variable amount of time
-        based on the length of the text (to simulate typing speed)
-        """
-        try:
-            async with channel.typing():
-                await asyncio.sleep(len(message) * 0.01)
-                await self.bot.send_filtered(channel, content=message)
-        except discord.Forbidden:
-            pass  # Not allowed to send messages in this channel
+                await type_message(orig_message.channel, msg)
 
     @staticmethod
     def decode_binary_string(string: str):
