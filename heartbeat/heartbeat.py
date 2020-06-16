@@ -121,9 +121,13 @@ class Heartbeat(commands.Cog):
         """Send a heartbeat ping."""
         url = await self.config.url()
         if url:
-            try:
-                await self.session.get(
-                    url, headers={"user-agent": user_agent},
-                )
-            except aiohttp.ClientConnectorError:
-                pass
+            retries = 3
+            while retries > 0:
+                try:
+                    await self.session.get(
+                        url, headers={"user-agent": user_agent},
+                    )
+                    break
+                except aiohttp.ClientConnectionError:
+                    pass
+                retries -= 1
