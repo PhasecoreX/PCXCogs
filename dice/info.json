@@ -6,6 +6,9 @@
     "short": "Perform complex dice rolling.",
     "description": "This cog allows for rolling complex dice, such as 3d8+4 or (4d6+3)*2.",
     "install_msg": "Thanks for installing Dice! As far as I can tell, this cog is safe to use. I have put many checks in place so that users cannot perform CPU-pegging calculations. In the event that you do find some sort of dice notation that pegs the CPU, PLEASE let me know.",
+    "requirements": [
+        "pyhedrals"
+    ],
     "tags": [
         "random",
         "utility"

@@ -1,15 +1,12 @@
 """Dice cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
-import random
-from io import BytesIO
-from tokenize import NAME, NUMBER, OP, tokenize
-from typing import List, Union
+import re
 
+import pyhedrals
 from redbot.core import Config, checks, commands
-from redbot.core.utils.chat_formatting import box, error, question, warning
+from redbot.core.utils.chat_formatting import box, error, question
 from redbot.core.utils.predicates import MessagePredicate
 
-from .evaluate import eval_expr
 from .pcx_lib import checkmark
 
 __author__ = "PhasecoreX"
@@ -18,7 +15,10 @@ __author__ = "PhasecoreX"
 class Dice(commands.Cog):
     """Perform complex dice rolling."""
 
-    default_global_settings = {"max_dice_rolls": 10000, "max_die_sides": 1000}
+    default_global_settings = {"max_dice_rolls": 10000, "max_die_sides": 10000}
+    DROPPED_EXPLODED_RE = re.compile(r"-\*(\d+)\*-")
+    EXPLODED_RE = re.compile(r"\*(\d+)\*")
+    DROPPED_RE = re.compile(r"-(\d+)-")
 
     def __init__(self, bot):
         """Set up the cog."""
@@ -115,160 +115,35 @@ class Dice(commands.Cog):
     async def dice(self, ctx: commands.Context, *, roll: str):
         """Perform die roll."""
         try:
-            # Pass 1: Tokenize and convert #d# into die objects
-            roll_pass1 = self.get_equation_tokens(
-                roll,
-                await self.config.max_dice_rolls(),
-                await self.config.max_die_sides(),
+            dr = pyhedrals.DiceRoller(
+                maxDice=await self.config.max_dice_rolls(),
+                maxSides=await self.config.max_die_sides(),
             )
-            # Pass 2: Roll dice and build math string to evaluate
-            roll_log = ""
-            roll_pass2 = ""
-            roll_friendly = ""
-            for token in roll_pass1:
-                if isinstance(token, Die):
-                    token.roll()
-                    roll_pass2 += str(token.total)
-                    roll_log += "\nRolling {}: {} = {}".format(
-                        str(token), str(token.rolls), str(token.total)
-                    )
-                else:
-                    roll_pass2 += str(token)
-                roll_friendly += str(token)
-            # Pass 3: Evaluate results
-            if roll_log:
-                result = str(eval_expr(roll_pass2))
-                roll_pass2 = roll_pass2.replace("*", "×")
-                roll_friendly = roll_friendly.replace("*", "×")
-                roll_log = "\n*Roll Log:" + roll_log
-                if len(roll_pass1) > 1:
-                    roll_log += "\nResulting equation: {} = {}".format(
-                        roll_pass2, result
-                    )
-                roll_log += "*"
-                if len(roll_log) > 1500:
-                    roll_log = "\n*(Log too long to display)*"
-                await ctx.send(
-                    "\N{GAME DIE} {} rolled {} and got **{}**{}".format(
-                        ctx.message.author.mention, roll_friendly, result, roll_log
-                    )
-                )
-            else:
-                await ctx.send(
-                    warning(
-                        "{}, that notation doesn't have any dice for me to roll.".format(
-                            ctx.message.author.mention
-                        )
-                    )
-                )
-        except TooManySides as exception:
+            result = dr.parse(roll)
+            roll_message = "\N{GAME DIE} {} rolled {} and got **{}**".format(
+                ctx.message.author.mention, roll, result.result,
+            )
+            if len(roll_message) > 2000:
+                raise ValueError("resulting roll message is too big to send in Discord")
+            roll_log = "\n".join(result.strings())
+            roll_log = self.DROPPED_EXPLODED_RE.sub(r"~~**\1!**~~", roll_log)
+            roll_log = self.EXPLODED_RE.sub(r"**\1!**", roll_log)
+            roll_log = self.DROPPED_RE.sub(r"~~\1~~", roll_log)
+            roll_log = roll_log.replace(",", ", ")
+            if len(roll_message) + len(roll_log) > 2000:
+                roll_log = "*(Roll log too long to display)*"
+            await ctx.send("{}\n{}".format(roll_message, roll_log))
+        except (
+            ValueError,
+            NotImplementedError,
+            pyhedrals.InvalidOperandsException,
+            pyhedrals.SyntaxErrorException,
+            pyhedrals.UnknownCharacterException,
+        ) as exception:
             await ctx.send(
                 error(
-                    "{}, I don't own a {} sided die to perform that roll.".format(
-                        ctx.message.author.mention, exception.value
+                    "{}, I couldn't parse your dice formula:\n`{}`".format(
+                        ctx.message.author.mention, str(exception)
                     )
                 )
             )
-        except TooManyDice:
-            await ctx.send(
-                error(
-                    "{}, I don't have that many dice to roll...".format(
-                        ctx.message.author.mention
-                    )
-                )
-            )
-        except KeyError:
-            await ctx.send(
-                error(
-                    "{}, that is too complex for me to roll.".format(
-                        ctx.message.author.mention
-                    )
-                )
-            )
-        except (ValueError, SyntaxError, TypeError):
-            await ctx.send(
-                error(
-                    "{}, that doesn't seem like a proper dice equation.".format(
-                        ctx.message.author.mention
-                    )
-                )
-            )
-
-    @staticmethod
-    def get_equation_tokens(roll: str, max_dice: int, max_sides: int):
-        """Tokenize roll string and parse #d# dice."""
-        result: List[Union[int, str, Die]] = []
-        previous_number = None
-        for toktype, tokval, _, _, _ in tokenize(
-            BytesIO(roll.encode("utf-8")).readline
-        ):
-            if toktype == NUMBER:
-                previous_number = int(tokval)
-            elif toktype == NAME:
-                if tokval[:1] == "d":
-                    sides = int(tokval[1:])
-                    if sides > max_sides:
-                        raise TooManySides(sides)
-                    if not previous_number:
-                        previous_number = 1
-                    if previous_number > max_dice:
-                        raise TooManyDice
-                    max_dice -= previous_number
-                    result.append(Die(previous_number, sides))
-                    previous_number = None
-                else:
-                    # Doesn't start with a "d"
-                    raise ValueError
-            elif toktype == OP:
-                if previous_number:
-                    result.append(previous_number)
-                    previous_number = None
-                result.append(tokval)
-        if previous_number:
-            result.append(previous_number)
-        return result
-
-
-class Die:
-    """A die roll."""
-
-    def __init__(self, amount, sides):
-        """Create a representation of a set of dice."""
-        self.amount = amount
-        self.sides = sides
-        self.rolls = []
-        self.total = 0
-
-    def __str__(self):
-        """Return the string representation of a dice roll, e.g. 3d6."""
-        return str(self.amount) + "d" + str(self.sides)
-
-    def __repr__(self):
-        """Return the string representation of a dice roll, e.g. 3d6."""
-        return self.__str__()
-
-    def roll(self):
-        """Roll the dice and store the results."""
-        self.rolls = []
-        self.total = 0
-        rolled = 0
-        for _ in range(self.amount):
-            roll_result = random.randint(1, self.sides)  # nosec (not cryptographic)
-            if rolled < 750:
-                # If we've rolled over 750 dice, we won't log them (they won't show up anyway)
-                self.rolls.append(roll_result)
-            self.total += roll_result
-            rolled += 1
-
-
-class TooManyDice(ValueError):
-    """Too many dice to roll."""
-
-
-class TooManySides(ValueError):
-    """Too many sides on this die."""
-
-    def __init__(self, value):
-        """Set the value that is too many sides."""
-        super().__init__()
-        self.value = value
