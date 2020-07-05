@@ -10,7 +10,7 @@ from redbot.core.commands.converter import parse_timedelta
 from redbot.core.utils.chat_formatting import box, humanize_timedelta
 from redbot.core.utils.predicates import MessagePredicate
 
-from .pcx_lib import checkmark, delete
+from .pcx_lib import checkmark, delete, embed_splitter
 
 __author__ = "PhasecoreX"
 log = logging.getLogger("red.pcxcogs.remindme")
@@ -129,7 +129,7 @@ class RemindMe(commands.Cog):
                     value=reminder["TEXT"],
                     inline=False,
                 )
-            await author.send(embed=embed)
+            await embed_splitter(embed, author)
             if ctx.message.guild is not None:
                 await self.send_message(ctx, "Check your DMs for a full list!")
 
@@ -206,7 +206,7 @@ class RemindMe(commands.Cog):
             return
 
         text = text.strip()
-        if len(text) > 1900:
+        if len(text) > 1000:
             await self.send_message(ctx, "Your reminder text is too long.")
             return
 
