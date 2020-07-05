@@ -29,7 +29,12 @@ class Alertbot:
                 ) as resp:
                     if resp.status != 200:
                         return Alertbot._lookup_error(resp.status)
-                    data = await resp.json()
+                    try:
+                        data = await resp.json()
+                    except aiohttp.ContentTypeError:
+                        return Alertbot._lookup_error(
+                            resp.status, "Lookup data malformed"
+                        )
                     if not data:
                         return Alertbot._lookup_error(resp.status, "No data returned")
                     if "code" not in data:
@@ -51,7 +56,7 @@ class Alertbot:
                             proof_url=data["data"]["result"]["proof"],
                         )
                     return LookupResult(Alertbot.SERVICE_NAME, resp.status, "clear")
-        except aiohttp.client_exceptions.ClientConnectorError:
+        except aiohttp.ClientConnectionError:
             return Alertbot._lookup_error(0, "Connection error")
 
     @staticmethod

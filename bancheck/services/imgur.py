@@ -27,6 +27,6 @@ class Imgur:
                         data = await resp.json()
                         if data and data["success"]:
                             return data["data"]["link"]
-        except aiohttp.client_exceptions.ClientError:
+        except aiohttp.ClientConnectionError:
             pass
         return None

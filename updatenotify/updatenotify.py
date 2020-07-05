@@ -218,10 +218,10 @@ class UpdateNotify(commands.Cog):
             try:
                 async with session.get(url) as resp:
                     if resp.status != 200:
-                        raise aiohttp.client_exceptions.ServerConnectionError
+                        raise aiohttp.ServerConnectionError
                     data = await resp.json()
                     return data["info"]["version"]
-            except aiohttp.client_exceptions.ServerConnectionError:
+            except aiohttp.ServerConnectionError:
                 log.warning(
                     "PyPI seems to be having some issues at the moment while checking for the latest Red-DiscordBot update. "
                     "If this keeps happening, and PyPI is indeed up, consider opening a bug report for this."
@@ -237,7 +237,7 @@ class UpdateNotify(commands.Cog):
                 while url:
                     async with session.get(url) as resp:
                         if resp.status != 200:
-                            raise aiohttp.client_exceptions.ServerConnectionError
+                            raise aiohttp.ServerConnectionError
                         data = await resp.json()
                         if on_master:
                             # That first url has the actual commit data nested.
@@ -254,7 +254,7 @@ class UpdateNotify(commands.Cog):
                             commit_date_string
                         )
                         return (sha, commit_date)
-            except aiohttp.client_exceptions.ServerConnectionError:
+            except aiohttp.ServerConnectionError:
                 log.warning(
                     "GitHub seems to be having some issues at the moment while checking for the latest Docker commit. "
                     "If this keeps happening, and GitHub is indeed up, consider opening a bug report for this."
@@ -272,7 +272,7 @@ class UpdateNotify(commands.Cog):
                 while url:
                     async with session.get(url) as resp:
                         if resp.status != 200:
-                            raise aiohttp.client_exceptions.ServerConnectionError
+                            raise aiohttp.ServerConnectionError
                         data = await resp.json()
                         for docker_image in data["results"]:
                             if docker_image["name"] == tag:
@@ -280,7 +280,7 @@ class UpdateNotify(commands.Cog):
                                     docker_image["last_updated"][:19]
                                 )
                         url = data["next"]
-            except aiohttp.client_exceptions.ServerConnectionError:
+            except aiohttp.ServerConnectionError:
                 log.warning(
                     "Docker Hub seems to be having some issues at the moment while checking for the latest update. "
                     "If this keeps happening, and Docker Hub is indeed up, consider opening a bug report for this."
@@ -379,5 +379,5 @@ class UpdateNotify(commands.Cog):
             message = await self.update_check()
             if message:
                 await self.bot.send_to_owners(message)
-        except aiohttp.ClientConnectorError:
+        except aiohttp.ClientConnectionError:
             pass

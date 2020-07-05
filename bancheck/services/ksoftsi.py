@@ -36,7 +36,7 @@ class KSoftSi:
                 data = None
                 try:
                     data = await resp.json()
-                except aiohttp.client_exceptions.ContentTypeError:
+                except aiohttp.ContentTypeError:
                     return LookupResult(
                         KSoftSi.SERVICE_NAME,
                         resp.status,
@@ -90,7 +90,7 @@ class KSoftSi:
                 data = None
                 try:
                     data = await resp.json()
-                except aiohttp.client_exceptions.ContentTypeError:
+                except aiohttp.ContentTypeError:
                     return LookupResult(
                         KSoftSi.SERVICE_NAME,
                         resp.status,
@@ -137,7 +137,7 @@ class KSoftSi:
                     data = None
                     try:
                         data = await resp.json()
-                    except aiohttp.client_exceptions.ContentTypeError:
+                    except aiohttp.ContentTypeError:
                         return ReportResult(
                             KSoftSi.SERVICE_NAME,
                             resp.status,
@@ -164,5 +164,5 @@ class KSoftSi:
                         )
                     # Successful report
                     return ReportResult(KSoftSi.SERVICE_NAME, resp.status, True)
-        except aiohttp.client_exceptions.ClientError:
+        except aiohttp.ClientConnectionError:
             pass

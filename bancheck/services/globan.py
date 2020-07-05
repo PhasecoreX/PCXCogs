@@ -32,7 +32,7 @@ class Globan:
                     return LookupResult(Globan.SERVICE_NAME, resp.status, "error")
                 try:
                     data = await resp.json()
-                except aiohttp.client_exceptions.ContentTypeError:
+                except aiohttp.ContentTypeError:
                     return LookupResult(
                         Globan.SERVICE_NAME,
                         resp.status,

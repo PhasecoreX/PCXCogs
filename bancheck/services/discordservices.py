@@ -29,7 +29,15 @@ class DiscordServices:
                         return LookupResult(
                             DiscordServices.SERVICE_NAME, resp.status, "error"
                         )
-                    data = await resp.json()
+                    try:
+                        data = await resp.json()
+                    except aiohttp.ContentTypeError:
+                        return LookupResult(
+                            DiscordServices.SERVICE_NAME,
+                            resp.status,
+                            "error",
+                            reason="Lookup data malformed",
+                        )
                     if not data:
                         return LookupResult(
                             DiscordServices.SERVICE_NAME,
@@ -48,7 +56,7 @@ class DiscordServices:
                     return LookupResult(
                         DiscordServices.SERVICE_NAME, resp.status, "clear"
                     )
-        except aiohttp.client_exceptions.ClientConnectorError:
+        except aiohttp.ClientConnectionError:
             return LookupResult(
                 DiscordServices.SERVICE_NAME, 0, "error", reason="Connection error",
             )
