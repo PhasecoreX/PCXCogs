@@ -1,5 +1,6 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
 import asyncio
+import time
 from typing import Any, Dict, Union
 
 import discord
@@ -37,6 +38,7 @@ class BanCheck(commands.Cog):
         )
         self.config.register_global(**self.default_global_settings)
         self.config.register_guild(**self.default_guild_settings)
+        self.member_join_cache: Dict[int, int] = {}
 
     async def initialize(self):
         """Perform setup actions before loading cog."""
@@ -731,7 +733,22 @@ class BanCheck(commands.Cog):
         if channel_id:
             channel = self.bot.get_channel(channel_id)
             if channel:
-                await self._user_lookup(channel, member, True)
+                # Only do auto lookup if the user isn't repeatedly leaving and joining the server
+                current_time = int(time.time())
+                past_time = current_time - 300  # 5 minutes ago
+                if (
+                    member.id not in self.member_join_cache
+                    or self.member_join_cache[member.id] < past_time
+                ):
+                    await self._user_lookup(channel, member, True)
+                self.member_join_cache[member.id] = current_time
+                # Clear old entries out of the cache
+                cache_clear = []
+                for user_id, join_time in self.member_join_cache.items():
+                    if join_time < past_time:
+                        cache_clear.append(user_id)
+                for user_id in cache_clear:
+                    del self.member_join_cache[user_id]
 
     async def _user_lookup(
         self,
