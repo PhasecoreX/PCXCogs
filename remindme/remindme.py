@@ -336,6 +336,7 @@ class RemindMe(commands.Cog):
             int_index = int(index)
         except ValueError:
             await ctx.send_help()
+            return
 
         reminder_to_delete = None
         for reminder in users_reminders:
