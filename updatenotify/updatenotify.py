@@ -45,13 +45,13 @@ class UpdateNotify(commands.Cog):
 
         self.next_check = datetime.datetime.now()
         self.bg_loop_task = None
-        self.enable_bg_loop()
 
     async def initialize(self):
         """Perform setup actions before loading cog."""
-        await self._maybe_update_config()
+        await self._migrate_config()
+        self.enable_bg_loop()
 
-    async def _maybe_update_config(self):
+    async def _migrate_config(self):
         """Perform some configuration migrations."""
         if not await self.config.schema_version():
             # Migrate old update_check_interval (minutes) to frequency (seconds)
@@ -66,28 +66,29 @@ class UpdateNotify(commands.Cog):
 
     def enable_bg_loop(self):
         """Set up the background loop task."""
+
+        def error_handler(self, fut: asyncio.Future):
+            try:
+                fut.result()
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                log.exception(
+                    "Unexpected exception occurred in background loop of UpdateNotify: ",
+                    exc_info=exc,
+                )
+                asyncio.create_task(
+                    self.bot.send_to_owners(
+                        "An unexpected exception occurred in the background loop of UpdateNotify.\n"
+                        "Updates will not be checked until UpdateNotify is reloaded.\n"
+                        "Check your console or logs for details, and consider opening a bug report for this."
+                    )
+                )
+
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
         self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
-        self.bg_loop_task.add_done_callback(self._error_handler)
-
-    def _error_handler(self, fut: asyncio.Future):
-        try:
-            fut.result()
-        except asyncio.CancelledError:
-            pass
-        except Exception as exc:
-            log.exception(
-                "Unexpected exception occurred in background loop of UpdateNotify: ",
-                exc_info=exc,
-            )
-            asyncio.create_task(
-                self.bot.send_to_owners(
-                    "An unexpected exception occurred in the background loop of UpdateNotify.\n"
-                    "Updates will not be checked until UpdateNotify is reloaded.\n"
-                    "Check your console or logs for details, and consider opening a bug report for this."
-                )
-            )
+        self.bg_loop_task.add_done_callback(error_handler)
 
     def cog_unload(self):
         """Clean up when cog shuts down."""

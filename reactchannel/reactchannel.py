@@ -35,9 +35,9 @@ class ReactChannel(commands.Cog):
 
     async def initialize(self):
         """Perform setup actions before loading cog."""
-        await self._maybe_update_config()
+        await self._migrate_config()
 
-    async def _maybe_update_config(self):
+    async def _migrate_config(self):
         """Perform some configuration migrations."""
         if not await self.config.schema_version():
             # If guild had a vote channel, set up default upvote and downvote emojis
