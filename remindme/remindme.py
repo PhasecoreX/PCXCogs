@@ -20,6 +20,7 @@ class RemindMe(commands.Cog):
     """Never forget anything anymore."""
 
     default_global_settings = {
+        "schema_version": 0,
         "total_sent": 0,
         "max_user_reminders": 20,
         "reminders": [],
@@ -35,31 +36,57 @@ class RemindMe(commands.Cog):
         )
         self.config.register_global(**self.default_global_settings)
         self.bg_loop_task = None
-        self.enable_bg_loop()
         self.me_too_reminders = {}
 
-    def enable_bg_loop(self):
+    async def initialize(self):
+        """Perform setup actions before loading cog."""
+        await self._migrate_config()
+        self._enable_bg_loop()
+
+    async def _migrate_config(self):
+        """Perform some configuration migrations."""
+        if not await self.config.schema_version():
+            # Add/generate USER_REMINDER_ID, rename some fields
+            current_reminders = await self.config.reminders()
+            new_reminders = []
+            user_reminder_ids = {}
+            for reminder in current_reminders:
+                user_reminder_id = user_reminder_ids.get(reminder["ID"], 1)
+                new_reminder = {
+                    "USER_REMINDER_ID": user_reminder_id,
+                    "USER_ID": reminder["ID"],
+                    "REMINDER": reminder["TEXT"],
+                    "FUTURE": reminder["FUTURE"],
+                    "FUTURE_TEXT": reminder["FUTURE_TEXT"],
+                }
+                user_reminder_ids[reminder["ID"]] = user_reminder_id + 1
+                new_reminders.append(new_reminder)
+            await self.config.reminders.set(new_reminders)
+            await self.config.schema_version.set(1)
+
+    def _enable_bg_loop(self):
         """Set up the background loop task."""
         self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
-        self.bg_loop_task.add_done_callback(self._error_handler)
 
-    def _error_handler(self, fut: asyncio.Future):
-        try:
-            fut.result()
-        except asyncio.CancelledError:
-            pass
-        except Exception as exc:
-            log.exception(
-                "Unexpected exception occurred in background loop of RemindMe: ",
-                exc_info=exc,
-            )
-            asyncio.create_task(
-                self.bot.send_to_owners(
-                    "An unexpected exception occurred in the background loop of RemindMe.\n"
-                    "Reminders will not be sent out until the cog is reloaded.\n"
-                    "Check your console or logs for details, and consider opening a bug report for this."
+        def error_handler(self, fut: asyncio.Future):
+            try:
+                fut.result()
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                log.exception(
+                    "Unexpected exception occurred in background loop of RemindMe: ",
+                    exc_info=exc,
                 )
-            )
+                asyncio.create_task(
+                    self.bot.send_to_owners(
+                        "An unexpected exception occurred in the background loop of RemindMe.\n"
+                        "Reminders will not be sent out until the cog is reloaded.\n"
+                        "Check your console or logs for details, and consider opening a bug report for this."
+                    )
+                )
+
+        self.bg_loop_task.add_done_callback(error_handler)
 
     def cog_unload(self):
         """Clean up when cog shuts down."""
@@ -101,37 +128,53 @@ class RemindMe(commands.Cog):
         """Manage your reminders."""
 
     @reminder.command(aliases=["get"])
-    async def list(self, ctx: commands.Context):
-        """Show a list of all of your reminders."""
+    async def list(self, ctx: commands.Context, sort: str = "time"):
+        """Show a list of all of your reminders.
+
+        Sort can either be:
+        `time` (default) for soonest expiring reminder first,
+        `added` for ordering by when the reminder was added,
+        `id` for ordering by ID
+        """
         author = ctx.message.author
         to_send = await self.get_user_reminders(author.id)
+        if sort == "time":
+            to_send.sort(key=lambda reminder: reminder["FUTURE"])
+        elif sort == "added":
+            pass
+        elif sort == "id":
+            to_send.sort(key=lambda reminder: reminder["USER_REMINDER_ID"])
+        else:
+            await self.send_message(
+                ctx,
+                "That is not a valid sorting option. Choose from `time` (default), `added`, or `id`.",
+            )
+            return
 
         if not to_send:
             await self.send_message(ctx, "You don't have any upcoming reminders.")
-        else:
-            embed = discord.Embed(
-                title="Reminders for {}".format(author.name),
-                color=await ctx.embed_color(),
+            return
+
+        embed = discord.Embed(
+            title="Reminders for {}".format(author.name), color=await ctx.embed_color(),
+        )
+        embed.set_thumbnail(url=author.avatar_url)
+        current_timestamp = int(current_time.time())
+        for reminder in to_send:
+            delta = reminder["FUTURE"] - current_timestamp
+            embed.add_field(
+                name="ID# {} — {}".format(
+                    reminder["USER_REMINDER_ID"],
+                    "In {}".format(humanize_timedelta(seconds=delta))
+                    if delta > 0
+                    else "Now!",
+                ),
+                value=reminder["REMINDER"],
+                inline=False,
             )
-            embed.set_thumbnail(url=author.avatar_url)
-            current_timestamp = int(current_time.time())
-            count = 0
-            for reminder in to_send:
-                count += 1
-                delta = reminder["FUTURE"] - current_timestamp
-                embed.add_field(
-                    name="#{} - {}".format(
-                        count,
-                        "In {}".format(humanize_timedelta(seconds=delta))
-                        if delta > 0
-                        else "Now!",
-                    ),
-                    value=reminder["TEXT"],
-                    inline=False,
-                )
-            await embed_splitter(embed, author)
-            if ctx.message.guild is not None:
-                await self.send_message(ctx, "Check your DMs for a full list!")
+        if ctx.message.guild is not None:
+            await self.send_message(ctx, "Check your DMs for a full list!")
+        await embed_splitter(embed, author)
 
     @reminder.command(aliases=["add"])
     async def create(self, ctx: commands.Context, time: str, *, text: str):
@@ -177,7 +220,8 @@ class RemindMe(commands.Cog):
         """Logic to create a reminder."""
         author = ctx.message.author
         maximum = await self.config.max_user_reminders()
-        if maximum - 1 < len(await self.get_user_reminders(author.id)):
+        users_reminders = await self.get_user_reminders(author.id)
+        if len(users_reminders) > maximum - 1:
             plural = "reminder" if maximum == 1 else "reminders"
             await self.send_message(
                 ctx,
@@ -214,10 +258,18 @@ class RemindMe(commands.Cog):
         future = int(current_time.time() + seconds)
         future_text = humanize_timedelta(timedelta=time_delta)
 
+        next_reminder_id = 1
+        used_reminder_ids = set()
+        for users_reminder in users_reminders:
+            used_reminder_ids.add(users_reminder["USER_REMINDER_ID"])
+        while next_reminder_id in used_reminder_ids:
+            next_reminder_id += 1
+
         reminder = {
-            "ID": author.id,
+            "USER_REMINDER_ID": next_reminder_id,
+            "USER_ID": author.id,
+            "REMINDER": text,
             "FUTURE": future,
-            "TEXT": text,
             "FUTURE_TEXT": future_text,
         }
         async with self.config.reminders() as current_reminders:
@@ -243,65 +295,80 @@ class RemindMe(commands.Cog):
         if not index:
             return
         author = ctx.message.author
-        to_remove = await self.get_user_reminders(author.id)
+        users_reminders = await self.get_user_reminders(author.id)
 
-        if not to_remove:
+        if not users_reminders:
             await self.send_message(ctx, "You don't have any upcoming reminders.")
             return
 
-        async with self.config.reminders() as current_reminders:
-            if index == "all":
-                # Ask if the user really wants to do this
-                pred = MessagePredicate.yes_or_no(ctx)
-                await self.send_message(
-                    ctx,
-                    "Are you **sure** you want to remove all of your reminders? (yes/no)",
-                )
-                try:
-                    await ctx.bot.wait_for("message", check=pred, timeout=30)
-                except asyncio.TimeoutError:
-                    pass
-                if pred.result:
-                    pass
-                else:
-                    await self.send_message(ctx, "I have left your reminders alone.")
-                    return
-                for reminder in to_remove:
-                    current_reminders.remove(reminder)
-                await self.send_message(ctx, "All of your reminders have been removed.")
-                return
-
-            if index == "last":
-                current_reminders.remove(to_remove[len(to_remove) - 1])
-                await self.send_message(
-                    ctx, "Your most recently created reminder has been removed."
-                )
-                return
-
+        if index == "all":
+            # Ask if the user really wants to do this
+            pred = MessagePredicate.yes_or_no(ctx)
+            await self.send_message(
+                ctx,
+                "Are you **sure** you want to remove all of your reminders? (yes/no)",
+            )
             try:
-                int_index = int(index)
-            except ValueError:
+                await ctx.bot.wait_for("message", check=pred, timeout=30)
+            except asyncio.TimeoutError:
+                pass
+            if pred.result:
+                pass
+            else:
+                await self.send_message(ctx, "I have left your reminders alone.")
                 return
-            if int_index > 0:
-                if len(to_remove) < int_index:
-                    await self.send_message(
-                        ctx,
-                        "You don't have that many reminders! (you only have {})".format(
-                            len(to_remove)
-                        ),
-                    )
-                else:
-                    current_reminders.remove(to_remove[int_index - 1])
-                    await self.send_message(
-                        ctx, "Reminder #{} has been removed.".format(int_index)
-                    )
+            await self._do_reminder_delete(users_reminders)
+            await self.send_message(ctx, "All of your reminders have been removed.")
+            return
+
+        if index == "last":
+            reminder_to_delete = users_reminders[len(users_reminders) - 1]
+            await self._do_reminder_delete(reminder_to_delete)
+            await self.send_message(
+                ctx,
+                "Your most recently created reminder (ID# **{}**) has been removed.".format(
+                    reminder_to_delete["USER_REMINDER_ID"]
+                ),
+            )
+            return
+
+        try:
+            int_index = int(index)
+        except ValueError:
+            await ctx.send_help()
+
+        reminder_to_delete = None
+        for reminder in users_reminders:
+            if reminder["USER_REMINDER_ID"] == int_index:
+                reminder_to_delete = reminder
+                break
+        if reminder_to_delete:
+            await self._do_reminder_delete(reminder_to_delete)
+            await self.send_message(
+                ctx, "Reminder with ID# **{}** has been removed.".format(int_index)
+            )
+        else:
+            await self.send_message(
+                ctx,
+                "Reminder with ID# **{}** does not exist! Check the reminder list and verify you typed the correct ID#.".format(
+                    int_index
+                ),
+            )
+
+    async def _do_reminder_delete(self, reminders):
+        """Actually delete a reminder."""
+        if not isinstance(reminders, list):
+            reminders = [reminders]
+        async with self.config.reminders() as current_reminders:
+            for reminder in reminders:
+                current_reminders.remove(reminder)
 
     async def get_user_reminders(self, user_id: int):
         """Return all of a users reminders."""
         result = []
         async with self.config.reminders() as current_reminders:
             for reminder in current_reminders:
-                if reminder["ID"] == user_id:
+                if reminder["USER_ID"] == user_id:
                     result.append(reminder)
         return result
 
@@ -341,7 +408,7 @@ class RemindMe(commands.Cog):
 
         try:
             reminder = self.me_too_reminders[payload.message_id]
-            reminder["ID"] = member.id
+            reminder["USER_ID"] = member.id
             async with self.config.reminders() as current_reminders:
                 if not current_reminders.count(reminder):
                     current_reminders.append(reminder)
@@ -366,7 +433,7 @@ class RemindMe(commands.Cog):
         for reminder in await self.config.reminders():
             if reminder["FUTURE"] <= int(current_time.time()):
                 try:
-                    user = self.bot.get_user(reminder["ID"])
+                    user = self.bot.get_user(reminder["USER_ID"])
                     if user is not None:
                         embed = discord.Embed(
                             title=":bell: Reminder! :bell:",
@@ -374,7 +441,7 @@ class RemindMe(commands.Cog):
                         )
                         embed.add_field(
                             name="From {} ago:".format(reminder["FUTURE_TEXT"]),
-                            value=reminder["TEXT"],
+                            value=reminder["REMINDER"],
                         )
                         await user.send(embed=embed)
                         total_sent = await self.config.total_sent()

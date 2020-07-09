@@ -2,7 +2,8 @@
 from .remindme import RemindMe
 
 
-def setup(bot):
+async def setup(bot):
     """Load RemindMe cog."""
     cog = RemindMe(bot)
+    await cog.initialize()
     bot.add_cog(cog)
