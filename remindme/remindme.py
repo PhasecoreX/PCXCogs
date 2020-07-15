@@ -188,14 +188,85 @@ class RemindMe(commands.Cog):
         """
         await self.create_reminder(ctx, time, text=text)
 
+    @reminder.group(aliases=["edit"])
+    async def modify(self, ctx: commands.Context):
+        """Modify an existing reminder."""
+        pass
+
+    @modify.command()
+    async def time(self, ctx: commands.Context, reminder_id: int, *, time: str):
+        """Modify the time of an existing reminder."""
+        users_reminders = await self.get_user_reminders(ctx.message.author.id)
+        edit_reminder = self.get_reminder(users_reminders, reminder_id)
+        if not edit_reminder:
+            await self.send_non_existant_msg(ctx, reminder_id)
+            return
+        try:
+            time_delta = parse_timedelta(time, minimum=timedelta(minutes=1))
+            if not time_delta:
+                await ctx.send_help()
+                return
+        except commands.BadArgument as ba:
+            await self.send_message(ctx, str(ba))
+            return
+        seconds = time_delta.total_seconds()
+        future = int(current_time.time() + seconds)
+        future_text = humanize_timedelta(timedelta=time_delta)
+
+        reminder = {
+            "USER_REMINDER_ID": reminder_id,
+            "USER_ID": edit_reminder["USER_ID"],
+            "REMINDER": edit_reminder["REMINDER"],
+            "FUTURE": future,
+            "FUTURE_TEXT": future_text,
+        }
+        async with self.config.reminders() as current_reminders:
+            current_reminders.remove(edit_reminder)
+            current_reminders.append(reminder)
+        await self.send_message(
+            ctx,
+            "Reminder with ID# **{}** has been edited successfully, and will now remind you {} from now.".format(
+                reminder_id, future_text
+            ),
+        )
+
+    @modify.command()
+    async def text(self, ctx: commands.Context, reminder_id: int, *, text: str):
+        """Modify the text of an existing reminder."""
+        users_reminders = await self.get_user_reminders(ctx.message.author.id)
+        edit_reminder = self.get_reminder(users_reminders, reminder_id)
+        if not edit_reminder:
+            await self.send_non_existant_msg(ctx, reminder_id)
+            return
+        text = text.strip()
+        if len(text) > 1000:
+            await self.send_message(ctx, "Your reminder text is too long.")
+            return
+        reminder = {
+            "USER_REMINDER_ID": reminder_id,
+            "USER_ID": edit_reminder["USER_ID"],
+            "REMINDER": text,
+            "FUTURE": edit_reminder["FUTURE"],
+            "FUTURE_TEXT": edit_reminder["FUTURE_TEXT"],
+        }
+        async with self.config.reminders() as current_reminders:
+            current_reminders.remove(edit_reminder)
+            current_reminders.append(reminder)
+        await self.send_message(
+            ctx,
+            "Reminder with ID# **{}** has been edited successfully.".format(
+                reminder_id
+            ),
+        )
+
     @reminder.command(aliases=["delete"])
     async def remove(self, ctx: commands.Context, index: str):
         """Delete a reminder.
 
         <index> can either be:
-        * a number for a specific reminder to delete
-        * "last" to delete the most recently created reminder
-        * "all" to delete all reminders (same as [p]forgetme)
+        - a number for a specific reminder to delete
+        - `last` to delete the most recently created reminder
+        - `all` to delete all reminders (same as [p]forgetme)
         """
         await self.delete_reminder(ctx, index)
 
@@ -257,13 +328,7 @@ class RemindMe(commands.Cog):
         seconds = time_delta.total_seconds()
         future = int(current_time.time() + seconds)
         future_text = humanize_timedelta(timedelta=time_delta)
-
-        next_reminder_id = 1
-        used_reminder_ids = set()
-        for users_reminder in users_reminders:
-            used_reminder_ids.add(users_reminder["USER_REMINDER_ID"])
-        while next_reminder_id in used_reminder_ids:
-            next_reminder_id += 1
+        next_reminder_id = self.get_next_user_reminder_id(users_reminders)
 
         reminder = {
             "USER_REMINDER_ID": next_reminder_id,
@@ -338,23 +403,14 @@ class RemindMe(commands.Cog):
             await ctx.send_help()
             return
 
-        reminder_to_delete = None
-        for reminder in users_reminders:
-            if reminder["USER_REMINDER_ID"] == int_index:
-                reminder_to_delete = reminder
-                break
+        reminder_to_delete = self.get_reminder(users_reminders, int_index)
         if reminder_to_delete:
             await self._do_reminder_delete(reminder_to_delete)
             await self.send_message(
                 ctx, "Reminder with ID# **{}** has been removed.".format(int_index)
             )
         else:
-            await self.send_message(
-                ctx,
-                "Reminder with ID# **{}** does not exist! Check the reminder list and verify you typed the correct ID#.".format(
-                    int_index
-                ),
-            )
+            await self.send_non_existant_msg(ctx, int_index)
 
     async def _do_reminder_delete(self, reminders):
         """Actually delete a reminder."""
@@ -372,6 +428,47 @@ class RemindMe(commands.Cog):
                 if reminder["USER_ID"] == user_id:
                     result.append(reminder)
         return result
+
+    async def send_non_existant_msg(self, ctx: commands.Context, reminder_id: int):
+        """Send a message telling the user the reminder ID does not exist."""
+        await self.send_message(
+            ctx,
+            "Reminder with ID# **{}** does not exist! Check the reminder list and verify you typed the correct ID#.".format(
+                reminder_id
+            ),
+        )
+
+    @staticmethod
+    def get_reminder(reminder_list, reminder_id: int):
+        """Get the reminder from reminder_list with the specified reminder_id."""
+        for reminder in reminder_list:
+            if reminder["USER_REMINDER_ID"] == reminder_id:
+                return reminder
+        return None
+
+    @staticmethod
+    def get_next_user_reminder_id(reminder_list):
+        """Get the next reminder ID for a user."""
+        next_reminder_id = 1
+        used_reminder_ids = set()
+        for reminder in reminder_list:
+            used_reminder_ids.add(reminder["USER_REMINDER_ID"])
+        while next_reminder_id in used_reminder_ids:
+            next_reminder_id += 1
+        return next_reminder_id
+
+    @staticmethod
+    def reminder_exists(reminder_list, reminder):
+        """Check if a reminder is already in this reminder list (ignores user reminder ID)."""
+        for existing_reminder in reminder_list:
+            if (
+                existing_reminder["USER_ID"] == reminder["USER_ID"]
+                and existing_reminder["REMINDER"] == reminder["REMINDER"]
+                and existing_reminder["FUTURE"] == reminder["FUTURE"]
+                and existing_reminder["FUTURE_TEXT"] == reminder["FUTURE_TEXT"]
+            ):
+                return True
+        return False
 
     @staticmethod
     async def send_message(ctx: commands.Context, message: str):
@@ -409,15 +506,20 @@ class RemindMe(commands.Cog):
 
         try:
             reminder = self.me_too_reminders[payload.message_id]
+            users_reminders = await self.get_user_reminders(member.id)
             reminder["USER_ID"] = member.id
+            if self.reminder_exists(users_reminders, reminder):
+                return
+            reminder["USER_REMINDER_ID"] = self.get_next_user_reminder_id(
+                users_reminders
+            )
             async with self.config.reminders() as current_reminders:
-                if not current_reminders.count(reminder):
-                    current_reminders.append(reminder)
-                    await member.send(
-                        "Hello! I will remind you of that in {}.".format(
-                            reminder["FUTURE_TEXT"]
-                        )
-                    )
+                current_reminders.append(reminder)
+            await member.send(
+                "Hello! I will remind you of that in {}.".format(
+                    reminder["FUTURE_TEXT"]
+                )
+            )
         except KeyError:
             return
 
