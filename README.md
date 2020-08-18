@@ -57,4 +57,4 @@ Uwuize messages. Takes the pwevious mwessage and uwuizes it. Sowwy.
 
 ### Wikipedia
 
-Look up articles on Wikipedia. Ported from v2; originally by PaddoInWonderland. I've made some enhancements to it as well.                                                                                                                 |
+Look up articles on Wikipedia. Ported from v2; originally by PaddoInWonderland. I've made some enhancements to it as well.
