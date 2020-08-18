@@ -71,6 +71,10 @@ class Heartbeat(commands.Cog):
             self.bg_loop_task.cancel()
         asyncio.create_task(self.session.close())
 
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete."""
+        return
+
     @commands.group()
     @checks.is_owner()
     async def heartbeat(self, ctx: commands.Context):

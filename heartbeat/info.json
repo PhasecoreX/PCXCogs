@@ -13,5 +13,6 @@
         "schedule",
         "uptime",
         "utility"
-    ]
+    ],
+    "end_user_data_statement": "This cog does not persistently store data or metadata about users."
 }

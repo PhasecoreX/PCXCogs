@@ -9,6 +9,10 @@ __author__ = "PhasecoreX"
 class UwU(commands.Cog):
     """UwU."""
 
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete."""
+        return
+
     @commands.command(aliases=["owo"])
     async def uwu(self, ctx: commands.Context):
         """Uwuize the pwevious comment."""

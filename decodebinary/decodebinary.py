@@ -24,6 +24,10 @@ class DecodeBinary(commands.Cog):
         )
         self.config.register_guild(**self.default_guild_settings)
 
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete."""
+        return
+
     @commands.group()
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)

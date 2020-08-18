@@ -10,5 +10,6 @@
         "reminder",
         "schedule",
         "utility"
-    ]
+    ],
+    "end_user_data_statement": "This cog stores data provided by users for the express purpose of re-displaying.\nIt does not store user data which was not provided through a command.\nUsers may delete their own data with or without making a data request."
 }

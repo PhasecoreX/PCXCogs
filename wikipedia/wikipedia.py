@@ -18,6 +18,10 @@ class Wikipedia(commands.Cog):
         "/600px-Wikimedia-logo.png"
     )
 
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete."""
+        return
+
     @commands.command(aliases=["wiki"])
     async def wikipedia(self, ctx: commands.Context, *, query: str):
         """Get information from Wikipedia."""

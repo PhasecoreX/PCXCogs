@@ -4,14 +4,16 @@
         "PhasecoreX (PhasecoreX#0635)"
     ],
     "short": "Per-channel automatic reaction tools.",
-    "description": "Allows for channels to be set up to have reactions automatically added to messages. This can facilitate things such as an upvote/downvote system, a checklist system, or a starboard.",
+    "description": "Allows for channels to be set up to have reactions automatically added to messages. This can facilitate things such as an upvote/downvote system (with user karma), a checklist system (checked messages are deleted), or any custom emoji reaction systems (no actions performed).",
     "install_msg": "Thanks for installing ReactChannel!",
     "tags": [
         "checklist",
         "downvote",
+        "karma",
         "starboard",
         "upvote",
         "utility",
         "vote"
-    ]
+    ],
+    "end_user_data_statement": "This cog stores Discord IDs along with a karma value based on total upvotes and downvotes on the users messages.\nUsers may reset/remove their own karma total by making a data removal request."
 }

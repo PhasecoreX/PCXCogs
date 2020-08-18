@@ -4,6 +4,7 @@ from typing import Union
 
 import discord
 from redbot.core import Config, checks, commands
+from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import error, info
 
 from .pcx_lib import checkmark, delete
@@ -60,6 +61,13 @@ class ReactChannel(commands.Cog):
                 await self.config.guild_from_id(guild_id).clear_raw("downvote")
             await self.config.clear_raw("version")
             await self.config.schema_version.set(1)
+
+    async def red_delete_data_for_user(self, *, requester, user_id: int):
+        """Users can reset their karma back to zero I guess."""
+        all_members = await self.config.all_members()
+        async for guild_id, member_dict in AsyncIter(all_members.items(), steps=100):
+            if user_id in member_dict:
+                await self.config.member_from_ids(guild_id, user_id).clear()
 
     @commands.group()
     @commands.guild_only()

@@ -95,6 +95,10 @@ class BanCheck(commands.Cog):
             await self.config.clear_raw("version")
             await self.config.schema_version.set(1)
 
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete."""
+        return
+
     @commands.group()
     @checks.is_owner()
     async def banchecksetglobal(self, ctx: commands.Context):

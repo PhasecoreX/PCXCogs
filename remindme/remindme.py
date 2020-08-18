@@ -93,6 +93,11 @@ class RemindMe(commands.Cog):
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
 
+    async def red_delete_data_for_user(self, *, requester, user_id: int):
+        """There's already a [p]forgetme command, so..."""
+        users_reminders = await self.get_user_reminders(user_id)
+        await self._do_reminder_delete(users_reminders)
+
     @commands.group()
     @checks.is_owner()
     async def remindmeset(self, ctx: commands.Context):
@@ -414,6 +419,8 @@ class RemindMe(commands.Cog):
 
     async def _do_reminder_delete(self, reminders):
         """Actually delete a reminder."""
+        if not reminders:
+            return
         if not isinstance(reminders, list):
             reminders = [reminders]
         async with self.config.reminders() as current_reminders:

@@ -29,6 +29,10 @@ class Dice(commands.Cog):
         )
         self.config.register_global(**self.default_global_settings)
 
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete."""
+        return
+
     @commands.group()
     @checks.is_owner()
     async def diceset(self, ctx: commands.Context):

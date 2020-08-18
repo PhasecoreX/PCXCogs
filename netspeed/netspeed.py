@@ -10,6 +10,10 @@ from redbot.core import checks, commands
 class NetSpeed(commands.Cog):
     """Test your servers internet speed."""
 
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete."""
+        return
+
     @commands.command(aliases=["speedtest"])
     @checks.is_owner()
     async def netspeed(self, ctx):

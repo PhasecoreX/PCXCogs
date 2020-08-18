@@ -95,6 +95,10 @@ class UpdateNotify(commands.Cog):
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
 
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete."""
+        return
+
     @commands.group()
     @checks.is_owner()
     async def updatenotify(self, ctx: commands.Context):
