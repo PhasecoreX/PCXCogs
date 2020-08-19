@@ -42,7 +42,7 @@ class Heartbeat(commands.Cog):
     def enable_bg_loop(self):
         """Set up the background loop task."""
 
-        def error_handler(self, fut: asyncio.Future):
+        def error_handler(fut: asyncio.Future):
             try:
                 fut.result()
             except asyncio.CancelledError:

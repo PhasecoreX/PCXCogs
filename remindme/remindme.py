@@ -68,7 +68,7 @@ class RemindMe(commands.Cog):
         """Set up the background loop task."""
         self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
 
-        def error_handler(self, fut: asyncio.Future):
+        def error_handler(fut: asyncio.Future):
             try:
                 fut.result()
             except asyncio.CancelledError:
