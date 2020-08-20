@@ -5,9 +5,8 @@ import logging
 import os
 
 import aiohttp
-from redbot.core import Config
-from redbot.core import __version__ as redbot_version
-from redbot.core import checks, commands
+from redbot.core import Config, VersionInfo, checks, commands
+from redbot.core import version_info as redbot_version
 from redbot.core.utils.chat_formatting import box, humanize_timedelta
 
 from .pcx_lib import checkmark
@@ -225,7 +224,7 @@ class UpdateNotify(commands.Cog):
                     if resp.status != 200:
                         raise aiohttp.ServerConnectionError
                     data = await resp.json()
-                    return data["info"]["version"]
+                    return VersionInfo.from_str(data["info"]["version"])
             except aiohttp.ServerConnectionError:
                 log.warning(
                     "PyPI seems to be having some issues at the moment while checking for the latest Red-DiscordBot update. "
@@ -301,7 +300,10 @@ class UpdateNotify(commands.Cog):
         if await self.config.check_red_discordbot():
             latest_redbot_version = await self.get_latest_redbot_version()
         update_redbot = (
-            latest_redbot_version and self.notified_version != latest_redbot_version
+            latest_redbot_version and self.notified_version < latest_redbot_version
+        )
+        running_newer_redbot = (
+            latest_redbot_version and self.notified_version > latest_redbot_version
         )
 
         update_docker = False
@@ -354,9 +356,14 @@ class UpdateNotify(commands.Cog):
 
         if manual and not message:
             if await self.config.check_red_discordbot():
-                message += "You are already running the latest version ({})".format(
-                    self.notified_version
-                )
+                if running_newer_redbot:
+                    message += "You are running a newer version of Red-DiscordBot ({}) than what is available on PyPI ({})".format(
+                        self.notified_version, latest_redbot_version
+                    )
+                else:
+                    message += "You are already running the latest version of Red-DiscordBot ({})".format(
+                        self.notified_version
+                    )
             if self.docker_version and await self.config.check_pcx_docker():
                 message += (
                     "\nThe `phasecorex/red-discordbot` Docker image is {}up-to-date."
