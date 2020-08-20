@@ -15,5 +15,5 @@
         "utility",
         "vote"
     ],
-    "end_user_data_statement": "This cog stores Discord IDs along with a karma value based on total upvotes and downvotes on the users messages.\nUsers may reset/remove their own karma total by making a data removal request."
+    "end_user_data_statement": "This cog stores Discord IDs along with a karma value based on total upvotes and downvotes on the users messages. Users may reset/remove their own karma total by making a data removal request."
 }
