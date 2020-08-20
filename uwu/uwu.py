@@ -1,4 +1,5 @@
 """UwU cog for Red-DiscordBot by PhasecoreX."""
+import discord
 from redbot.core import commands
 
 from .pcx_lib import type_message
@@ -19,7 +20,13 @@ class UwU(commands.Cog):
         message = (await ctx.channel.history(limit=2).flatten())[1].content
         if not message:
             message = "I can't translate that!"
-        await type_message(ctx.channel, self.uwuize_string(message))
+        await type_message(
+            ctx.channel,
+            self.uwuize_string(message),
+            allowed_mentions=discord.AllowedMentions(
+                everyone=False, users=False, roles=False
+            ),
+        )
 
     @staticmethod
     def uwuize_string(string: str):

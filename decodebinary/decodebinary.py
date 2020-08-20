@@ -102,6 +102,9 @@ class DecodeBinary(commands.Cog):
                 '{}\'s message said:\n"{}"'.format(
                     orig_message.author.display_name, translated_messages[0]
                 ),
+                allowed_mentions=discord.AllowedMentions(
+                    everyone=False, users=False, roles=False
+                ),
             )
 
         elif len(translated_messages) > 1:
@@ -120,7 +123,13 @@ class DecodeBinary(commands.Cog):
                         translated_counter
                     )
             if one_was_translated:
-                await type_message(orig_message.channel, msg)
+                await type_message(
+                    orig_message.channel,
+                    msg,
+                    allowed_mentions=discord.AllowedMentions(
+                        everyone=False, users=False, roles=False
+                    ),
+                )
 
     @staticmethod
     def decode_binary_string(string: str):
