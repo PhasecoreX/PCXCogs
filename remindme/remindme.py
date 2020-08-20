@@ -500,7 +500,9 @@ class RemindMe(commands.Cog):
         Thank you SinbadCogs!
         https://github.com/mikeshardmind/SinbadCogs/blob/v3/rolemanagement/events.py
         """
-        if not payload.guild_id:
+        if not payload.guild_id or await self.bot.cog_disabled_in_guild_raw(
+            self.qualified_name, payload.guild_id
+        ):
             return
         if str(payload.emoji) != self.reminder_emoji:
             return

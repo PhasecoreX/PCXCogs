@@ -36,9 +36,7 @@ async def type_message(
     Will send a typing indicator, wait a variable amount of time based on the length
     of the text (to simulate typing speed), then send the message.
     """
-    content = common_filters.filter_mass_mentions(content)
     content = common_filters.filter_urls(content)
-    content = common_filters.filter_various_mentions(content)
     try:
         async with destination.typing():
             await asyncio.sleep(len(content) * 0.01)

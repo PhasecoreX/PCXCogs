@@ -733,6 +733,8 @@ class BanCheck(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         """If enabled, will check users against ban lists when joining the guild."""
+        if await self.bot.cog_disabled_in_guild(self, member.guild):
+            return
         channel_id = await self.config.guild(member.guild).notify_channel()
         if channel_id:
             channel = self.bot.get_channel(channel_id)

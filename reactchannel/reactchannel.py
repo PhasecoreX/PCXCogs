@@ -289,6 +289,8 @@ class ReactChannel(commands.Cog):
         """Watch for messages in enabled react channels to add reactions."""
         if message.guild is None or message.channel is None:
             return
+        if await self.bot.cog_disabled_in_guild(self, message.guild):
+            return
         channels = await self.config.guild(message.guild).channels()
         if str(message.channel.id) not in channels:
             return
@@ -317,6 +319,10 @@ class ReactChannel(commands.Cog):
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         """Watch for reactions added to messages in react channels (or all channels for karma) and perform actions on them."""
+        if not payload.guild_id or await self.bot.cog_disabled_in_guild_raw(
+            self.qualified_name, payload.guild_id
+        ):
+            return
         guild = self.bot.get_guild(payload.guild_id)
         channel = self.bot.get_channel(payload.channel_id)
         user = self.bot.get_user(payload.user_id)  # User who added a reaction
@@ -369,6 +375,10 @@ class ReactChannel(commands.Cog):
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
         """Watch for reactions removed from messages in react channels (or all channels for karma) and perform actions on them."""
+        if not payload.guild_id or await self.bot.cog_disabled_in_guild_raw(
+            self.qualified_name, payload.guild_id
+        ):
+            return
         guild = self.bot.get_guild(payload.guild_id)
         channel = self.bot.get_channel(payload.channel_id)
         user = self.bot.get_user(payload.user_id)  # User whose reaction was removed
