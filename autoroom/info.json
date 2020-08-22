@@ -1,0 +1,19 @@
+{
+    "name": "AutoRoom",
+    "author": [
+        "PhasecoreX (PhasecoreX#0635)"
+    ],
+    "short": "Automatic voice channel management.",
+    "description": "Allows for designating voice channels as AutoRoom sources. When a user joins an AutoRoom source, they will be moved into their own personal on-demand voice channel (AutoRoom). Once all users have left the AutoRoom, it is automatically deleted.",
+    "install_msg": "Thanks for installing AutoRoom!",
+    "tags": [
+        "audio",
+        "auto",
+        "automatic",
+        "channel",
+        "room",
+        "voice"
+    ],
+    "min_bot_version": "3.4.0",
+    "end_user_data_statement": "This cog does not persistently store data or metadata about users."
+}

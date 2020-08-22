@@ -19,6 +19,10 @@ If you'd like to contact me, test out my cogs, or stay up to date on my cogs, co
 
 ## The List of Cogs
 
+### AutoRoom (Beta)
+
+Automatic voice channel management. When a user joins an AutoRoom source channel, they will be moved into their own personal on-demand voice channel (AutoRoom). Once all users have left the AutoRoom, it is automatically deleted.
+
 ### BanCheck
 
 Automatically check users against multiple global ban lists on server join. Other features include automatic banning, manually checking users already on the server, and sending ban reports to supported services.
