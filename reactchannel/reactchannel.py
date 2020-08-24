@@ -74,35 +74,39 @@ class ReactChannel(commands.Cog):
     @checks.admin_or_permissions(manage_guild=True)
     async def reactchannelset(self, ctx: commands.Context):
         """Manage ReactChannel settings."""
-        if not ctx.invoked_subcommand:
-            message = ""
-            channels = await self.config.guild(ctx.message.guild).channels()
-            for channel_id, channel_type in channels.items():
-                emojis = "???"
-                if channel_type == "checklist":
-                    emojis = "\N{WHITE HEAVY CHECK MARK}"
-                if channel_type == "vote":
-                    emojis = ""
-                    upvote = await self._get_emoji(ctx.message.guild, "upvote")
-                    downvote = await self._get_emoji(ctx.message.guild, "downvote")
-                    if upvote:
-                        emojis += upvote
-                    if downvote:
-                        if emojis:
-                            emojis += " "
-                        emojis += downvote
-                    if not emojis:
-                        emojis = "(disabled, see `[p]reactchannelset emoji`)"
-                if isinstance(channel_type, list):
-                    emojis = " ".join(channel_type)
-                    channel_type = "custom"
-                message += "\n  - <#{}>: {} - {}".format(
-                    channel_id, channel_type.capitalize(), emojis
-                )
-            if not message:
-                message = " None"
-            message = "ReactChannels configured:" + message
-            await ctx.send(message)
+        pass
+
+    @reactchannelset.command()
+    async def settings(self, ctx: commands.Context):
+        """Display current settings."""
+        message = ""
+        channels = await self.config.guild(ctx.message.guild).channels()
+        for channel_id, channel_type in channels.items():
+            emojis = "???"
+            if channel_type == "checklist":
+                emojis = "\N{WHITE HEAVY CHECK MARK}"
+            if channel_type == "vote":
+                emojis = ""
+                upvote = await self._get_emoji(ctx.message.guild, "upvote")
+                downvote = await self._get_emoji(ctx.message.guild, "downvote")
+                if upvote:
+                    emojis += upvote
+                if downvote:
+                    if emojis:
+                        emojis += " "
+                    emojis += downvote
+                if not emojis:
+                    emojis = "(disabled, see `[p]reactchannelset emoji`)"
+            if isinstance(channel_type, list):
+                emojis = " ".join(channel_type)
+                channel_type = "custom"
+            message += "\n  - <#{}>: {} - {}".format(
+                channel_id, channel_type.capitalize(), emojis
+            )
+        if not message:
+            message = " None"
+        message = "ReactChannels configured:" + message
+        await ctx.send(message)
 
     @reactchannelset.group()
     async def enable(self, ctx: commands.Context):

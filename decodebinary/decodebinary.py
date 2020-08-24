@@ -3,9 +3,9 @@ import re
 
 import discord
 from redbot.core import Config, checks, commands
-from redbot.core.utils.chat_formatting import box, info
+from redbot.core.utils.chat_formatting import info
 
-from .pcx_lib import checkmark, type_message
+from .pcx_lib import SettingDisplay, checkmark, type_message
 
 __author__ = "PhasecoreX"
 
@@ -46,19 +46,28 @@ class DecodeBinary(commands.Cog):
     @commands.group()
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
-    async def decodebinaryignore(self, ctx: commands.Context):
-        """Change DecodeBinary cog ignore settings."""
-        if not ctx.invoked_subcommand:
-            guild = ctx.message.guild
-            ignored_channels = await self.config.guild(guild).ignored_channels()
-            ignore_channel = ctx.message.channel.id in ignored_channels
-            msg = "\nEnabled in this channel: {}".format(
-                "No" if ignore_channel else "Yes"
-            )
-            await ctx.send(box(msg))
+    async def decodebinaryset(self, ctx: commands.Context):
+        """Change DecodeBinary settings."""
+        pass
 
-    @decodebinaryignore.command(name="server")
-    async def _decodebinaryignore_server(self, ctx: commands.Context):
+    @decodebinaryset.command()
+    async def settings(self, ctx: commands.Context):
+        """Display current settings."""
+        ignored_channels = await self.config.guild(ctx.message.guild).ignored_channels()
+        channel_section = SettingDisplay("Channel Settings")
+        channel_section.add(
+            "Enabled in this channel",
+            "No" if ctx.message.channel.id in ignored_channels else "Yes",
+        )
+        await ctx.send(channel_section)
+
+    @decodebinaryset.group()
+    async def ignore(self, ctx: commands.Context):
+        """Change DecodeBinary ignore settings."""
+        pass
+
+    @ignore.command()
+    async def server(self, ctx: commands.Context):
         """Ignore/Unignore the current server."""
         await ctx.send(
             info(
@@ -66,8 +75,8 @@ class DecodeBinary(commands.Cog):
             )
         )
 
-    @decodebinaryignore.command(name="channel")
-    async def _decodebinaryignore_channel(self, ctx: commands.Context):
+    @ignore.command()
+    async def channel(self, ctx: commands.Context):
         """Ignore/Unignore the current channel."""
         channel = ctx.message.channel
         guild = ctx.message.guild

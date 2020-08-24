@@ -7,9 +7,9 @@ import os
 import aiohttp
 from redbot.core import Config, VersionInfo, checks, commands
 from redbot.core import version_info as redbot_version
-from redbot.core.utils.chat_formatting import box, humanize_timedelta
+from redbot.core.utils.chat_formatting import humanize_timedelta
 
-from .pcx_lib import checkmark
+from .pcx_lib import SettingDisplay, checkmark
 
 __author__ = "PhasecoreX"
 log = logging.getLogger("red.pcxcogs.updatenotify")
@@ -102,23 +102,32 @@ class UpdateNotify(commands.Cog):
     @checks.is_owner()
     async def updatenotify(self, ctx: commands.Context):
         """Manage UpdateNotify settings."""
-        if not ctx.invoked_subcommand:
-            msg = (
-                "Update check interval:       {}\n"
-                "Next check in:               {}\n"
-                "Check Red-DiscordBot update: {}"
-            ).format(
-                humanize_timedelta(seconds=await self.config.frequency()),
-                humanize_timedelta(
-                    seconds=(self.next_check - datetime.datetime.now()).total_seconds()
-                ),
-                "Enabled" if await self.config.check_red_discordbot() else "Disabled",
+        pass
+
+    @updatenotify.command()
+    async def settings(self, ctx: commands.Context):
+        """Display current settings."""
+        global_section = SettingDisplay("Global Settings")
+        global_section.add(
+            "Update check interval",
+            humanize_timedelta(seconds=await self.config.frequency()),
+        )
+        global_section.add(
+            "Next check in",
+            humanize_timedelta(
+                seconds=(self.next_check - datetime.datetime.now()).total_seconds()
+            ),
+        )
+        global_section.add(
+            "Check Red-DiscordBot update",
+            "Enabled" if await self.config.check_red_discordbot() else "Disabled",
+        )
+        if self.docker_version:
+            global_section.add(
+                "Check Docker image update",
+                "Enabled" if await self.config.check_pcx_docker() else "Disabled",
             )
-            if self.docker_version:
-                msg += "\nCheck Docker image update:   {}".format(
-                    "Enabled" if await self.config.check_pcx_docker() else "Disabled"
-                )
-            await ctx.send(box(msg))
+        await ctx.send(global_section)
 
     @updatenotify.command()
     async def frequency(
@@ -188,7 +197,9 @@ class UpdateNotify(commands.Cog):
     async def debug(self, ctx: commands.Context):
         """Print out debug version numbers."""
         if not self.docker_version:
-            msg = "This debug option is only really useful if you're using the phasecorex/red-discordbot Docker image."
+            await ctx.send(
+                "This debug option is only really useful if you're using the phasecorex/red-discordbot Docker image."
+            )
         else:
             commit = await self.get_latest_docker_commit()
             build = await self.get_latest_docker_build_date(self.docker_tag)
@@ -197,22 +208,14 @@ class UpdateNotify(commands.Cog):
                 status = "Update available"
             if build < commit[1]:
                 status = "Waiting for build"
-            msg = (
-                "Local Docker tag:          {}\n"
-                "Local Docker version:      {}\n"
-                "Latest Docker commit:      {}\n"
-                "Latest Docker commit date: {}\n"
-                "Latest Docker build date:  {}\n"
-                "Local Docker Status:       {}"
-            ).format(
-                self.docker_tag,
-                self.docker_version,
-                commit[0],
-                commit[1],
-                build,
-                status,
-            )
-        await ctx.send(box(msg))
+            setting_display = SettingDisplay()
+            setting_display.add("Local Docker tag", self.docker_tag)
+            setting_display.add("Local Docker version", self.docker_version)
+            setting_display.add("Latest Docker commit", commit[0])
+            setting_display.add("Latest Docker commit date", commit[1])
+            setting_display.add("Latest Docker build date", build)
+            setting_display.add("Local Docker Status", status)
+            await ctx.send(setting_display)
 
     @staticmethod
     async def get_latest_redbot_version():

@@ -8,9 +8,9 @@ import discord
 from redbot.core import Config
 from redbot.core import __version__ as redbot_version
 from redbot.core import checks, commands
-from redbot.core.utils.chat_formatting import box, humanize_timedelta
+from redbot.core.utils.chat_formatting import humanize_timedelta
 
-from .pcx_lib import checkmark, delete
+from .pcx_lib import SettingDisplay, checkmark, delete
 
 __author__ = "PhasecoreX"
 user_agent = "Red-DiscordBot/{} Heartbeat (https://github.com/PhasecoreX/PCXCogs)".format(
@@ -79,12 +79,20 @@ class Heartbeat(commands.Cog):
     @checks.is_owner()
     async def heartbeat(self, ctx: commands.Context):
         """Manage Heartbeat settings."""
-        if not ctx.invoked_subcommand:
-            msg = ("Heartbeat: {}\n" "Frequency: {}").format(
-                "Enabled" if await self.config.url() else "Disabled (no URL set)",
-                humanize_timedelta(seconds=await self.config.frequency()),
-            )
-            await ctx.send(box(msg))
+        pass
+
+    @heartbeat.command()
+    async def settings(self, ctx: commands.Context):
+        """Display current settings."""
+        global_section = SettingDisplay("Global Settings")
+        global_section.add(
+            "Heartbeat",
+            "Enabled" if await self.config.url() else "Disabled (no URL set)",
+        )
+        global_section.add(
+            "Frequency", humanize_timedelta(seconds=await self.config.frequency())
+        )
+        await ctx.send(global_section)
 
     @heartbeat.command()
     async def url(self, ctx: commands.Context, url: str):

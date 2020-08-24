@@ -102,9 +102,12 @@ class BanCheck(commands.Cog):
     @commands.group()
     @checks.is_owner()
     async def banchecksetglobal(self, ctx: commands.Context):
-        """Configure BanCheck."""
-        if ctx.invoked_subcommand:
-            return
+        """Configure global BanCheck settings."""
+        pass
+
+    @banchecksetglobal.command(name="settings")
+    async def global_settings(self, ctx: commands.Context):
+        """Display current settings."""
         embed = discord.Embed(
             title="BanCheck Global Settings",
             description=(
@@ -185,9 +188,12 @@ class BanCheck(commands.Cog):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
     async def bancheckset(self, ctx: commands.Context):
-        """Configure BanCheck."""
-        if ctx.invoked_subcommand:
-            return
+        """Configure BanCheck for this guild."""
+        pass
+
+    @bancheckset.command()
+    async def settings(self, ctx: commands.Context):
+        """Display current settings."""
         embed = discord.Embed(title="BanCheck Settings", color=await ctx.embed_color())
         embed.set_thumbnail(
             url=ctx.guild.icon_url
@@ -313,8 +319,11 @@ class BanCheck(commands.Cog):
     @bancheckset.group()
     async def service(self, ctx: commands.Context):
         """Manage the services BanCheck will use to lookup users."""
-        if ctx.invoked_subcommand:
-            return
+        pass
+
+    @service.command(name="settings")
+    async def service_settings(self, ctx: commands.Context):
+        """Display current settings."""
         embed = discord.Embed(
             title="BanCheck Service Settings", color=await ctx.embed_color(),
         )
@@ -340,7 +349,13 @@ class BanCheck(commands.Cog):
                     else:
                         reason = "(API key not set)"
                 disabled_services += "{}\n".format(
-                    await self.format_service_name_url(service_name, True, reason)
+                    await self.format_service_name_url(
+                        service_name,
+                        True
+                        if service_name in self.supported_guild_services
+                        else False,
+                        reason,
+                    )
                 )
         if enabled_services:
             embed.add_field(

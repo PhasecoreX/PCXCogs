@@ -4,10 +4,10 @@ import re
 
 import pyhedrals
 from redbot.core import Config, checks, commands
-from redbot.core.utils.chat_formatting import box, error, question
+from redbot.core.utils.chat_formatting import error, question
 from redbot.core.utils.predicates import MessagePredicate
 
-from .pcx_lib import checkmark
+from .pcx_lib import SettingDisplay, checkmark
 
 __author__ = "PhasecoreX"
 
@@ -37,16 +37,17 @@ class Dice(commands.Cog):
     @checks.is_owner()
     async def diceset(self, ctx: commands.Context):
         """Manage Dice settings."""
-        if not ctx.invoked_subcommand:
-            msg = (
-                "Maximum number of dice to roll at once: {}\n"
-                "Maximum sides per die:                  {}"
-                "".format(
-                    await self.config.max_dice_rolls(),
-                    await self.config.max_die_sides(),
-                )
-            )
-            await ctx.send(box(msg))
+        pass
+
+    @diceset.command()
+    async def settings(self, ctx: commands.Context):
+        """Display current settings."""
+        global_section = SettingDisplay("Global Settings")
+        global_section.add(
+            "Maximum number of dice to roll at once", await self.config.max_dice_rolls()
+        )
+        global_section.add("Maximum sides per die", await self.config.max_die_sides())
+        await ctx.send(global_section)
 
     @diceset.command()
     async def rolls(self, ctx: commands.Context, maximum: int):
