@@ -58,6 +58,7 @@ class RemindMe(commands.Cog):
                     "REMINDER": reminder["TEXT"],
                     "FUTURE": reminder["FUTURE"],
                     "FUTURE_TEXT": reminder["FUTURE_TEXT"],
+                    "JUMP_LINK": None,
                 }
                 user_reminder_ids[reminder["ID"]] = user_reminder_id + 1
                 new_reminders.append(new_reminder)
@@ -202,8 +203,8 @@ class RemindMe(commands.Cog):
     async def time(self, ctx: commands.Context, reminder_id: int, *, time: str):
         """Modify the time of an existing reminder."""
         users_reminders = await self.get_user_reminders(ctx.message.author.id)
-        edit_reminder = self.get_reminder(users_reminders, reminder_id)
-        if not edit_reminder:
+        old_reminder = self.get_reminder(users_reminders, reminder_id)
+        if not old_reminder:
             await self.send_non_existant_msg(ctx, reminder_id)
             return
         try:
@@ -218,16 +219,11 @@ class RemindMe(commands.Cog):
         future = int(current_time.time() + seconds)
         future_text = humanize_timedelta(timedelta=time_delta)
 
-        reminder = {
-            "USER_REMINDER_ID": reminder_id,
-            "USER_ID": edit_reminder["USER_ID"],
-            "REMINDER": edit_reminder["REMINDER"],
-            "FUTURE": future,
-            "FUTURE_TEXT": future_text,
-        }
+        new_reminder = old_reminder.copy()
+        new_reminder.update(FUTURE=future, FUTURE_TEXT=future_text)
         async with self.config.reminders() as current_reminders:
-            current_reminders.remove(edit_reminder)
-            current_reminders.append(reminder)
+            current_reminders.remove(old_reminder)
+            current_reminders.append(new_reminder)
         await self.send_message(
             ctx,
             "Reminder with ID# **{}** has been edited successfully, and will now remind you {} from now.".format(
@@ -239,24 +235,20 @@ class RemindMe(commands.Cog):
     async def text(self, ctx: commands.Context, reminder_id: int, *, text: str):
         """Modify the text of an existing reminder."""
         users_reminders = await self.get_user_reminders(ctx.message.author.id)
-        edit_reminder = self.get_reminder(users_reminders, reminder_id)
-        if not edit_reminder:
+        old_reminder = self.get_reminder(users_reminders, reminder_id)
+        if not old_reminder:
             await self.send_non_existant_msg(ctx, reminder_id)
             return
         text = text.strip()
         if len(text) > 1000:
             await self.send_message(ctx, "Your reminder text is too long.")
             return
-        reminder = {
-            "USER_REMINDER_ID": reminder_id,
-            "USER_ID": edit_reminder["USER_ID"],
-            "REMINDER": text,
-            "FUTURE": edit_reminder["FUTURE"],
-            "FUTURE_TEXT": edit_reminder["FUTURE_TEXT"],
-        }
+
+        new_reminder = old_reminder.copy()
+        new_reminder.update(REMINDER=text)
         async with self.config.reminders() as current_reminders:
-            current_reminders.remove(edit_reminder)
-            current_reminders.append(reminder)
+            current_reminders.remove(old_reminder)
+            current_reminders.append(new_reminder)
         await self.send_message(
             ctx,
             "Reminder with ID# **{}** has been edited successfully.".format(
@@ -341,6 +333,7 @@ class RemindMe(commands.Cog):
             "REMINDER": text,
             "FUTURE": future,
             "FUTURE_TEXT": future_text,
+            "JUMP_LINK": ctx.message.jump_url,
         }
         async with self.config.reminders() as current_reminders:
             current_reminders.append(reminder)
@@ -551,9 +544,14 @@ class RemindMe(commands.Cog):
                             title=":bell: Reminder! :bell:",
                             color=await self.bot.get_embed_color(self),
                         )
+                        reminder_text = reminder["REMINDER"]
+                        if "JUMP_LINK" in reminder:
+                            reminder_text += "\n\n[original message]({})".format(
+                                reminder["JUMP_LINK"]
+                            )
                         embed.add_field(
                             name="From {} ago:".format(reminder["FUTURE_TEXT"]),
-                            value=reminder["REMINDER"],
+                            value=reminder_text,
                         )
                         await user.send(embed=embed)
                         total_sent = await self.config.total_sent()
