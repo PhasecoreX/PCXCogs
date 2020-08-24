@@ -114,17 +114,16 @@ class AutoRoom(commands.Cog):
                         guild.me: discord.PermissionOverwrite(
                             connect=True,
                             manage_channels=True,
-                            move_members=True,
                             manage_roles=True,
+                            move_members=True,
                         ),
                         member: discord.PermissionOverwrite(
-                            connect=True, manage_channels=True, move_members=True,
+                            connect=True, manage_channels=True,
+                        ),
+                        guild.default_role: discord.PermissionOverwrite(
+                            connect=not avc_settings["private"]
                         ),
                     }
-                    if avc_settings["private"]:
-                        overwrites[guild.default_role] = discord.PermissionOverwrite(
-                            connect=False
-                        )
                     new_channel_name = "{}'s Room".format(member.name)
                     new_channel = await member.guild.create_voice_channel(
                         name=new_channel_name,
