@@ -1,10 +1,11 @@
 """Shared code across multiple cogs."""
 import asyncio
-from typing import List
+from typing import List, Tuple
 
 import discord
 from redbot.core import __version__ as redbot_version
 from redbot.core.utils import common_filters
+from redbot.core.utils.chat_formatting import box
 
 headers = {"user-agent": "Red-DiscordBot/" + redbot_version}
 
@@ -84,3 +85,42 @@ async def embed_splitter(
         for split_embed in split_embeds:
             await destination.send(embed=split_embed)
     return split_embeds
+
+
+class SettingDisplay:
+    """A formattable list of settings."""
+
+    def __init__(self, header: str = None):
+        """Init."""
+        self.header = header
+        self._length = 0
+        self._settings: List[Tuple] = []
+
+    def add(self, setting: str, value):
+        """Add a setting."""
+        setting_colon = setting + ":"
+        self._settings.append((setting_colon, value))
+        self._length = max(len(setting_colon), self._length)
+
+    def raw(self) -> str:
+        """Generate the raw text of this SettingDisplay, to be monospace (ini) formatted later."""
+        msg = ""
+        if self.header:
+            msg += "--- {} ---\n".format(self.header)
+        for setting in self._settings:
+            msg += "{} [{}]\n".format(setting[0].ljust(self._length, " "), setting[1])
+        return msg.strip()
+
+    def display(self, *additional) -> str:
+        """Generate a ready-to-send formatted box of settings.
+
+        If additional SettingDisplays are provided, merges their output into one.
+        """
+        msg = self.raw()
+        for section in additional:
+            msg += "\n\n" + section.raw()
+        return box(msg, lang="ini")
+
+    def __str__(self) -> str:
+        """Generate a ready-to-send formatted box of settings."""
+        return self.display()

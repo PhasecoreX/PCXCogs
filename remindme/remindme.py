@@ -7,10 +7,10 @@ from datetime import timedelta
 import discord
 from redbot.core import Config, checks, commands
 from redbot.core.commands.converter import parse_timedelta
-from redbot.core.utils.chat_formatting import box, humanize_timedelta
+from redbot.core.utils.chat_formatting import humanize_timedelta
 from redbot.core.utils.predicates import MessagePredicate
 
-from .pcx_lib import checkmark, delete, embed_splitter
+from .pcx_lib import SettingDisplay, checkmark, delete, embed_splitter
 
 __author__ = "PhasecoreX"
 log = logging.getLogger("red.pcxcogs.remindme")
@@ -25,6 +25,9 @@ class RemindMe(commands.Cog):
         "max_user_reminders": 20,
         "reminders": [],
     }
+    default_guild_settings = {
+        "me_too": False,
+    }
     reminder_emoji = "🔔"
 
     def __init__(self, bot):
@@ -35,6 +38,7 @@ class RemindMe(commands.Cog):
             self, identifier=1224364860, force_registration=True
         )
         self.config.register_global(**self.default_global_settings)
+        self.config.register_guild(**self.default_guild_settings)
         self.bg_loop_task = None
         self.me_too_reminders = {}
 
@@ -100,26 +104,57 @@ class RemindMe(commands.Cog):
         await self._do_reminder_delete(users_reminders)
 
     @commands.group()
-    @checks.is_owner()
+    @checks.admin_or_permissions(manage_guild=True)
     async def remindmeset(self, ctx: commands.Context):
         """Manage RemindMe settings."""
-        if not ctx.invoked_subcommand:
-            msg = (
-                "Maximum reminders per user: {}\n"
-                "\n"
-                "--Stats--\n"
-                "Pending reminders:    {}\n"
-                "Total reminders sent: {}"
-            ).format(
-                await self.config.max_user_reminders(),
-                len(await self.config.reminders()),
-                await self.config.total_sent(),
-            )
-            await ctx.send(box(msg))
+        pass
 
     @remindmeset.command()
+    async def settings(self, ctx: commands.Context):
+        """Display current settings."""
+        guild_section = SettingDisplay("Guild Settings")
+        guild_section.add(
+            "Me too",
+            "Enabled"
+            if await self.config.guild(ctx.message.guild).me_too()
+            else "Disabled",
+        )
+
+        if await ctx.bot.is_owner(ctx.author):
+            global_section = SettingDisplay("Global Settings")
+            global_section.add(
+                "Maximum reminders per user", await self.config.max_user_reminders()
+            )
+
+            stats_section = SettingDisplay("Stats")
+            stats_section.add("Pending reminders", len(await self.config.reminders()))
+            stats_section.add("Total reminders sent", await self.config.total_sent())
+
+            await ctx.send(guild_section.display(global_section, stats_section))
+
+        else:
+            await ctx.send(guild_section)
+
+    @remindmeset.command()
+    async def metoo(self, ctx: commands.Context):
+        """Toggle the bot asking if others want to be reminded in this guild.
+
+        If the bot doesn't have the Add Reactions permission in the channel, it won't ask regardless.
+        """
+        me_too = not await self.config.guild(ctx.message.guild).me_too()
+        await self.config.guild(ctx.message.guild).me_too.set(me_too)
+        await ctx.send(
+            checkmark(
+                "I will {} ask if others want to be reminded.".format(
+                    "now" if me_too else "no longer"
+                )
+            )
+        )
+
+    @remindmeset.command()
+    @checks.is_owner()
     async def max(self, ctx: commands.Context, maximum: int):
-        """Set the maximum number of reminders a user can create at one time."""
+        """Global: Set the maximum number of reminders a user can create at one time."""
         await self.config.max_user_reminders.set(maximum)
         await ctx.send(
             checkmark(
@@ -341,9 +376,10 @@ class RemindMe(commands.Cog):
             ctx, "I will remind you that in {}.".format(future_text)
         )
 
-        can_react = ctx.channel.permissions_for(ctx.me).add_reactions
-        can_edit = ctx.channel.permissions_for(ctx.me).manage_messages
-        if can_react and can_edit:
+        if (
+            await self.config.guild(ctx.message.guild).me_too()
+            and ctx.channel.permissions_for(ctx.me).add_reactions
+        ):
             query: discord.Message = await ctx.send(
                 "If anyone else would like to be reminded as well, click the bell below!"
             )
