@@ -4,7 +4,7 @@ import asyncio
 import discord
 from redbot.core import Config, checks, commands
 
-from .pcx_lib import checkmark, delete
+from .pcx_lib import SettingDisplay, checkmark, delete
 
 __author__ = "PhasecoreX"
 
@@ -13,9 +13,7 @@ class AutoRoom(commands.Cog):
     """Automatic voice channel management."""
 
     default_global_settings = {"schema_version": 0}
-    default_guild_settings = {
-        "auto_voice_channels": {},
-    }
+    default_guild_settings = {"auto_voice_channels": {}, "member_role": None}
 
     def __init__(self, bot):
         """Set up the cog."""
@@ -34,6 +32,37 @@ class AutoRoom(commands.Cog):
     async def autoroomset(self, ctx: commands.Context):
         """Configure AutoRoom."""
         pass
+
+    @autoroomset.command()
+    async def settings(self, ctx: commands.Context):
+        """Display current settings."""
+        guild_section = SettingDisplay("Guild Settings")
+        guild_section.add(
+            "Member Role", await self.config.guild(ctx.message.guild).member_role()
+        )
+        await ctx.send(guild_section)
+
+    @autoroomset.command()
+    async def memberrole(
+        self, ctx: commands.Context, role: discord.Role = None,
+    ):
+        """Limit AutoRoom visibility to a member role.
+
+        When set, only users with the specified role can see AutoRooms. Leave `role` empty to disable.
+        """
+        await self.config.guild(ctx.message.guild).member_role.set(
+            role.id if role else None
+        )
+        if role:
+            await ctx.send(
+                checkmark(
+                    "AutoRooms will now only be available to users with the {} role.".format(
+                        role
+                    )
+                )
+            )
+        else:
+            await ctx.send(checkmark("AutoRooms can now be used by any user."))
 
     @autoroomset.command()
     async def create(
@@ -90,6 +119,11 @@ class AutoRoom(commands.Cog):
         """Manage your AutoRoom."""
         pass
 
+    @autoroom.command(name="settings", aliases=["info"])
+    async def autoroom_settings(self, ctx: commands.Context):
+        """Display current settings."""
+        await ctx.send("PhasecoreX is still working on this!")
+
     @autoroom.command()
     async def public(self, ctx: commands.Context):
         """Make your AutoRoom public."""
@@ -120,6 +154,13 @@ class AutoRoom(commands.Cog):
             except discord.Forbidden:
                 pass  # Shouldn't happen unless someone screws with channel permissions.
 
+    async def _get_base_member_role(self, guild: discord.Guild) -> discord.Role:
+        """Return the base member role (could be @everyone, or whatever the member role is)."""
+        member_role_id = await self.config.guild(guild).member_role()
+        if member_role_id:
+            return guild.get_role(member_role_id) or guild.default_role
+        return guild.default_role
+
     async def _process_allow_deny(
         self, ctx: commands.Context, allow: bool, *, member: discord.Member = None
     ) -> bool:
@@ -134,14 +175,16 @@ class AutoRoom(commands.Cog):
             await ctx.react_quietly("\N{NO ENTRY SIGN}")
             await delete(ctx.message, delay=3)
             return False
-        overwrites = dict(channel.overwrites)
-        do_edit = False
+
         if not member:
-            member = ctx.guild.default_role
+            member = await self._get_base_member_role(ctx.guild)
         elif member in [ctx.guild.me, ctx.message.author]:
             await ctx.react_quietly("\N{NO ENTRY SIGN}")
             await delete(ctx.message, delay=3)
             return False
+
+        overwrites = dict(channel.overwrites)
+        do_edit = False
         if member in overwrites:
             if overwrites[member].connect != allow:
                 overwrites[member].update(connect=allow)
@@ -193,24 +236,31 @@ class AutoRoom(commands.Cog):
         """Create a voice channel for each member in an AutoRoom source channel."""
         if not guild.me.guild_permissions.manage_channels:
             return
+        base_member_role = await self._get_base_member_role(guild)
         async with self.autoroom_create_lock:
             for avc_id, avc_settings in auto_voice_channels.items():
                 members = guild.get_channel(int(avc_id)).members
                 for member in members:
                     overwrites = {
                         guild.me: discord.PermissionOverwrite(
+                            view_channel=True,
                             connect=True,
                             manage_channels=True,
                             manage_roles=True,
                             move_members=True,
                         ),
                         member: discord.PermissionOverwrite(
-                            connect=True, manage_channels=True,
+                            view_channel=True, connect=True, manage_channels=True,
                         ),
-                        guild.default_role: discord.PermissionOverwrite(
-                            connect=not avc_settings["private"]
+                        base_member_role: discord.PermissionOverwrite(
+                            view_channel=True, connect=not avc_settings["private"]
                         ),
                     }
+                    if guild.default_role not in overwrites:
+                        # We have a member role, deny @everyone
+                        overwrites[guild.default_role] = discord.PermissionOverwrite(
+                            view_channel=False, connect=False
+                        )
                     new_channel_name = "{}'s Room".format(member.name)
                     new_channel = await member.guild.create_voice_channel(
                         name=new_channel_name,
