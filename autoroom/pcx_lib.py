@@ -15,13 +15,13 @@ def checkmark(text: str) -> str:
     return "\N{WHITE HEAVY CHECK MARK} {}".format(text)
 
 
-async def delete(message: discord.Message) -> bool:
+async def delete(message: discord.Message, *, delay=None) -> bool:
     """Attempt to delete a message.
 
     Returns True if successful, False otherwise.
     """
     try:
-        await message.delete()
+        await message.delete(delay=delay)
     except discord.NotFound:
         return True  # Already deleted
     except discord.HTTPException:
