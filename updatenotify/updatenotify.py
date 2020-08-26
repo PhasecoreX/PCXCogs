@@ -114,9 +114,7 @@ class UpdateNotify(commands.Cog):
         )
         global_section.add(
             "Next check in",
-            humanize_timedelta(
-                seconds=(self.next_check - datetime.datetime.now()).total_seconds()
-            ),
+            humanize_timedelta(timedelta=self.next_check - datetime.datetime.now()),
         )
         global_section.add(
             "Check Red-DiscordBot update",
