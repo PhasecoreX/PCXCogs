@@ -1,8 +1,10 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
+import datetime
 
 import discord
 from redbot.core import Config, checks, commands
+from redbot.core.utils.chat_formatting import humanize_timedelta
 
 from .pcx_lib import SettingDisplay, checkmark, delete
 
@@ -64,7 +66,7 @@ class AutoRoom(commands.Cog):
         else:
             await ctx.send(checkmark("AutoRooms can now be used by any user."))
 
-    @autoroomset.command()
+    @autoroomset.command(aliases=["enable"])
     async def create(
         self,
         ctx: commands.Context,
@@ -95,7 +97,7 @@ class AutoRoom(commands.Cog):
             )
         )
 
-    @autoroomset.command()
+    @autoroomset.command(aliases=["disable"])
     async def remove(
         self, ctx: commands.Context, source_voice_channel: discord.VoiceChannel,
     ):
@@ -122,7 +124,37 @@ class AutoRoom(commands.Cog):
     @autoroom.command(name="settings", aliases=["info"])
     async def autoroom_settings(self, ctx: commands.Context):
         """Display current settings."""
-        await ctx.send("PhasecoreX is still working on this!")
+        member_channel = self._get_current_voice_channel(ctx.message.author)
+        if not member_channel or not await self._is_autoroom(member_channel):
+            await ctx.react_quietly("\N{NO ENTRY SIGN}")
+            await delete(ctx.message, delay=3)
+            return
+
+        room_owners = await self._get_room_owners(ctx, member_channel)
+        room_settings = SettingDisplay("Room Settings")
+        room_settings.add(
+            "Owner" if len(room_owners) == 1 else "Owners", ", ".join(room_owners)
+        )
+
+        base_member_role = await self._get_base_member_role(ctx.guild)
+        mode = "???"
+        if base_member_role in member_channel.overwrites:
+            mode = (
+                "Public"
+                if member_channel.overwrites[base_member_role].connect
+                else "Private"
+            )
+        room_settings.add("Mode", mode)
+
+        room_settings.add("Bitrate", "{}kbps".format(member_channel.bitrate // 1000))
+        room_settings.add(
+            "Channel Age",
+            humanize_timedelta(
+                timedelta=datetime.datetime.utcnow() - member_channel.created_at
+            ),
+        )
+
+        await ctx.send(room_settings)
 
     @autoroom.command()
     async def public(self, ctx: commands.Context):
@@ -200,22 +232,50 @@ class AutoRoom(commands.Cog):
         await delete(ctx.message, delay=3)
         return True
 
-    async def _is_autoroom_owner(self, member: discord.Member):
-        """Check if a member is the owner of an AutoRoom."""
-        if not member.voice or not member.voice.channel:
-            # Not in a voice channel
-            return False
-        if not member.voice.channel.permissions_for(member).manage_channels:
-            # User doesn't have manage_channels permission, so can't possibly be channel owner
-            return False
-        # We need to look up if this channel is in any of the AutoRoom destination categories
+    @staticmethod
+    def _get_current_voice_channel(member: discord.Member):
+        """Get the members current voice channel, or None if not in a voice channel."""
+        if member.voice:
+            return member.voice.channel
+        return None
+
+    async def _get_room_owners(
+        self, ctx: commands.Context, channel: discord.VoiceChannel
+    ):
+        """Return list of users with an overwrite of manage_channels True."""
+        if not await self._is_autoroom(channel):
+            return []
+        return [
+            owner.name
+            for owner, perms in channel.overwrites.items()
+            if isinstance(owner, discord.Member)
+            and perms.manage_channels
+            and owner != ctx.guild.me
+        ]
+
+    async def _is_autoroom(self, channel: discord.VoiceChannel):
+        """Check if a Voice Channel is actually an AutoRoom."""
         auto_voice_channels = await self.config.guild(
-            member.guild
+            channel.guild
         ).auto_voice_channels()
+        if str(channel.id) in auto_voice_channels:
+            # AutoRoom source channel
+            return False
         for avc_settings in auto_voice_channels.values():
-            if member.voice.channel.category_id == avc_settings["dest_category_id"]:
+            if channel.category_id == avc_settings["dest_category_id"]:
                 return True
         return False
+
+    async def _is_autoroom_owner(self, member: discord.Member):
+        """Check if a member is the owner of an AutoRoom."""
+        member_channel = self._get_current_voice_channel(member)
+        if not member_channel:
+            # Not in a voice channel
+            return False
+        if not member_channel.permissions_for(member).manage_channels:
+            # User doesn't have manage_channels permission, so can't possibly be channel owner
+            return False
+        return await self._is_autoroom(member_channel)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
