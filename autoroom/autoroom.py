@@ -39,10 +39,26 @@ class AutoRoom(commands.Cog):
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
         guild_section = SettingDisplay("Guild Settings")
-        guild_section.add(
-            "Member Role", await self.config.guild(ctx.message.guild).member_role()
-        )
-        await ctx.send(guild_section)
+        member_role = None
+        member_role_id = await self.config.guild(ctx.message.guild).member_role()
+        if member_role_id:
+            member_role = ctx.message.guild.get_role(member_role_id)
+        guild_section.add("Member Role", member_role.name if member_role else "Not set")
+
+        autoroom_section = SettingDisplay("AutoRooms")
+        async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
+            for avc_id, avc_settings in avcs.items():
+                source_channel = ctx.message.guild.get_channel(int(avc_id))
+                if source_channel:
+                    dest_category = ctx.message.guild.get_channel(
+                        avc_settings["dest_category_id"]
+                    )
+                    autoroom_section.add(
+                        source_channel.name,
+                        dest_category.name if dest_category else "INVALID CATEGORY",
+                    )
+
+        await ctx.send(guild_section.display(autoroom_section))
 
     @autoroomset.command()
     async def memberrole(
@@ -285,6 +301,17 @@ class AutoRoom(commands.Cog):
         auto_voice_channels = await self.config.guild(
             member.guild
         ).auto_voice_channels()
+        # Nonexistant (deleted) source channel cleanup
+        avc_delete = []
+        for avc_id in auto_voice_channels:
+            if not member.guild.get_channel(int(avc_id)):
+                avc_delete.append(avc_id)
+        if avc_delete:
+            for avc_id in avc_delete:
+                del auto_voice_channels[avc_id]
+            await self.config.guild(member.guild).auto_voice_channels.set(
+                auto_voice_channels
+            )
         # If user left a voice channel that isn't an Autoroom source, do cleanup
         if not before.channel or str(before.channel.id) not in auto_voice_channels:
             await self._process_autoroom_delete(member.guild, auto_voice_channels)
@@ -299,7 +326,11 @@ class AutoRoom(commands.Cog):
         base_member_role = await self._get_base_member_role(guild)
         async with self.autoroom_create_lock:
             for avc_id, avc_settings in auto_voice_channels.items():
-                members = guild.get_channel(int(avc_id)).members
+                source_channel = guild.get_channel(int(avc_id))
+                dest_category = guild.get_channel(avc_settings["dest_category_id"])
+                if not source_channel or not dest_category:
+                    continue
+                members = source_channel.members
                 for member in members:
                     overwrites = {
                         guild.me: discord.PermissionOverwrite(
@@ -324,7 +355,7 @@ class AutoRoom(commands.Cog):
                     new_channel_name = "{}'s Room".format(member.name)
                     new_channel = await member.guild.create_voice_channel(
                         name=new_channel_name,
-                        category=guild.get_channel(avc_settings["dest_category_id"]),
+                        category=dest_category,
                         reason="AutoRoom: New channel needed.",
                         overwrites=overwrites,
                     )
@@ -341,6 +372,8 @@ class AutoRoom(commands.Cog):
         for avc_id, avc_settings in auto_voice_channels.items():
             category_ids.add(avc_settings["dest_category_id"])
         for category_id in category_ids:
-            for vc in guild.get_channel(category_id).voice_channels:
-                if str(vc.id) not in auto_voice_channels and not vc.members:
-                    await vc.delete(reason="AutoRoom: Channel empty.")
+            category = guild.get_channel(category_id)
+            if category:
+                for vc in category.voice_channels:
+                    if str(vc.id) not in auto_voice_channels and not vc.members:
+                        await vc.delete(reason="AutoRoom: Channel empty.")
