@@ -15,7 +15,12 @@ class AutoRoom(commands.Cog):
     """Automatic voice channel management."""
 
     default_global_settings = {"schema_version": 0}
-    default_guild_settings = {"auto_voice_channels": {}, "member_role": None}
+    default_guild_settings = {
+        "auto_voice_channels": {},
+        "member_role": None,
+        "admin_access": True,
+        "mod_access": False,
+    }
 
     def __init__(self, bot):
         """Set up the cog."""
@@ -44,6 +49,14 @@ class AutoRoom(commands.Cog):
         if member_role_id:
             member_role = ctx.message.guild.get_role(member_role_id)
         guild_section.add("Member Role", member_role.name if member_role else "Not set")
+        guild_section.add(
+            "Admin private channel access",
+            await self.config.guild(ctx.message.guild).admin_access(),
+        )
+        guild_section.add(
+            "Moderator private channel access",
+            await self.config.guild(ctx.message.guild).mod_access(),
+        )
 
         autoroom_section = SettingDisplay("AutoRooms")
         async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
@@ -74,13 +87,39 @@ class AutoRoom(commands.Cog):
         if role:
             await ctx.send(
                 checkmark(
-                    "AutoRooms will now only be available to users with the {} role.".format(
+                    "New AutoRooms will only be available to users with the {} role.".format(
                         role
                     )
                 )
             )
         else:
-            await ctx.send(checkmark("AutoRooms can now be used by any user."))
+            await ctx.send(checkmark("New AutoRooms can be used by any user."))
+
+    @autoroomset.command()
+    async def adminaccess(self, ctx: commands.Context):
+        """Allow Admins to join private channels."""
+        admin_access = not await self.config.guild(ctx.message.guild).admin_access()
+        await self.config.guild(ctx.message.guild).admin_access.set(admin_access)
+        await ctx.send(
+            checkmark(
+                "Admins are {} able to join (new) private AutoRooms.".format(
+                    "now" if admin_access else "no longer"
+                )
+            )
+        )
+
+    @autoroomset.command()
+    async def modaccess(self, ctx: commands.Context):
+        """Allow Moderators to join private channels."""
+        mod_access = not await self.config.guild(ctx.message.guild).mod_access()
+        await self.config.guild(ctx.message.guild).mod_access.set(mod_access)
+        await ctx.send(
+            checkmark(
+                "Moderators are {} able to join (new) private AutoRooms.".format(
+                    "now" if mod_access else "no longer"
+                )
+            )
+        )
 
     @autoroomset.command(aliases=["enable"])
     async def create(
@@ -352,8 +391,20 @@ class AutoRoom(commands.Cog):
                         overwrites[guild.default_role] = discord.PermissionOverwrite(
                             view_channel=False, connect=False
                         )
+                    if await self.config.guild(guild).mod_access():
+                        # Add mod roles to be allowed
+                        for role in await self.bot.get_mod_roles(guild):
+                            overwrites[role] = discord.PermissionOverwrite(
+                                view_channel=True, connect=True
+                            )
+                    if await self.config.guild(guild).admin_access():
+                        # Add admin roles to be allowed
+                        for role in await self.bot.get_admin_roles(guild):
+                            overwrites[role] = discord.PermissionOverwrite(
+                                view_channel=True, connect=True
+                            )
                     new_channel_name = "{}'s Room".format(member.name)
-                    new_channel = await member.guild.create_voice_channel(
+                    new_channel = await guild.create_voice_channel(
                         name=new_channel_name,
                         category=dest_category,
                         reason="AutoRoom: New channel needed.",
