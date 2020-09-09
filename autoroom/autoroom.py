@@ -4,7 +4,7 @@ import datetime
 
 import discord
 from redbot.core import Config, checks, commands
-from redbot.core.utils.chat_formatting import humanize_timedelta
+from redbot.core.utils.chat_formatting import error, humanize_timedelta
 
 from .pcx_lib import SettingDisplay, checkmark, delete
 
@@ -75,7 +75,9 @@ class AutoRoom(commands.Cog):
 
     @autoroomset.command()
     async def memberrole(
-        self, ctx: commands.Context, role: discord.Role = None,
+        self,
+        ctx: commands.Context,
+        role: discord.Role = None,
     ):
         """Limit AutoRoom visibility to a member role.
 
@@ -154,7 +156,9 @@ class AutoRoom(commands.Cog):
 
     @autoroomset.command(aliases=["disable"])
     async def remove(
-        self, ctx: commands.Context, source_voice_channel: discord.VoiceChannel,
+        self,
+        ctx: commands.Context,
+        source_voice_channel: discord.VoiceChannel,
     ):
         """Remove an AutoRoom source."""
         async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
@@ -181,14 +185,20 @@ class AutoRoom(commands.Cog):
         """Display current settings."""
         member_channel = self._get_current_voice_channel(ctx.message.author)
         if not member_channel or not await self._is_autoroom(member_channel):
-            await ctx.react_quietly("\N{NO ENTRY SIGN}")
-            await delete(ctx.message, delay=3)
+            hint = await ctx.send(
+                error(
+                    "{}, you are not in an AutoRoom.".format(ctx.message.author.mention)
+                )
+            )
+            await delete(ctx.message, delay=5)
+            await delete(hint, delay=5)
             return
 
-        room_owners = await self._get_room_owners(ctx, member_channel)
+        room_owners = await self._get_room_owners(member_channel)
         room_settings = SettingDisplay("Room Settings")
         room_settings.add(
-            "Owner" if len(room_owners) == 1 else "Owners", ", ".join(room_owners)
+            "Owner" if len(room_owners) == 1 else "Owners",
+            ", ".join([owner.name for owner in room_owners]),
         )
 
         base_member_role = await self._get_base_member_role(ctx.guild)
@@ -252,22 +262,57 @@ class AutoRoom(commands.Cog):
         self, ctx: commands.Context, allow: bool, *, member: discord.Member = None
     ) -> bool:
         """Actually do channel edit for allow/deny."""
-        if not await self._is_autoroom_owner(ctx.message.author):
-            await ctx.react_quietly("\N{NO ENTRY SIGN}")
-            await delete(ctx.message, delay=3)
+        channel = self._get_current_voice_channel(ctx.message.author)
+        if not channel or not await self._is_autoroom(channel):
+            hint = await ctx.send(
+                error(
+                    "{}, you are not in an AutoRoom.".format(ctx.message.author.mention)
+                )
+            )
+            await delete(ctx.message, delay=5)
+            await delete(hint, delay=5)
             return False
-        try:
-            channel = ctx.message.author.voice.channel
-        except AttributeError:
-            await ctx.react_quietly("\N{NO ENTRY SIGN}")
-            await delete(ctx.message, delay=3)
+        if not await self._is_autoroom_owner(
+            ctx.message.author, channel, skip_autoroom_check=True
+        ):
+            hint = await ctx.send(
+                error(
+                    "{}, you are not the owner of this AutoRoom.".format(
+                        ctx.message.author.mention
+                    )
+                )
+            )
+            await delete(ctx.message, delay=5)
+            await delete(hint, delay=5)
             return False
 
         if not member:
             member = await self._get_base_member_role(ctx.guild)
-        elif member in [ctx.guild.me, ctx.message.author]:
-            await ctx.react_quietly("\N{NO ENTRY SIGN}")
-            await delete(ctx.message, delay=3)
+        elif (
+            member
+            in [
+                ctx.guild.me,
+                ctx.message.author,
+                ctx.guild.owner,
+            ]
+            or (
+                await self.config.guild(ctx.guild).mod_access()
+                and self.bot.is_mod(member)
+            )
+            or (
+                await self.config.guild(ctx.guild).admin_access()
+                and self.bot.is_admin(member)
+            )
+        ):
+            hint = await ctx.send(
+                error(
+                    "{}, you are not allowed to modify that users permissions.".format(
+                        ctx.message.author.mention
+                    )
+                )
+            )
+            await delete(ctx.message, delay=5)
+            await delete(hint, delay=5)
             return False
 
         overwrites = dict(channel.overwrites)
@@ -281,10 +326,11 @@ class AutoRoom(commands.Cog):
             do_edit = True
         if do_edit:
             await channel.edit(
-                overwrites=overwrites, reason="AutoRoom: Permission change",
+                overwrites=overwrites,
+                reason="AutoRoom: Permission change",
             )
         await ctx.tick()
-        await delete(ctx.message, delay=3)
+        await delete(ctx.message, delay=5)
         return True
 
     @staticmethod
@@ -294,18 +340,14 @@ class AutoRoom(commands.Cog):
             return member.voice.channel
         return None
 
-    async def _get_room_owners(
-        self, ctx: commands.Context, channel: discord.VoiceChannel
-    ):
+    async def _get_room_owners(self, channel: discord.VoiceChannel):
         """Return list of users with an overwrite of manage_channels True."""
-        if not await self._is_autoroom(channel):
-            return []
         return [
-            owner.name
+            owner
             for owner, perms in channel.overwrites.items()
             if isinstance(owner, discord.Member)
             and perms.manage_channels
-            and owner != ctx.guild.me
+            and owner != channel.guild.me
         ]
 
     async def _is_autoroom(self, channel: discord.VoiceChannel):
@@ -321,16 +363,20 @@ class AutoRoom(commands.Cog):
                 return True
         return False
 
-    async def _is_autoroom_owner(self, member: discord.Member):
+    async def _is_autoroom_owner(
+        self,
+        member: discord.Member,
+        channel: discord.VoiceChannel,
+        *,
+        skip_autoroom_check: bool = False
+    ):
         """Check if a member is the owner of an AutoRoom."""
-        member_channel = self._get_current_voice_channel(member)
-        if not member_channel:
+        if not channel:
             # Not in a voice channel
             return False
-        if not member_channel.permissions_for(member).manage_channels:
-            # User doesn't have manage_channels permission, so can't possibly be channel owner
+        if member not in await self._get_room_owners(channel):
             return False
-        return await self._is_autoroom(member_channel)
+        return skip_autoroom_check or await self._is_autoroom(channel)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -363,6 +409,13 @@ class AutoRoom(commands.Cog):
         if not guild.me.guild_permissions.manage_channels:
             return
         base_member_role = await self._get_base_member_role(guild)
+        additional_allowed_roles = []
+        if await self.config.guild(guild).mod_access():
+            # Add mod roles to be allowed
+            additional_allowed_roles += await self.bot.get_mod_roles(guild)
+        if await self.config.guild(guild).admin_access():
+            # Add admin roles to be allowed
+            additional_allowed_roles += await self.bot.get_admin_roles(guild)
         async with self.autoroom_create_lock:
             for avc_id, avc_settings in auto_voice_channels.items():
                 source_channel = guild.get_channel(int(avc_id))
@@ -380,7 +433,9 @@ class AutoRoom(commands.Cog):
                             move_members=True,
                         ),
                         member: discord.PermissionOverwrite(
-                            view_channel=True, connect=True, manage_channels=True,
+                            view_channel=True,
+                            connect=True,
+                            manage_channels=True,
                         ),
                         base_member_role: discord.PermissionOverwrite(
                             view_channel=True, connect=not avc_settings["private"]
@@ -391,18 +446,11 @@ class AutoRoom(commands.Cog):
                         overwrites[guild.default_role] = discord.PermissionOverwrite(
                             view_channel=False, connect=False
                         )
-                    if await self.config.guild(guild).mod_access():
-                        # Add mod roles to be allowed
-                        for role in await self.bot.get_mod_roles(guild):
-                            overwrites[role] = discord.PermissionOverwrite(
-                                view_channel=True, connect=True
-                            )
-                    if await self.config.guild(guild).admin_access():
-                        # Add admin roles to be allowed
-                        for role in await self.bot.get_admin_roles(guild):
-                            overwrites[role] = discord.PermissionOverwrite(
-                                view_channel=True, connect=True
-                            )
+                    for role in additional_allowed_roles:
+                        # Add all the mod/admin roles, if required
+                        overwrites[role] = discord.PermissionOverwrite(
+                            view_channel=True, connect=True
+                        )
                     new_channel_name = "{}'s Room".format(member.name)
                     new_channel = await guild.create_voice_channel(
                         name=new_channel_name,
