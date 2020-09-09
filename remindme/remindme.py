@@ -197,7 +197,8 @@ class RemindMe(commands.Cog):
             return
 
         embed = discord.Embed(
-            title="Reminders for {}".format(author.name), color=await ctx.embed_color(),
+            title="Reminders for {}".format(author.name),
+            color=await ctx.embed_color(),
         )
         embed.set_thumbnail(url=author.avatar_url)
         current_timestamp = int(current_time.time())
@@ -377,7 +378,8 @@ class RemindMe(commands.Cog):
         )
 
         if (
-            await self.config.guild(ctx.message.guild).me_too()
+            ctx.message.guild
+            and await self.config.guild(ctx.message.guild).me_too()
             and ctx.channel.permissions_for(ctx.me).add_reactions
         ):
             query: discord.Message = await ctx.send(
