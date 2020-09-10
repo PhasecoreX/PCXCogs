@@ -105,6 +105,8 @@ class SettingDisplay:
     def raw(self) -> str:
         """Generate the raw text of this SettingDisplay, to be monospace (ini) formatted later."""
         msg = ""
+        if not self._settings:
+            return msg
         if self.header:
             msg += "--- {} ---\n".format(self.header)
         for setting in self._settings:
