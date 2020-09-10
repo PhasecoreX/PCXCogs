@@ -113,12 +113,13 @@ class RemindMe(commands.Cog):
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
         guild_section = SettingDisplay("Guild Settings")
-        guild_section.add(
-            "Me too",
-            "Enabled"
-            if await self.config.guild(ctx.message.guild).me_too()
-            else "Disabled",
-        )
+        if ctx.message.guild:
+            guild_section.add(
+                "Me too",
+                "Enabled"
+                if await self.config.guild(ctx.message.guild).me_too()
+                else "Disabled",
+            )
 
         if await ctx.bot.is_owner(ctx.author):
             global_section = SettingDisplay("Global Settings")
@@ -136,6 +137,7 @@ class RemindMe(commands.Cog):
             await ctx.send(guild_section)
 
     @remindmeset.command()
+    @commands.guild_only()
     async def metoo(self, ctx: commands.Context):
         """Toggle the bot asking if others want to be reminded in this guild.
 
