@@ -5,7 +5,7 @@ from typing import Any, Dict, Union
 
 import discord
 from redbot.core import Config, checks, commands
-from redbot.core.utils.chat_formatting import error, info, question
+from redbot.core.utils.chat_formatting import error, info, question, warning
 from redbot.core.utils.predicates import MessagePredicate
 
 from .pcx_lib import checkmark, delete
@@ -705,16 +705,18 @@ class BanCheck(commands.Cog):
             )
             sent.append(response.service)
             if response.result and response.reason:
-                description += "**{}:** Sent ({})\n".format(
-                    response.service, response.reason
+                description += checkmark(
+                    "**{}:** Sent ({})\n".format(response.service, response.reason)
                 )
             elif response.result:
-                description += "**{}:** Sent\n".format(response.service)
+                description += checkmark("**{}:** Sent\n".format(response.service))
             else:
                 is_error = True
-                description += "**{}:** Failure ({})\n".format(
-                    response.service,
-                    response.reason if response.reason else "No reason given",
+                description += error(
+                    "**{}:** Failure ({})\n".format(
+                        response.service,
+                        response.reason if response.reason else "No reason given",
+                    )
                 )
 
         # Generate results
@@ -836,7 +838,7 @@ class BanCheck(commands.Cog):
 
             elif response.result == "error":
                 is_error = True
-                description += info(
+                description += warning(
                     "**{}:** Error - {}\n".format(
                         response.service,
                         response.reason if response.reason else "No reason given",
@@ -845,7 +847,7 @@ class BanCheck(commands.Cog):
 
             else:
                 is_error = True
-                description += error(
+                description += warning(
                     "**{}:** Fatal Error - You should probably let PhasecoreX know about this -> `{}`.\n".format(
                         response.service, response.result
                     )
@@ -902,7 +904,7 @@ class BanCheck(commands.Cog):
                 channel,
                 self.embed_maker(
                     "Error (but no ban found otherwise)",
-                    discord.Colour.red(),
+                    discord.Colour.gold(),
                     description,
                     member_avatar_url,
                 ),
@@ -914,7 +916,7 @@ class BanCheck(commands.Cog):
                 channel,
                 self.embed_maker(
                     "Error",
-                    discord.Colour.red(),
+                    discord.Colour.gold(),
                     "No services have been set up. Please check `[p]bancheckset` for more details.",
                     member_avatar_url,
                 ),
