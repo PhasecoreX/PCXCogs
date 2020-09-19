@@ -12,7 +12,15 @@ __author__ = "PhasecoreX"
 
 
 class AutoRoom(commands.Cog):
-    """Automatic voice channel management."""
+    """Automatic voice channel management.
+
+    This cog allows for admins to designate existing voice channels as
+    AutoRoom Sources. When a user joins these channels, they will have
+    a new voice channel created in a specified category and be moved
+    into it. The user is now the owner of this created AutoRoom,
+    and is free to modify it's settings. Once all users have left the
+    created AutoRoom, it will be deleted automatically.
+    """
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {
@@ -37,7 +45,7 @@ class AutoRoom(commands.Cog):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
     async def autoroomset(self, ctx: commands.Context):
-        """Configure AutoRoom."""
+        """Configure the AutoRoom cog."""
         pass
 
     @autoroomset.command()
@@ -131,7 +139,7 @@ class AutoRoom(commands.Cog):
         dest_category: discord.CategoryChannel,
         private: bool = False,
     ):
-        """Create an AutoRoom source.
+        """Create an AutoRoom Source.
 
         Anyone joining the `source_voice_channel` will automatically have a new voice channel
         (AutoRoom) created in the `dest_category`, and then be moved into it.
@@ -146,7 +154,7 @@ class AutoRoom(commands.Cog):
             avcs[vc_id]["private"] = private
         await ctx.send(
             checkmark(
-                "{} is now an AutoRoom source, and will create new {} voice channels in the {} category.".format(
+                "{} is now an AutoRoom Source, and will create new {} voice channels in the {} category.".format(
                     source_voice_channel.mention,
                     "private" if private else "public",
                     dest_category.mention,
@@ -160,7 +168,7 @@ class AutoRoom(commands.Cog):
         ctx: commands.Context,
         source_voice_channel: discord.VoiceChannel,
     ):
-        """Remove an AutoRoom source."""
+        """Remove an AutoRoom Source."""
         async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
             try:
                 del avcs[str(source_voice_channel.id)]
@@ -168,7 +176,7 @@ class AutoRoom(commands.Cog):
                 pass
         await ctx.send(
             checkmark(
-                "{} is no longer an AutoRoom source channel.".format(
+                "{} is no longer an AutoRoom Source channel.".format(
                     source_voice_channel.mention
                 )
             )
@@ -356,7 +364,7 @@ class AutoRoom(commands.Cog):
             channel.guild
         ).auto_voice_channels()
         if str(channel.id) in auto_voice_channels:
-            # AutoRoom source channel
+            # AutoRoom Source channel
             return False
         for avc_settings in auto_voice_channels.values():
             if channel.category_id == avc_settings["dest_category_id"]:
@@ -397,15 +405,15 @@ class AutoRoom(commands.Cog):
             await self.config.guild(member.guild).auto_voice_channels.set(
                 auto_voice_channels
             )
-        # If user left a voice channel that isn't an Autoroom source, do cleanup
+        # If user left a voice channel that isn't an AutoRoom Source, do cleanup
         if not before.channel or str(before.channel.id) not in auto_voice_channels:
             await self._process_autoroom_delete(member.guild, auto_voice_channels)
-        # If user entered an AutoRoom source channel, create new AutoRoom
+        # If user entered an AutoRoom Source channel, create new AutoRoom
         if after.channel and str(after.channel.id) in auto_voice_channels:
             await self._process_autoroom_create(member.guild, auto_voice_channels)
 
     async def _process_autoroom_create(self, guild, auto_voice_channels):
-        """Create a voice channel for each member in an AutoRoom source channel."""
+        """Create a voice channel for each member in an AutoRoom Source channel."""
         if not guild.me.guild_permissions.manage_channels:
             return
         base_member_role = await self._get_base_member_role(guild)

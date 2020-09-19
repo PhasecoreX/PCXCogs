@@ -16,7 +16,11 @@ log = logging.getLogger("red.pcxcogs.updatenotify")
 
 
 class UpdateNotify(commands.Cog):
-    """Get notifications when your bot needs updating."""
+    """Get notifications when your bot needs updating.
+
+    This cog checks for updates to Red-DiscordBot. If you are also running the
+    phasecorex/red-discordbot Docker image, it can also notify you of any image updates.
+    """
 
     default_global_settings = {
         "schema_version": 0,

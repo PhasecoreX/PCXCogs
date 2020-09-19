@@ -11,7 +11,14 @@ __author__ = "PhasecoreX"
 
 
 class DecodeBinary(commands.Cog):
-    """Decodes binary strings to human readable ones."""
+    """Decodes binary strings to human readable ones.
+    
+    The bot will check every message sent by users for binary and try to
+    convert it to human readable text. You can check that it is working
+    by sending this message in a channel:
+    
+    01011001011000010111100100100001
+    """
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {"ignored_channels": []}

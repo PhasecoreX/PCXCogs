@@ -8,7 +8,11 @@ from redbot.core import checks, commands
 
 
 class NetSpeed(commands.Cog):
-    """Test your servers internet speed."""
+    """Test your servers internet speed.
+
+    Note that this is the internet speed of the server your bot is running on,
+    not your internet speed.
+    """
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete."""
@@ -17,7 +21,11 @@ class NetSpeed(commands.Cog):
     @commands.command(aliases=["speedtest"])
     @checks.is_owner()
     async def netspeed(self, ctx):
-        """Measure your internet speed."""
+        """Test your servers internet speed.
+
+        Note that this is the internet speed of the server your bot is running on,
+        not your internet speed.
+        """
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         loop = asyncio.get_event_loop()
         s = speedtest.Speedtest(secure=True)

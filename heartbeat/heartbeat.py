@@ -20,7 +20,13 @@ log = logging.getLogger("red.pcxcogs.heartbeat")
 
 
 class Heartbeat(commands.Cog):
-    """Monitor your bots uptime."""
+    """Monitor your bots uptime.
+    
+    The bot owner can specify a URL that the bot will ping (send a GET request)
+    at a configurable frequency. Using this with an uptime tracking service can
+    warn you when your bot isn't connected to the internet (and thus usually
+    not connected to Discord).
+    """
 
     default_global_settings = {"url": "", "frequency": 60}
 

@@ -13,7 +13,16 @@ __author__ = "PhasecoreX"
 
 
 class ReactChannel(commands.Cog):
-    """Per-channel auto reaction tools."""
+    """Per-channel auto reaction tools.
+
+    Admins can set up certain channels to be ReactChannels, where each message in it
+    will automatically have reactions applied. Depending on the type of ReactChannel,
+    click these reactions could trigger automatic actions.
+
+    Additionally, Admins can set up a guildwide upvote and/or downvote emojis, where
+    reacting to messages with these (in any channel) will increase or decrease the
+    message owners total karma.
+    """
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {
