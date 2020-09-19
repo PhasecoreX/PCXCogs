@@ -4,8 +4,10 @@ from redbot.core import __version__ as redbot_version
 
 from ..dto.lookup_result import LookupResult
 
-user_agent = "Red-DiscordBot/{} BanCheck (https://github.com/PhasecoreX/PCXCogs)".format(
-    redbot_version
+user_agent = (
+    "Red-DiscordBot/{} BanCheck (https://github.com/PhasecoreX/PCXCogs)".format(
+        redbot_version
+    )
 )
 
 
@@ -25,38 +27,31 @@ class DiscordServices:
                     "https://discord.services/api/ban/" + str(user_id),
                     headers={"user-agent": user_agent},
                 ) as resp:
-                    if resp.status != 200:
-                        return LookupResult(
-                            DiscordServices.SERVICE_NAME, resp.status, "error"
-                        )
-                    try:
-                        data = await resp.json()
-                    except aiohttp.ContentTypeError:
-                        return LookupResult(
-                            DiscordServices.SERVICE_NAME,
-                            resp.status,
-                            "error",
-                            reason="Lookup data malformed",
-                        )
-                    if not data:
-                        return LookupResult(
-                            DiscordServices.SERVICE_NAME,
-                            resp.status,
-                            "error",
-                            reason="No data returned",
-                        )
+                    data = await resp.json()
                     if "ban" in data:
                         return LookupResult(
                             DiscordServices.SERVICE_NAME,
-                            resp.status,
                             "ban",
                             reason=data["ban"]["reason"],
-                            proof_url=data["ban"]["proof"],
+                            proof_url=data["ban"]["proof"]
+                            if "proof" in data["ban"]
+                            else None,
                         )
-                    return LookupResult(
-                        DiscordServices.SERVICE_NAME, resp.status, "clear"
-                    )
+                    return LookupResult(DiscordServices.SERVICE_NAME, "clear")
         except aiohttp.ClientConnectionError:
             return LookupResult(
-                DiscordServices.SERVICE_NAME, 0, "error", reason="Connection error",
+                DiscordServices.SERVICE_NAME,
+                "error",
+                reason="Could not connect to host",
             )
+        except aiohttp.ClientError:
+            pass  # All non-ClientConnectionError aiohttp exceptions are treated as malformed data
+        except TypeError:
+            pass  # resp.json() is None (malformed data)
+        except KeyError:
+            pass  # json element does not exist (malformed data)
+        return LookupResult(
+            DiscordServices.SERVICE_NAME,
+            "error",
+            reason="Response data malformed",
+        )

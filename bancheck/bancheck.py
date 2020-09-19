@@ -10,6 +10,7 @@ from redbot.core.utils.predicates import MessagePredicate
 
 from .pcx_lib import checkmark, delete
 from .services.alertbot import Alertbot
+from .services.globan import Globan
 from .services.imgur import Imgur
 from .services.ksoftsi import KSoftSi
 
@@ -17,7 +18,13 @@ __author__ = "PhasecoreX"
 
 
 class BanCheck(commands.Cog):
-    """Look up users on various ban lists."""
+    """Look up users on various ban lists.
+
+    Admins can lookup users on all supported and enabled global banning
+    services at the same time. Admins can also have all new users
+    automatically checked when they join the guild, and optionally
+    banned if they are found on a list.
+    """
 
     default_global_settings = {"schema_version": 0, "total_bans": 0}
     default_guild_settings: Any = {
@@ -26,7 +33,7 @@ class BanCheck(commands.Cog):
         "services": {},
     }
     supported_global_services = {"ksoftsi": KSoftSi}
-    supported_guild_services = {"alertbot": Alertbot}
+    supported_guild_services = {"alertbot": Alertbot, "globan": Globan}
     all_supported_services = {**supported_global_services, **supported_guild_services}
 
     def __init__(self, bot):
@@ -278,7 +285,8 @@ class BanCheck(commands.Cog):
             )
         else:
             embed.add_field(
-                name=checkmark("AutoCheck"), value="**Enabled**\n(On join)",
+                name=checkmark("AutoCheck"),
+                value="**Enabled**\n(On join)",
             )
         # AutoCheck Channel status
         if notify_channel:
@@ -296,7 +304,8 @@ class BanCheck(commands.Cog):
         """Add AutoBan information to the embed."""
         if not notify_channel:
             embed.add_field(
-                name=error("AutoBan"), value="**Disabled**\n(AutoCheck not enabled)",
+                name=error("AutoBan"),
+                value="**Disabled**\n(AutoCheck not enabled)",
             )
         elif not autoban_services:
             embed.add_field(
@@ -325,7 +334,8 @@ class BanCheck(commands.Cog):
     async def service_settings(self, ctx: commands.Context):
         """Display current settings."""
         embed = discord.Embed(
-            title="BanCheck Service Settings", color=await ctx.embed_color(),
+            title="BanCheck Service Settings",
+            color=await ctx.embed_color(),
         )
         embed.set_thumbnail(
             url=ctx.guild.icon_url
@@ -700,15 +710,11 @@ class BanCheck(commands.Cog):
                 )
             elif response.result:
                 description += "**{}:** Sent\n".format(response.service)
-            elif not response.result and response.reason:
-                is_error = True
-                description += "**{}:** Failure ({})\n".format(
-                    response.service, response.reason
-                )
             else:
                 is_error = True
-                description += "**{}:** Failure (HTTP error {})\n".format(
-                    response.service, response.http_status
+                description += "**{}:** Failure ({})\n".format(
+                    response.service,
+                    response.reason if response.reason else "No reason given",
                 )
 
         # Generate results
@@ -819,28 +825,30 @@ class BanCheck(commands.Cog):
                 if response.proof_url:
                     proof = " ([proof]({}))".format(response.proof_url)
 
-                description += "**{}:** {}{}\n".format(
-                    response.service, response.reason, proof
+                description += error(
+                    "**{}:** {}{}\n".format(response.service, response.reason, proof)
                 )
 
             elif response.result == "clear":
-                description += "**{}:** (No ban found)\n".format(response.service)
+                description += checkmark(
+                    "**{}:** No ban found\n".format(response.service)
+                )
 
             elif response.result == "error":
                 is_error = True
-                if response.reason:
-                    description += "**{}:** Error - {}\n".format(
-                        response.service, response.reason
+                description += info(
+                    "**{}:** Error - {}\n".format(
+                        response.service,
+                        response.reason if response.reason else "No reason given",
                     )
-                else:
-                    description += "**{}:** Connection Error - Server responded with the HTTP code `{}`\n".format(
-                        response.service, response.http_status
-                    )
+                )
 
             else:
                 is_error = True
-                description += "**{}:** Fatal Error - You should probably let PhasecoreX know about this -> `{}`.\n".format(
-                    response.service, response.result
+                description += error(
+                    "**{}:** Fatal Error - You should probably let PhasecoreX know about this -> `{}`.\n".format(
+                        response.service, response.result
+                    )
                 )
 
         # Display result
