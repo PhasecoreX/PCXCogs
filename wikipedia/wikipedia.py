@@ -38,7 +38,12 @@ class Wikipedia(commands.Cog):
             for page in result["query"]["pages"]:
                 title = page["title"]
                 description = page["extract"].strip().replace("\n", "\n\n")
-                url = "https://en.wikipedia.org/wiki/{}".format(title.replace(" ", "_"))
+                image = (
+                    page["original"]["source"]
+                    if "original" in page and "source" in page["original"]
+                    else None
+                )
+                url = page["fullurl"]
 
             if len(description) > 1500:
                 description = description[:1500].strip()
@@ -50,6 +55,8 @@ class Wikipedia(commands.Cog):
                 color=discord.Color.blue(),
                 url=url,
             )
+            if image:
+                embed.set_image(url=image)
             embed.set_footer(
                 text="Information provided by Wikimedia", icon_url=self.footer_icon
             )
@@ -68,12 +75,25 @@ class Wikipedia(commands.Cog):
     def generate_payload(query: str):
         """Generate the payload for Wikipedia based on a query string."""
         payload = {}
-        payload["action"] = "query"
-        payload["titles"] = query.replace(" ", "_")
-        payload["format"] = "json"
-        payload["formatversion"] = "2"  # Cleaner json results
-        payload["prop"] = "extracts"  # Include extract in returned results
-        payload["exintro"] = "1"  # Only return summary paragraph(s) before main content
-        payload["redirects"] = "1"  # Follow redirects
-        payload["explaintext"] = "1"  # Make sure it's plaintext (not HTML)
+        # Main module
+        payload["action"] = "query"  # Fetch data from and about MediaWiki
+        payload["format"] = "json"  # Output data in JSON format
+
+        # format:json options
+        payload["formatversion"] = "2"  # Modern format
+
+        # action:query options
+        payload["titles"] = query.replace(" ", "_")  # A list of titles to work on
+        payload["redirects"] = "1"  # Automatically resolve redirects
+        payload["prop"] = "extracts|info|pageimages"  # Which properties to get
+
+        # action:query/prop:extracts options
+        payload["exintro"] = "1"  # Return only content before the first section
+        payload["explaintext"] = "1"  # Return extracts as plain text
+
+        # action:query/prop:info options
+        payload["inprop"] = "url"  # Gives a full URL for each page
+
+        # action:query/prop:pageimages options
+        payload["piprop"] = "original"  # Return URL of page image, if any
         return payload
