@@ -66,7 +66,7 @@ class AutoRoom(commands.Cog):
             await self.config.guild(ctx.message.guild).mod_access(),
         )
 
-        autoroom_section = SettingDisplay("AutoRooms")
+        autoroom_sections = []
         async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
             for avc_id, avc_settings in avcs.items():
                 source_channel = ctx.message.guild.get_channel(int(avc_id))
@@ -74,14 +74,35 @@ class AutoRoom(commands.Cog):
                     dest_category = ctx.message.guild.get_channel(
                         avc_settings["dest_category_id"]
                     )
-                    autoroom_section.add(
-                        source_channel.name,
-                        dest_category.name if dest_category else "INVALID CATEGORY",
+                    autoroom_section = SettingDisplay(
+                        "AutoRoom - {}".format(source_channel.name)
                     )
+                    autoroom_section.add(
+                        "Room type",
+                        "Private" if avc_settings["private"] else "Public",
+                    )
+                    autoroom_section.add(
+                        "Destination category",
+                        "#{}".format(dest_category.name)
+                        if dest_category
+                        else "INVALID CATEGORY",
+                    )
+                    autoroom_section.add(
+                        "Room name format",
+                        avc_settings["channel_name_type"].capitalize()
+                        if "channel_name_type" in avc_settings
+                        else "Username",
+                    )
+                    autoroom_sections.append(autoroom_section)
 
-        await ctx.send(guild_section.display(autoroom_section))
+        await ctx.send(guild_section.display(*autoroom_sections))
 
-    @autoroomset.command()
+    @autoroomset.group()
+    async def access(self, ctx: commands.Context):
+        """Control access to all AutoRooms."""
+        pass
+
+    @access.command()
     async def memberrole(
         self,
         ctx: commands.Context,
@@ -105,8 +126,8 @@ class AutoRoom(commands.Cog):
         else:
             await ctx.send(checkmark("New AutoRooms can be used by any user."))
 
-    @autoroomset.command()
-    async def adminaccess(self, ctx: commands.Context):
+    @access.command()
+    async def admin(self, ctx: commands.Context):
         """Allow Admins to join private channels."""
         admin_access = not await self.config.guild(ctx.message.guild).admin_access()
         await self.config.guild(ctx.message.guild).admin_access.set(admin_access)
@@ -118,8 +139,8 @@ class AutoRoom(commands.Cog):
             )
         )
 
-    @autoroomset.command()
-    async def modaccess(self, ctx: commands.Context):
+    @access.command()
+    async def mod(self, ctx: commands.Context):
         """Allow Moderators to join private channels."""
         mod_access = not await self.config.guild(ctx.message.guild).mod_access()
         await self.config.guild(ctx.message.guild).mod_access.set(mod_access)
@@ -166,21 +187,70 @@ class AutoRoom(commands.Cog):
     async def remove(
         self,
         ctx: commands.Context,
-        source_voice_channel: discord.VoiceChannel,
+        autoroom_source: discord.VoiceChannel,
     ):
         """Remove an AutoRoom Source."""
         async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
             try:
-                del avcs[str(source_voice_channel.id)]
+                del avcs[str(autoroom_source.id)]
             except KeyError:
                 pass
         await ctx.send(
             checkmark(
                 "{} is no longer an AutoRoom Source channel.".format(
-                    source_voice_channel.mention
+                    autoroom_source.mention
                 )
             )
         )
+
+    @autoroomset.group(aliased=["edit"])
+    async def modify(self, ctx: commands.Context):
+        """Modify an existing AutoRoom Source."""
+        pass
+
+    @modify.group()
+    async def name(self, ctx: commands.Context):
+        """Choose the default name format of an AutoRoom."""
+        pass
+
+    @name.command()
+    async def username(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ):
+        """Default format: PhasecoreX's Room."""
+        await self._save_room_name(ctx, autoroom_source, "username")
+
+    @name.command()
+    async def game(self, ctx: commands.Context, autoroom_source: discord.VoiceChannel):
+        """The users current playing game, otherwise the username format."""
+        await self._save_room_name(ctx, autoroom_source, "game")
+
+    async def _save_room_name(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+        room_type: str,
+    ):
+        """Save the room name type."""
+        async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
+            try:
+                avcs[str(autoroom_source.id)]["channel_name_type"] = room_type
+            except KeyError:
+                await ctx.send(
+                    error(
+                        "{} is not an AutoRoom Source channel.".format(
+                            autoroom_source.mention
+                        )
+                    )
+                )
+            else:
+                await ctx.send(
+                    checkmark(
+                        "New AutoRooms created by {} will use the {} format.".format(
+                            autoroom_source.mention, room_type.capitalize()
+                        )
+                    )
+                )
 
     @commands.group()
     @commands.guild_only()
@@ -459,7 +529,15 @@ class AutoRoom(commands.Cog):
                         overwrites[role] = discord.PermissionOverwrite(
                             view_channel=True, connect=True
                         )
-                    new_channel_name = "{}'s Room".format(member.name)
+                    new_channel_name = ""
+                    if "channel_name_type" in avc_settings:
+                        if avc_settings["channel_name_type"] == "game":
+                            for activity in member.activities:
+                                if activity.type.value == 0:
+                                    new_channel_name = activity.name
+                                    break
+                    if not new_channel_name:
+                        new_channel_name = "{}'s Room".format(member.name)
                     new_channel = await guild.create_voice_channel(
                         name=new_channel_name,
                         category=dest_category,
