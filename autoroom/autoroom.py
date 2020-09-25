@@ -175,7 +175,8 @@ class AutoRoom(commands.Cog):
             avcs[vc_id]["private"] = private
         await ctx.send(
             checkmark(
-                "{} is now an AutoRoom Source, and will create new {} voice channels in the {} category.".format(
+                "{} is now an AutoRoom Source, and will create new {} voice channels in the {} category. "
+                "Check out `[p]autoroomset modify` if you'd like to configure this further.".format(
                     source_voice_channel.mention,
                     "private" if private else "public",
                     dest_category.mention,
@@ -207,6 +208,47 @@ class AutoRoom(commands.Cog):
     async def modify(self, ctx: commands.Context):
         """Modify an existing AutoRoom Source."""
         pass
+
+    @modify.command(name="public")
+    async def modify_public(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ):
+        """Set an AutoRoom Source to create public AutoRooms."""
+        await self._save_public_private(ctx, autoroom_source, False)
+
+    @modify.command(name="private")
+    async def modify_private(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ):
+        """Set an AutoRoom Source to create private AutoRooms."""
+        await self._save_public_private(ctx, autoroom_source, True)
+
+    async def _save_public_private(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+        private: bool,
+    ):
+        """Save the public/private setting."""
+        async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
+            try:
+                avcs[str(autoroom_source.id)]["private"] = private
+            except KeyError:
+                await ctx.send(
+                    error(
+                        "{} is not an AutoRoom Source channel.".format(
+                            autoroom_source.mention
+                        )
+                    )
+                )
+            else:
+                await ctx.send(
+                    checkmark(
+                        "New AutoRooms created by {} will be {}.".format(
+                            autoroom_source.mention, "private" if private else "public"
+                        )
+                    )
+                )
 
     @modify.group()
     async def name(self, ctx: commands.Context):
