@@ -406,33 +406,32 @@ class AutoRoom(commands.Cog):
             await delete(hint, delay=5)
             return False
 
+        denied_message = ""
         if not member:
             member = await self._get_base_member_role(ctx.guild)
-        elif (
-            member
-            in [
-                ctx.guild.me,
-                ctx.message.author,
-                ctx.guild.owner,
-            ]
-            or (
-                await self.config.guild(ctx.guild).mod_access()
-                and self.bot.is_mod(member)
-            )
-            or (
-                await self.config.guild(ctx.guild).admin_access()
-                and self.bot.is_admin(member)
-            )
-        ):
-            hint = await ctx.send(
-                error(
-                    "{}, you are not allowed to modify that users permissions.".format(
-                        ctx.message.author.mention
-                    )
+        elif not allow:
+            if member == ctx.guild.me:
+                denied_message = "why would I deny myself from entering your AutoRoom?"
+            elif member == ctx.message.author:
+                denied_message = "don't be so hard on yourself! This is your AutoRoom!"
+            elif member == ctx.guild.owner:
+                denied_message = "I don't know if you know this, but that's the guild owner... I can't deny them from entering your AutoRoom."
+            elif await self.config.guild(
+                ctx.guild
+            ).admin_access() and await self.bot.is_admin(member):
+                denied_message = (
+                    "that's an admin, so I can't deny them from entering your AutoRoom."
                 )
+            elif await self.config.guild(
+                ctx.guild
+            ).mod_access() and await self.bot.is_mod(member):
+                denied_message = "that's a moderator, so I can't deny them from entering your AutoRoom."
+        if denied_message:
+            hint = await ctx.send(
+                error("{}, {}".format(ctx.message.author.mention, denied_message))
             )
-            await delete(ctx.message, delay=5)
-            await delete(hint, delay=5)
+            await delete(ctx.message, delay=10)
+            await delete(hint, delay=10)
             return False
 
         overwrites = dict(channel.overwrites)
