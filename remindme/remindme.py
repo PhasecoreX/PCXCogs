@@ -199,7 +199,7 @@ class RemindMe(commands.Cog):
             return
 
         embed = discord.Embed(
-            title="Reminders for {}".format(author.name),
+            title="Reminders for {}".format(author.display_name),
             color=await ctx.embed_color(),
         )
         embed.set_thumbnail(url=author.avatar_url)

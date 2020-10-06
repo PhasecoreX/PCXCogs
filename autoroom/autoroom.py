@@ -318,7 +318,7 @@ class AutoRoom(commands.Cog):
         room_settings = SettingDisplay("Room Settings")
         room_settings.add(
             "Owner" if len(room_owners) == 1 else "Owners",
-            ", ".join([owner.name for owner in room_owners]),
+            ", ".join([owner.display_name for owner in room_owners]),
         )
 
         base_member_role = await self._get_base_member_role(ctx.guild)
@@ -578,7 +578,7 @@ class AutoRoom(commands.Cog):
                                     new_channel_name = activity.name
                                     break
                     if not new_channel_name:
-                        new_channel_name = "{}'s Room".format(member.name)
+                        new_channel_name = "{}'s Room".format(member.display_name)
                     new_channel = await guild.create_voice_channel(
                         name=new_channel_name,
                         category=dest_category,
