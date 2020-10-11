@@ -89,15 +89,15 @@ class ReactChannel(commands.Cog):
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
         message = ""
-        channels = await self.config.guild(ctx.message.guild).channels()
+        channels = await self.config.guild(ctx.guild).channels()
         for channel_id, channel_type in channels.items():
             emojis = "???"
             if channel_type == "checklist":
                 emojis = "\N{WHITE HEAVY CHECK MARK}"
             if channel_type == "vote":
                 emojis = ""
-                upvote = await self._get_emoji(ctx.message.guild, "upvote")
-                downvote = await self._get_emoji(ctx.message.guild, "downvote")
+                upvote = await self._get_emoji(ctx.guild, "upvote")
+                downvote = await self._get_emoji(ctx.guild, "downvote")
                 if upvote:
                     emojis += upvote
                 if downvote:
@@ -163,7 +163,7 @@ class ReactChannel(commands.Cog):
                     )
                 )
                 return
-        async with self.config.guild(ctx.message.guild).channels() as channels:
+        async with self.config.guild(ctx.guild).channels() as channels:
             channels[str(channel.id)] = channel_type
         channel_type_name = channel_type
         custom_emojis = ""
@@ -179,8 +179,8 @@ class ReactChannel(commands.Cog):
         )
         if (
             channel_type == "vote"
-            and not await self._get_emoji(ctx.message.guild, "upvote")
-            and not await self._get_emoji(ctx.message.guild, "downvote")
+            and not await self._get_emoji(ctx.guild, "upvote")
+            and not await self._get_emoji(ctx.guild, "downvote")
         ):
             await ctx.send(
                 info(
@@ -196,7 +196,7 @@ class ReactChannel(commands.Cog):
         if channel is None:
             channel = ctx.message.channel
 
-        async with self.config.guild(ctx.message.guild).channels() as channels:
+        async with self.config.guild(ctx.guild).channels() as channels:
             try:
                 del channels[str(channel.id)]
             except KeyError:
@@ -212,8 +212,8 @@ class ReactChannel(commands.Cog):
     @reactchannelset.group()
     async def emoji(self, ctx: commands.Context):
         """Manage emojis used for ReactChannels."""
-        upvote = await self._get_emoji(ctx.message.guild, "upvote")
-        downvote = await self._get_emoji(ctx.message.guild, "downvote")
+        upvote = await self._get_emoji(ctx.guild, "upvote")
+        downvote = await self._get_emoji(ctx.guild, "downvote")
         message = "Upvote emoji: {}\n".format(upvote if upvote else "None")
         message += "Downvote emoji: {}".format(downvote if downvote else "None")
         await ctx.send(message)
@@ -281,7 +281,7 @@ class ReactChannel(commands.Cog):
     @commands.guild_only()
     async def upvote(self, ctx: commands.Context):
         """View this guilds upvote reaction."""
-        upvote = await self._get_emoji(ctx.message.guild, "upvote")
+        upvote = await self._get_emoji(ctx.guild, "upvote")
         if upvote:
             await ctx.send("This guilds upvote emoji is {}".format(upvote))
         else:
@@ -291,7 +291,7 @@ class ReactChannel(commands.Cog):
     @commands.guild_only()
     async def downvote(self, ctx: commands.Context):
         """View this guilds downvote reaction."""
-        downvote = await self._get_emoji(ctx.message.guild, "downvote")
+        downvote = await self._get_emoji(ctx.guild, "downvote")
         if downvote:
             await ctx.send("This guilds downvote emoji is {}".format(downvote))
         else:

@@ -113,11 +113,11 @@ class RemindMe(commands.Cog):
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
         guild_section = SettingDisplay("Guild Settings")
-        if ctx.message.guild:
+        if ctx.guild:
             guild_section.add(
                 "Me too",
                 "Enabled"
-                if await self.config.guild(ctx.message.guild).me_too()
+                if await self.config.guild(ctx.guild).me_too()
                 else "Disabled",
             )
 
@@ -143,8 +143,8 @@ class RemindMe(commands.Cog):
 
         If the bot doesn't have the Add Reactions permission in the channel, it won't ask regardless.
         """
-        me_too = not await self.config.guild(ctx.message.guild).me_too()
-        await self.config.guild(ctx.message.guild).me_too.set(me_too)
+        me_too = not await self.config.guild(ctx.guild).me_too()
+        await self.config.guild(ctx.guild).me_too.set(me_too)
         await ctx.send(
             checkmark(
                 "I will {} ask if others want to be reminded.".format(
@@ -216,7 +216,7 @@ class RemindMe(commands.Cog):
                 value=reminder["REMINDER"],
                 inline=False,
             )
-        if ctx.message.guild is not None:
+        if ctx.guild is not None:
             await self.send_message(ctx, "Check your DMs for a full list!")
         await embed_splitter(embed, author)
 
@@ -380,8 +380,8 @@ class RemindMe(commands.Cog):
         )
 
         if (
-            ctx.message.guild
-            and await self.config.guild(ctx.message.guild).me_too()
+            ctx.guild
+            and await self.config.guild(ctx.guild).me_too()
             and ctx.channel.permissions_for(ctx.me).add_reactions
         ):
             query: discord.Message = await ctx.send(
@@ -517,7 +517,7 @@ class RemindMe(commands.Cog):
         This will append the users name if we are sending to a channel,
         or leave it as-is if we are in a DM
         """
-        if ctx.message.guild is not None:
+        if ctx.guild is not None:
             if message[:2].lower() != "i " and message[:2].lower() != "i'":
                 message = message[0].lower() + message[1:]
             message = ctx.message.author.mention + ", " + message

@@ -12,11 +12,11 @@ __author__ = "PhasecoreX"
 
 class DecodeBinary(commands.Cog):
     """Decodes binary strings to human readable ones.
-    
+
     The bot will check every message sent by users for binary and try to
     convert it to human readable text. You can check that it is working
     by sending this message in a channel:
-    
+
     01011001011000010111100100100001
     """
 
@@ -60,7 +60,7 @@ class DecodeBinary(commands.Cog):
     @decodebinaryset.command()
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
-        ignored_channels = await self.config.guild(ctx.message.guild).ignored_channels()
+        ignored_channels = await self.config.guild(ctx.guild).ignored_channels()
         channel_section = SettingDisplay("Channel Settings")
         channel_section.add(
             "Enabled in this channel",
@@ -85,14 +85,12 @@ class DecodeBinary(commands.Cog):
     @ignore.command()
     async def channel(self, ctx: commands.Context):
         """Ignore/Unignore the current channel."""
-        channel = ctx.message.channel
-        guild = ctx.message.guild
-        async with self.config.guild(guild).ignored_channels() as ignored_channels:
-            if channel.id in ignored_channels:
-                ignored_channels.remove(channel.id)
+        async with self.config.guild(ctx.guild).ignored_channels() as ignored_channels:
+            if ctx.channel.id in ignored_channels:
+                ignored_channels.remove(ctx.channel.id)
                 await ctx.send(checkmark("I will no longer ignore this channel."))
             else:
-                ignored_channels.append(channel.id)
+                ignored_channels.append(ctx.channel.id)
                 await ctx.send(checkmark("I will ignore this channel."))
 
     @commands.Cog.listener()

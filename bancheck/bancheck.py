@@ -207,7 +207,7 @@ class BanCheck(commands.Cog):
             if ctx.guild.icon_url
             else "https://cdn.discordapp.com/embed/avatars/1.png"
         )
-        total_bans = await self.config.guild(ctx.message.guild).total_bans()
+        total_bans = await self.config.guild(ctx.guild).total_bans()
         users = "user" if total_bans == 1 else "users"
         embed.set_footer(
             text="AutoBanned a total of {} {} in this guild".format(total_bans, users)
@@ -215,7 +215,7 @@ class BanCheck(commands.Cog):
         # Get info
         any_enabled = False
         autoban_services = 0
-        config_services = await self.config.guild(ctx.message.guild).services()
+        config_services = await self.config.guild(ctx.guild).services()
         for service_name, service_config in config_services.items():
             if (
                 service_name in self.all_supported_services
@@ -226,7 +226,7 @@ class BanCheck(commands.Cog):
                 if service_config.get("autoban", False):
                     autoban_services += 1
         notify_channel = None
-        notify_channel_id = await self.config.guild(ctx.message.guild).notify_channel()
+        notify_channel_id = await self.config.guild(ctx.guild).notify_channel()
         if notify_channel_id:
             notify_channel = self.bot.get_channel(notify_channel_id)
         self._get_autocheck_status(embed, notify_channel, any_enabled)
@@ -342,7 +342,7 @@ class BanCheck(commands.Cog):
             if ctx.guild.icon_url
             else "https://cdn.discordapp.com/embed/avatars/1.png"
         )
-        config_services = await self.config.guild(ctx.message.guild).services()
+        config_services = await self.config.guild(ctx.guild).services()
         enabled_services = ""
         disabled_services = ""
         for service_name in self.all_supported_services:
@@ -382,7 +382,6 @@ class BanCheck(commands.Cog):
         self, ctx: commands.Context, service: str, api_key: str = None
     ):
         """Set (or delete) an API key for a service."""
-        message_guild = ctx.message.guild
         # Try deleting the command as fast as possible, so that others can't see the API key
         await delete(ctx.message)
         if service not in self.all_supported_services:
@@ -424,7 +423,7 @@ class BanCheck(commands.Cog):
                     )
                 )
             return
-        async with self.config.guild(message_guild).services() as config_services:
+        async with self.config.guild(ctx.guild).services() as config_services:
             if service not in config_services:
                 config_services[service] = {}
             config_services[service]["api_key"] = api_key
@@ -448,7 +447,7 @@ class BanCheck(commands.Cog):
                 )
             )
             return
-        async with self.config.guild(ctx.message.guild).services() as config_services:
+        async with self.config.guild(ctx.guild).services() as config_services:
             if service not in config_services:
                 config_services[service] = {}
             config_services[service]["enabled"] = True
@@ -468,7 +467,7 @@ class BanCheck(commands.Cog):
     @service.command(name="disable")
     async def service_disable(self, ctx: commands.Context, service: str):
         """Disable a service."""
-        async with self.config.guild(ctx.message.guild).services() as config_services:
+        async with self.config.guild(ctx.guild).services() as config_services:
             if not config_services.get(service, {}).get("enabled", False):
                 await ctx.send(
                     info(
@@ -500,7 +499,7 @@ class BanCheck(commands.Cog):
                 )
             )
             return
-        async with self.config.guild(ctx.message.guild).services() as config_services:
+        async with self.config.guild(ctx.guild).services() as config_services:
             if service not in config_services:
                 config_services[service] = {}
             config_services[service]["autoban"] = True
@@ -508,18 +507,18 @@ class BanCheck(commands.Cog):
             response = "Automatic banning with {} has now been enabled.".format(
                 self.get_nice_service_name(service)
             )
-            if not await self.config.guild(ctx.message.guild).notify_channel():
+            if not await self.config.guild(ctx.guild).notify_channel():
                 response += "\nYou will need to set up AutoCheck in order for this to take effect."
             if not await self.get_api_key(service, config_services):
                 response += "\nAn API key is needed in order for this to take effect."
-            if not ctx.message.guild.me.guild_permissions.ban_members:
+            if not ctx.guild.me.guild_permissions.ban_members:
                 response += "\nI will need to be granted the Ban Members permission for this to take effect."
             await ctx.send(checkmark(response))
 
     @autoban.command(name="disable")
     async def autoban_disable(self, ctx: commands.Context, service: str):
         """Disable a service from banning users automatically."""
-        async with self.config.guild(ctx.message.guild).services() as config_services:
+        async with self.config.guild(ctx.guild).services() as config_services:
             if not config_services.get(service, {}).get("autoban", False):
                 await ctx.send(
                     info(
@@ -555,15 +554,15 @@ class BanCheck(commands.Cog):
                 self.bot.user.avatar_url,
             ),
         ):
-            await self.config.guild(ctx.message.guild).notify_channel.set(channel.id)
+            await self.config.guild(ctx.guild).notify_channel.set(channel.id)
 
     @autocheck.command(name="disable")
     async def disable_autocheck(self, ctx: commands.Context):
         """Disable automatically checking new users against ban lists."""
-        if await self.config.guild(ctx.message.guild).notify_channel() is None:
+        if await self.config.guild(ctx.guild).notify_channel() is None:
             await ctx.send(info("AutoCheck is already disabled."))
         else:
-            await self.config.guild(ctx.message.guild).notify_channel.set(None)
+            await self.config.guild(ctx.guild).notify_channel.set(None)
             await ctx.send(checkmark("AutoCheck is now disabled."))
 
     @commands.command()
