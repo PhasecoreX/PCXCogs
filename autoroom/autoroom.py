@@ -1,6 +1,7 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
 import datetime
+from typing import Union
 
 import discord
 from redbot.core import Config, checks, commands
@@ -29,6 +30,8 @@ class AutoRoom(commands.Cog):
         "admin_access": True,
         "mod_access": False,
     }
+    bitrate_min_kbps = 8
+    user_limit_max = 99
 
     def __init__(self, bot):
         """Set up the cog."""
@@ -53,25 +56,25 @@ class AutoRoom(commands.Cog):
         """Display current settings."""
         guild_section = SettingDisplay("Guild Settings")
         member_role = None
-        member_role_id = await self.config.guild(ctx.message.guild).member_role()
+        member_role_id = await self.config.guild(ctx.guild).member_role()
         if member_role_id:
-            member_role = ctx.message.guild.get_role(member_role_id)
+            member_role = ctx.guild.get_role(member_role_id)
         guild_section.add("Member Role", member_role.name if member_role else "Not set")
         guild_section.add(
             "Admin private channel access",
-            await self.config.guild(ctx.message.guild).admin_access(),
+            await self.config.guild(ctx.guild).admin_access(),
         )
         guild_section.add(
             "Moderator private channel access",
-            await self.config.guild(ctx.message.guild).mod_access(),
+            await self.config.guild(ctx.guild).mod_access(),
         )
 
         autoroom_sections = []
-        async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
+        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
             for avc_id, avc_settings in avcs.items():
-                source_channel = ctx.message.guild.get_channel(int(avc_id))
+                source_channel = ctx.guild.get_channel(int(avc_id))
                 if source_channel:
-                    dest_category = ctx.message.guild.get_channel(
+                    dest_category = ctx.guild.get_channel(
                         avc_settings["dest_category_id"]
                     )
                     autoroom_section = SettingDisplay(
@@ -93,6 +96,26 @@ class AutoRoom(commands.Cog):
                         if "channel_name_type" in avc_settings
                         else "Username",
                     )
+                    bitrate_string = ""
+                    if "bitrate" in avc_settings:
+                        if avc_settings["bitrate"] == "max":
+                            bitrate_string = "Guild maximum ({}kbps)".format(
+                                int(ctx.guild.bitrate_limit // 1000)
+                            )
+                        else:
+                            bitrate_string = "{}kbps".format(
+                                self.normalize_bitrate(
+                                    avc_settings["bitrate"], ctx.guild
+                                )
+                                // 1000
+                            )
+                    if bitrate_string:
+                        autoroom_section.add("Bitrate", bitrate_string)
+                    if "user_limit" in avc_settings:
+                        autoroom_section.add(
+                            "User Limit",
+                            self.normalize_user_limit(avc_settings["user_limit"]),
+                        )
                     autoroom_sections.append(autoroom_section)
 
         await ctx.send(guild_section.display(*autoroom_sections))
@@ -112,9 +135,7 @@ class AutoRoom(commands.Cog):
 
         When set, only users with the specified role can see AutoRooms. Leave `role` empty to disable.
         """
-        await self.config.guild(ctx.message.guild).member_role.set(
-            role.id if role else None
-        )
+        await self.config.guild(ctx.guild).member_role.set(role.id if role else None)
         if role:
             await ctx.send(
                 checkmark(
@@ -129,8 +150,8 @@ class AutoRoom(commands.Cog):
     @access.command()
     async def admin(self, ctx: commands.Context):
         """Allow Admins to join private channels."""
-        admin_access = not await self.config.guild(ctx.message.guild).admin_access()
-        await self.config.guild(ctx.message.guild).admin_access.set(admin_access)
+        admin_access = not await self.config.guild(ctx.guild).admin_access()
+        await self.config.guild(ctx.guild).admin_access.set(admin_access)
         await ctx.send(
             checkmark(
                 "Admins are {} able to join (new) private AutoRooms.".format(
@@ -142,8 +163,8 @@ class AutoRoom(commands.Cog):
     @access.command()
     async def mod(self, ctx: commands.Context):
         """Allow Moderators to join private channels."""
-        mod_access = not await self.config.guild(ctx.message.guild).mod_access()
-        await self.config.guild(ctx.message.guild).mod_access.set(mod_access)
+        mod_access = not await self.config.guild(ctx.guild).mod_access()
+        await self.config.guild(ctx.guild).mod_access.set(mod_access)
         await ctx.send(
             checkmark(
                 "Moderators are {} able to join (new) private AutoRooms.".format(
@@ -168,7 +189,7 @@ class AutoRoom(commands.Cog):
         If `private` is true, the created channel will be private, where the user can modify
         the permissions of their channel to allow others in.
         """
-        async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
+        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
             vc_id = str(source_voice_channel.id)
             avcs[vc_id] = {}
             avcs[vc_id]["dest_category_id"] = dest_category.id
@@ -191,7 +212,7 @@ class AutoRoom(commands.Cog):
         autoroom_source: discord.VoiceChannel,
     ):
         """Remove an AutoRoom Source."""
-        async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
+        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
             try:
                 del avcs[str(autoroom_source.id)]
             except KeyError:
@@ -230,7 +251,7 @@ class AutoRoom(commands.Cog):
         private: bool,
     ):
         """Save the public/private setting."""
-        async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
+        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
             try:
                 avcs[str(autoroom_source.id)]["private"] = private
             except KeyError:
@@ -252,7 +273,7 @@ class AutoRoom(commands.Cog):
 
     @modify.group()
     async def name(self, ctx: commands.Context):
-        """Choose the default name format of an AutoRoom."""
+        """Set the default name format of an AutoRoom."""
         pass
 
     @name.command()
@@ -274,7 +295,7 @@ class AutoRoom(commands.Cog):
         room_type: str,
     ):
         """Save the room name type."""
-        async with self.config.guild(ctx.message.guild).auto_voice_channels() as avcs:
+        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
             try:
                 avcs[str(autoroom_source.id)]["channel_name_type"] = room_type
             except KeyError:
@@ -290,6 +311,113 @@ class AutoRoom(commands.Cog):
                     checkmark(
                         "New AutoRooms created by {} will use the {} format.".format(
                             autoroom_source.mention, room_type.capitalize()
+                        )
+                    )
+                )
+
+    @modify.command()
+    async def bitrate(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+        bitrate_kbps: Union[int, str],
+    ):
+        """Set the default bitrate of an AutoRoom.
+
+        `bitrate_kbps` can either be a number of kilobits per second, or:
+        - `default` - The default bitrate of Discord (usually 64kbps)
+        - `max` - The maximum allowed bitrate for the guild
+        """
+        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
+            try:
+                settings = avcs[str(autoroom_source.id)]
+            except KeyError:
+                await ctx.send(
+                    error(
+                        "{} is not an AutoRoom Source channel.".format(
+                            autoroom_source.mention
+                        )
+                    )
+                )
+                return
+            if bitrate_kbps == "default" or bitrate_kbps == 0:
+                try:
+                    del settings["bitrate"]
+                except KeyError:
+                    pass
+                await ctx.send(
+                    checkmark(
+                        "New AutoRooms created by {} will have the default bitrate.".format(
+                            autoroom_source.mention
+                        )
+                    )
+                )
+            elif bitrate_kbps == "max":
+                settings["bitrate"] = "max"
+                await ctx.send(
+                    checkmark(
+                        "New AutoRooms created by {} will have the max bitrate allowed by the guild.".format(
+                            autoroom_source.mention
+                        )
+                    )
+                )
+            elif isinstance(bitrate_kbps, int):
+                bitrate_kbps = self.normalize_bitrate(bitrate_kbps * 1000, ctx.guild)
+                settings["bitrate"] = int(bitrate_kbps)
+                await ctx.send(
+                    checkmark(
+                        "New AutoRooms created by {} will have a bitrate of {}kbps.".format(
+                            autoroom_source.mention, int(bitrate_kbps) // 1000
+                        )
+                    )
+                )
+            else:
+                await ctx.send(
+                    error(
+                        "`bitrate_kbps` needs to be a number of kilobits per second, "
+                        "or either of the strings `default` or `max`"
+                    )
+                )
+
+    @modify.command()
+    async def users(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+        user_limit: int,
+    ):
+        """Set the default user limit of an AutoRoom, or 0 for no limit (default)."""
+        user_limit = self.normalize_user_limit(user_limit)
+        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
+            try:
+                settings = avcs[str(autoroom_source.id)]
+            except KeyError:
+                await ctx.send(
+                    error(
+                        "{} is not an AutoRoom Source channel.".format(
+                            autoroom_source.mention
+                        )
+                    )
+                )
+                return
+            if user_limit == 0:
+                try:
+                    del settings["user_limit"]
+                except KeyError:
+                    pass
+                await ctx.send(
+                    checkmark(
+                        "New AutoRooms created by {} will not have a user limit.".format(
+                            autoroom_source.mention
+                        )
+                    )
+                )
+            else:
+                settings["user_limit"] = user_limit
+                await ctx.send(
+                    checkmark(
+                        "New AutoRooms created by {} will have a user limit of {}.".format(
+                            autoroom_source.mention, user_limit
                         )
                     )
                 )
@@ -579,11 +707,24 @@ class AutoRoom(commands.Cog):
                                     break
                     if not new_channel_name:
                         new_channel_name = "{}'s Room".format(member.display_name)
+                    options = {}
+                    if "bitrate" in avc_settings:
+                        if avc_settings["bitrate"] == "max":
+                            options["bitrate"] = guild.bitrate_limit
+                        else:
+                            options["bitrate"] = self.normalize_bitrate(
+                                avc_settings["bitrate"], guild
+                            )
+                    if "user_limit" in avc_settings:
+                        options["user_limit"] = self.normalize_user_limit(
+                            avc_settings["user_limit"]
+                        )
                     new_channel = await guild.create_voice_channel(
                         name=new_channel_name,
                         category=dest_category,
                         reason="AutoRoom: New channel needed.",
                         overwrites=overwrites,
+                        **options,
                     )
                     await member.move_to(
                         new_channel, reason="AutoRoom: Move user to new channel."
@@ -603,3 +744,11 @@ class AutoRoom(commands.Cog):
                 for vc in category.voice_channels:
                     if str(vc.id) not in auto_voice_channels and not vc.members:
                         await vc.delete(reason="AutoRoom: Channel empty.")
+
+    def normalize_bitrate(self, bitrate: int, guild: discord.Guild):
+        """Return a normalized bitrate value."""
+        return min(max(bitrate, self.bitrate_min_kbps * 1000), guild.bitrate_limit)
+
+    def normalize_user_limit(self, users: int):
+        """Return a normalized user limit value."""
+        return min(max(users, 0), self.user_limit_max)
