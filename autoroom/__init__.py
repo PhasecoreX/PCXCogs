@@ -9,4 +9,5 @@ __red_end_user_data_statement__ = (
 async def setup(bot):
     """Load AutoRoom cog."""
     cog = AutoRoom(bot)
+    await cog.initialize()
     bot.add_cog(cog)

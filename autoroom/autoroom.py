@@ -44,6 +44,26 @@ class AutoRoom(commands.Cog):
         self.config.register_guild(**self.default_guild_settings)
         self.autoroom_create_lock: asyncio.Lock = asyncio.Lock()
 
+    async def initialize(self):
+        """Perform setup actions before loading cog."""
+        await self._migrate_config()
+
+    async def _migrate_config(self):
+        """Perform some configuration migrations."""
+        if not await self.config.schema_version():
+            guild_dict = await self.config.all_guilds()
+            for guild_id, guild_info in guild_dict.items():
+                # Migrate private -> room_type
+                async with self.config.guild_from_id(
+                    guild_id
+                ).auto_voice_channels() as avcs:
+                    for avc_id, avc_settings in avcs.items():
+                        avc_settings["room_type"] = (
+                            "private" if avc_settings["private"] else "public"
+                        )
+                        del avc_settings["private"]
+            await self.config.schema_version.set(1)
+
     @commands.group()
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
@@ -82,7 +102,7 @@ class AutoRoom(commands.Cog):
                     )
                     autoroom_section.add(
                         "Room type",
-                        "Private" if avc_settings["private"] else "Public",
+                        avc_settings["room_type"].capitalize(),
                     )
                     autoroom_section.add(
                         "Destination category",
@@ -173,33 +193,69 @@ class AutoRoom(commands.Cog):
             )
         )
 
-    @autoroomset.command(aliases=["enable"])
-    async def create(
+    @autoroomset.group(aliases=["enable"])
+    async def create(self, ctx: commands.Context):
+        """Create an AutoRoom Source.
+
+        Anyone joining an AutoRoom Source will automatically have a new
+        voice channel (AutoRoom) created in the destination category,
+        and then be moved into it.
+        """
+        pass
+
+    @create.command(name="public")
+    async def create_public(
         self,
         ctx: commands.Context,
         source_voice_channel: discord.VoiceChannel,
         dest_category: discord.CategoryChannel,
-        private: bool = False,
     ):
-        """Create an AutoRoom Source.
+        """Create an AutoRoom Source that creates public AutoRooms.
 
-        Anyone joining the `source_voice_channel` will automatically have a new voice channel
-        (AutoRoom) created in the `dest_category`, and then be moved into it.
-
-        If `private` is true, the created channel will be private, where the user can modify
-        the permissions of their channel to allow others in.
+        The created AutoRooms will allow anyone to join. The AutoRoom owner can
+        block specific members from joining their room, or can switch the room to
+        private mode to selectively allow members instead.
         """
+        await self._create_new_public_private_room(
+            ctx, source_voice_channel, dest_category, "public"
+        )
+
+    @create.command(name="private")
+    async def create_private(
+        self,
+        ctx: commands.Context,
+        source_voice_channel: discord.VoiceChannel,
+        dest_category: discord.CategoryChannel,
+    ):
+        """Create an AutoRoom Source that creates private AutoRooms.
+
+        The created AutoRooms will not allow anyone to join. The AutoRoom owner will
+        need to allow specific members to join their room, or can switch the room to
+        public mode to selectively block members instead.
+        """
+        await self._create_new_public_private_room(
+            ctx, source_voice_channel, dest_category, "private"
+        )
+
+    async def _create_new_public_private_room(
+        self,
+        ctx: commands.Context,
+        source_voice_channel: discord.VoiceChannel,
+        dest_category: discord.CategoryChannel,
+        room_type: str,
+    ):
+        """Save the new room settings."""
         async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
             vc_id = str(source_voice_channel.id)
             avcs[vc_id] = {}
+            avcs[vc_id]["room_type"] = room_type
             avcs[vc_id]["dest_category_id"] = dest_category.id
-            avcs[vc_id]["private"] = private
         await ctx.send(
             checkmark(
                 "{} is now an AutoRoom Source, and will create new {} voice channels in the {} category. "
                 "Check out `[p]autoroomset modify` if you'd like to configure this further.".format(
                     source_voice_channel.mention,
-                    "private" if private else "public",
+                    room_type,
                     dest_category.mention,
                 )
             )
@@ -235,25 +291,25 @@ class AutoRoom(commands.Cog):
         self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
     ):
         """Set an AutoRoom Source to create public AutoRooms."""
-        await self._save_public_private(ctx, autoroom_source, False)
+        await self._save_public_private(ctx, autoroom_source, "public")
 
     @modify.command(name="private")
     async def modify_private(
         self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
     ):
         """Set an AutoRoom Source to create private AutoRooms."""
-        await self._save_public_private(ctx, autoroom_source, True)
+        await self._save_public_private(ctx, autoroom_source, "private")
 
     async def _save_public_private(
         self,
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
-        private: bool,
+        room_type: str,
     ):
         """Save the public/private setting."""
         async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
             try:
-                avcs[str(autoroom_source.id)]["private"] = private
+                avcs[str(autoroom_source.id)]["room_type"] = room_type
             except KeyError:
                 await ctx.send(
                     error(
@@ -266,7 +322,7 @@ class AutoRoom(commands.Cog):
                 await ctx.send(
                     checkmark(
                         "New AutoRooms created by {} will be {}.".format(
-                            autoroom_source.mention, "private" if private else "public"
+                            autoroom_source.mention, room_type
                         )
                     )
                 )
@@ -685,7 +741,8 @@ class AutoRoom(commands.Cog):
                             manage_channels=True,
                         ),
                         base_member_role: discord.PermissionOverwrite(
-                            view_channel=True, connect=not avc_settings["private"]
+                            view_channel=True,
+                            connect=avc_settings["room_type"] == "public",
                         ),
                     }
                     if guild.default_role not in overwrites:
