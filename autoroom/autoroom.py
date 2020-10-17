@@ -733,8 +733,6 @@ class AutoRoom(commands.Cog):
 
     async def _process_autoroom_delete(self, guild, auto_voice_channels):
         """Delete all empty voice channels in categories."""
-        if not guild.me.guild_permissions.manage_channels:
-            return
         category_ids = set()
         for avc_id, avc_settings in auto_voice_channels.items():
             category_ids.add(avc_settings["dest_category_id"])
@@ -743,7 +741,10 @@ class AutoRoom(commands.Cog):
             if category:
                 for vc in category.voice_channels:
                     if str(vc.id) not in auto_voice_channels and not vc.members:
-                        await vc.delete(reason="AutoRoom: Channel empty.")
+                        try:
+                            await vc.delete(reason="AutoRoom: Channel empty.")
+                        except discord.Forbidden:
+                            pass  # Shouldn't happen unless someone screws with channel permissions.
 
     def normalize_bitrate(self, bitrate: int, guild: discord.Guild):
         """Return a normalized bitrate value."""
