@@ -79,8 +79,6 @@ async def embed_splitter(
     current_embed = discord.Embed.from_dict(embed_dict)
     split_embeds.append(current_embed.copy())
 
-    print(split_embeds)
-
     if destination:
         for split_embed in split_embeds:
             await destination.send(embed=split_embed)
