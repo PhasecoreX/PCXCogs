@@ -51,7 +51,6 @@ class AutoRoom(commands.Cog):
     async def initialize(self):
         """Perform setup actions before loading cog."""
         await self._migrate_config()
-        await self._cleanup_autorooms()
 
     async def _migrate_config(self):
         """Perform some configuration migrations."""
