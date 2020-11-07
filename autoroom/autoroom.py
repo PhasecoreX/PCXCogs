@@ -87,6 +87,7 @@ class AutoRoom(commands.Cog):
 
     async def _cleanup_autorooms(self):
         """Remove non-existent AutoRooms from the config."""
+        await self.bot.wait_until_ready()
         channel_dict = await self.config.all_channels()
         for channel_id in channel_dict:
             if not self.bot.get_channel(channel_id):
