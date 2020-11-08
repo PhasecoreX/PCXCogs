@@ -26,9 +26,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         autoroom_info = await self._get_autoroom_info(member_channel)
         if not autoroom_info:
             hint = await ctx.send(
-                error(
-                    "{}, you are not in an AutoRoom.".format(ctx.message.author.mention)
-                )
+                error(f"{ctx.message.author.mention}, you are not in an AutoRoom.")
             )
             await delete(ctx.message, delay=5)
             await delete(hint, delay=5)
@@ -51,7 +49,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 break
         room_settings.add("Mode", mode)
 
-        room_settings.add("Bitrate", "{}kbps".format(member_channel.bitrate // 1000))
+        room_settings.add("Bitrate", f"{member_channel.bitrate // 1000}kbps")
         room_settings.add(
             "Channel Age",
             humanize_timedelta(
@@ -103,16 +101,14 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         ctx: commands.Context,
         allow: bool,
         *,
-        member_or_role: Union[discord.Role, discord.Member] = None
+        member_or_role: Union[discord.Role, discord.Member] = None,
     ) -> bool:
         """Actually do channel edit for allow/deny."""
         channel = self._get_current_voice_channel(ctx.message.author)
         autoroom_info = await self._get_autoroom_info(channel)
         if not autoroom_info:
             hint = await ctx.send(
-                error(
-                    "{}, you are not in an AutoRoom.".format(ctx.message.author.mention)
-                )
+                error(f"{ctx.message.author.mention}, you are not in an AutoRoom.")
             )
             await delete(ctx.message, delay=5)
             await delete(hint, delay=5)
@@ -120,9 +116,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         if ctx.message.author != autoroom_info["owner"]:
             hint = await ctx.send(
                 error(
-                    "{}, you are not the owner of this AutoRoom.".format(
-                        ctx.message.author.mention
-                    )
+                    f"{ctx.message.author.mention}, you are not the owner of this AutoRoom."
                 )
             )
             await delete(ctx.message, delay=5)
@@ -162,7 +156,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
         if denied_message:
             hint = await ctx.send(
-                error("{}, {}".format(ctx.message.author.mention, denied_message))
+                error(f"{ctx.message.author.mention}, {denied_message}")
             )
             await delete(ctx.message, delay=10)
             await delete(hint, delay=10)

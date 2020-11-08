@@ -122,9 +122,7 @@ class DecodeBinary(commands.Cog):
         if len(translated_messages) == 1 and translated_messages[0]:
             await type_message(
                 orig_message.channel,
-                '{}\'s message said:\n"{}"'.format(
-                    orig_message.author.display_name, translated_messages[0]
-                ),
+                f'{orig_message.author.display_name}\'s message said:\n"{translated_messages[0]}"',
                 allowed_mentions=discord.AllowedMentions(
                     everyone=False, users=False, roles=False
                 ),
@@ -133,18 +131,14 @@ class DecodeBinary(commands.Cog):
         elif len(translated_messages) > 1:
             translated_counter = 0
             one_was_translated = False
-            msg = "{}'s {} messages said:".format(
-                orig_message.author.display_name, len(translated_messages)
-            )
+            msg = f"{orig_message.author.display_name}'s {len(translated_messages)} messages said:"
             for translated_message in translated_messages:
                 translated_counter += 1
                 if translated_message:
                     one_was_translated = True
-                    msg += '\n{}. "{}"'.format(translated_counter, translated_message)
+                    msg += f'\n{translated_counter}. "{translated_message}"'
                 else:
-                    msg += "\n{}. (Couldn't translate this one...)".format(
-                        translated_counter
-                    )
+                    msg += f"\n{translated_counter}. (Couldn't translate this one...)"
             if one_was_translated:
                 await type_message(
                     orig_message.channel,

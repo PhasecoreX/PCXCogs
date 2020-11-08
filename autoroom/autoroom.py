@@ -229,7 +229,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                                     new_channel_name = activity.name
                                     break
                     if not new_channel_name:
-                        new_channel_name = "{}'s Room".format(member.display_name)
+                        new_channel_name = f"{member.display_name}'s Room"
                     options = {}
                     if "bitrate" in avc_settings:
                         if avc_settings["bitrate"] == "max":
@@ -282,9 +282,8 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                             overwrites=overwrites,
                         )
                         await new_text_channel.send(
-                            "{}, this is your own text channel that anyone in your AutoRoom can use.".format(
-                                member.display_name
-                            )
+                            f"{member.display_name}, "
+                            "this is your own text channel that anyone in your AutoRoom can use."
                         )
                         await self.config.channel(
                             new_voice_channel

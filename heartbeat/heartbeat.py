@@ -121,9 +121,7 @@ class Heartbeat(commands.Cog):
         await self.config.frequency.set(frequency.total_seconds())
         await ctx.send(
             checkmark(
-                "Heartbeat frequency has been set to {}.".format(
-                    humanize_timedelta(timedelta=frequency)
-                )
+                f"Heartbeat frequency has been set to {humanize_timedelta(timedelta=frequency)}."
             )
         )
         self.enable_bg_loop()

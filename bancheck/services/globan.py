@@ -5,9 +5,7 @@ from redbot.core import __version__ as redbot_version
 from ..dto.lookup_result import LookupResult
 
 user_agent = (
-    "Red-DiscordBot/{} BanCheck (https://github.com/PhasecoreX/PCXCogs)".format(
-        redbot_version
-    )
+    f"Red-DiscordBot/{redbot_version} BanCheck (https://github.com/PhasecoreX/PCXCogs)"
 )
 
 

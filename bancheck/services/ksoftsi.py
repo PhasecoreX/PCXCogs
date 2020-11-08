@@ -6,9 +6,7 @@ from ..dto.lookup_result import LookupResult
 from ..dto.report_result import ReportResult
 
 user_agent = (
-    "Red-DiscordBot/{} BanCheck (https://github.com/PhasecoreX/PCXCogs)".format(
-        redbot_version
-    )
+    f"Red-DiscordBot/{redbot_version} BanCheck (https://github.com/PhasecoreX/PCXCogs)"
 )
 
 

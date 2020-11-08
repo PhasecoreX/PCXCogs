@@ -5,9 +5,7 @@ from redbot.core import __version__ as redbot_version
 from ..dto.lookup_result import LookupResult
 
 user_agent = (
-    "Red-DiscordBot/{} BanCheck (https://github.com/PhasecoreX/PCXCogs)".format(
-        redbot_version
-    )
+    f"Red-DiscordBot/{redbot_version} BanCheck (https://github.com/PhasecoreX/PCXCogs)"
 )
 
 
@@ -24,9 +22,7 @@ class Alertbot:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    "https://api.alertbot.services/v1/?action=bancheck&userid={}".format(
-                        user_id
-                    ),
+                    f"https://api.alertbot.services/v1/?action=bancheck&userid={user_id}",
                     headers={"AuthKey": api_key, "user-agent": user_agent},
                 ) as resp:
                     data = await resp.json()

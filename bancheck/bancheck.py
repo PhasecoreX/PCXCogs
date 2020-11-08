@@ -129,20 +129,18 @@ class BanCheck(commands.Cog):
         total_guilds = len(self.bot.guilds)
         guilds = "guild" if total_guilds == 1 else "guilds"
         embed.set_footer(
-            text="AutoBanned a total of {} {} across {} {}".format(
-                total_bans, users, total_guilds, guilds
-            )
+            text=f"AutoBanned a total of {total_bans} {users} across {total_guilds} {guilds}"
         )
         enabled_services = ""
         disabled_services = ""
         for service_name in self.supported_global_services:
             if await self.get_api_key(service_name):
-                enabled_services += "{}\n".format(
-                    await self.format_service_name_url(service_name)
+                enabled_services += (
+                    f"{await self.format_service_name_url(service_name)}\n"
                 )
             else:
-                disabled_services += "{}\n".format(
-                    await self.format_service_name_url(service_name, True)
+                disabled_services += (
+                    f"{await self.format_service_name_url(service_name, True)}\n"
                 )
         if enabled_services:
             embed.add_field(
@@ -165,29 +163,23 @@ class BanCheck(commands.Cog):
         if service in self.supported_guild_services:
             await ctx.send(
                 info(
-                    "{} is not a global service, and should be set up per guild ".format(
-                        self.get_nice_service_name(service)
-                    )
-                    + "using the command:\n\n"
-                    + "`[p]bancheckset service api {} <your_api_key_here>`".format(
-                        service
-                    )
+                    f"{self.get_nice_service_name(service)} is not a global service, "
+                    "and should be set up per guild using the command:\n\n"
+                    f"`[p]bancheckset service api {service} <your_api_key_here>`"
                 )
             )
             return
         if service not in self.supported_global_services:
             await ctx.send(
                 error(
-                    "{} is not a valid service name.".format(
-                        self.get_nice_service_name(service)
-                    )
+                    f"{self.get_nice_service_name(service)} is not a valid service name."
                 )
             )
             return
         await ctx.send(
             info(
                 "Global API keys are no longer set here. You should run this command instead:\n\n"
-                + "`[p]set api {} api_key <your_api_key_here>`".format(service)
+                f"`[p]set api {service} api_key <your_api_key_here>`"
             )
         )
 
@@ -210,7 +202,7 @@ class BanCheck(commands.Cog):
         total_bans = await self.config.guild(ctx.guild).total_bans()
         users = "user" if total_bans == 1 else "users"
         embed.set_footer(
-            text="AutoBanned a total of {} {} in this guild".format(total_bans, users)
+            text=f"AutoBanned a total of {total_bans} {users} in this guild"
         )
         # Get info
         any_enabled = False
@@ -243,16 +235,12 @@ class BanCheck(commands.Cog):
             if config_services.get(service_name, {}).get(
                 "enabled", False
             ) and await self.get_api_key(service_name, config_services):
-                enabled_services += "**{}**".format(
-                    self.get_nice_service_name(service_name)
-                )
+                enabled_services += f"**{self.get_nice_service_name(service_name)}**"
                 if config_services.get(service_name, {}).get("autoban", False):
                     enabled_services += " (AutoBan enabled)"
                 enabled_services += "\n"
             else:
-                disabled_services += "**{}**".format(
-                    self.get_nice_service_name(service_name)
-                )
+                disabled_services += f"**{self.get_nice_service_name(service_name)}**"
                 if not await self.get_api_key(service_name, config_services):
                     if service_name in self.supported_global_services:
                         disabled_services += " (Global API key not set)"
@@ -292,7 +280,7 @@ class BanCheck(commands.Cog):
         if notify_channel:
             embed.add_field(
                 name=checkmark("AutoCheck Channel"),
-                value="<#{}>".format(notify_channel.id),
+                value=notify_channel.mention,
             )
         else:
             embed.add_field(name=error("AutoCheck Channel"), value="**Not set**")
@@ -320,9 +308,7 @@ class BanCheck(commands.Cog):
         else:
             embed.add_field(
                 name=checkmark("AutoBan"),
-                value="**Enabled**\n({} {})".format(
-                    autoban_services, "service" if autoban_services == 1 else "services"
-                ),
+                value=f"**Enabled**\n({autoban_services} {'service' if autoban_services == 1 else 'services'})",
             )
 
     @bancheckset.group()
@@ -348,8 +334,8 @@ class BanCheck(commands.Cog):
         for service_name in self.all_supported_services:
             api_key = await self.get_api_key(service_name, config_services)
             if api_key and config_services.get(service_name, {}).get("enabled", False):
-                enabled_services += "{}\n".format(
-                    await self.format_service_name_url(service_name)
+                enabled_services += (
+                    f"{await self.format_service_name_url(service_name)}\n"
                 )
             else:
                 reason = ""
@@ -387,9 +373,7 @@ class BanCheck(commands.Cog):
         if service not in self.all_supported_services:
             await ctx.send(
                 error(
-                    "{} is not a valid service name.".format(
-                        self.get_nice_service_name(service)
-                    )
+                    f"{self.get_nice_service_name(service)} is not a valid service name."
                 )
             )
             return
@@ -399,9 +383,7 @@ class BanCheck(commands.Cog):
         ):
             await ctx.send(
                 checkmark(
-                    "{} does not require an API key.".format(
-                        self.get_nice_service_name(service)
-                    )
+                    f"{self.get_nice_service_name(service)} does not require an API key."
                 )
             )
             return
@@ -409,17 +391,14 @@ class BanCheck(commands.Cog):
             if await ctx.bot.is_owner(ctx.author):
                 await ctx.send(
                     info(
-                        "The API key for {} can only be set up globally. See `[p]banchecksetglobal` for more information.".format(
-                            self.get_nice_service_name(service)
-                        )
+                        f"The API key for {self.get_nice_service_name(service)} can only be set up globally. "
+                        "See `[p]banchecksetglobal` for more information."
                     )
                 )
             else:
                 await ctx.send(
                     error(
-                        "The API key for {} can only be set up by the bot owner.".format(
-                            self.get_nice_service_name(service)
-                        )
+                        f"The API key for {self.get_nice_service_name(service)} can only be set up by the bot owner."
                     )
                 )
             return
@@ -430,9 +409,7 @@ class BanCheck(commands.Cog):
         action = "set"
         if not api_key:
             action = "removed"
-        response = "API key for the {} BanCheck service has been {}.".format(
-            self.get_nice_service_name(service), action
-        )
+        response = f"API key for the {self.get_nice_service_name(service)} BanCheck service has been {action}."
         await ctx.send(checkmark(response))
 
     @service.command(name="enable")
@@ -441,9 +418,7 @@ class BanCheck(commands.Cog):
         if service not in self.all_supported_services:
             await ctx.send(
                 error(
-                    "{} is not a valid service name.".format(
-                        self.get_nice_service_name(service)
-                    )
+                    f"{self.get_nice_service_name(service)} is not a valid service name."
                 )
             )
             return
@@ -451,8 +426,8 @@ class BanCheck(commands.Cog):
             if service not in config_services:
                 config_services[service] = {}
             config_services[service]["enabled"] = True
-            response = "Enabled the {} BanCheck service.".format(
-                self.get_nice_service_name(service)
+            response = (
+                f"Enabled the {self.get_nice_service_name(service)} BanCheck service."
             )
             if not await self.get_api_key(service, config_services):
                 if service in self.supported_guild_services:
@@ -471,15 +446,13 @@ class BanCheck(commands.Cog):
             if not config_services.get(service, {}).get("enabled", False):
                 await ctx.send(
                     info(
-                        "{} is not an enabled service.".format(
-                            self.get_nice_service_name(service)
-                        )
+                        f"{self.get_nice_service_name(service)} is not an enabled service."
                     )
                 )
                 return
             config_services[service]["enabled"] = False
-        response = "Disabled the {} BanCheck service.".format(
-            self.get_nice_service_name(service)
+        response = (
+            f"Disabled the {self.get_nice_service_name(service)} BanCheck service."
         )
         await ctx.send(checkmark(response))
 
@@ -493,9 +466,7 @@ class BanCheck(commands.Cog):
         if service not in self.all_supported_services:
             await ctx.send(
                 error(
-                    "{} is not a valid service name.".format(
-                        self.get_nice_service_name(service)
-                    )
+                    f"{self.get_nice_service_name(service)} is not a valid service name."
                 )
             )
             return
@@ -504,9 +475,7 @@ class BanCheck(commands.Cog):
                 config_services[service] = {}
             config_services[service]["autoban"] = True
             config_services[service]["enabled"] = True
-            response = "Automatic banning with {} has now been enabled.".format(
-                self.get_nice_service_name(service)
-            )
+            response = f"Automatic banning with {self.get_nice_service_name(service)} has now been enabled."
             if not await self.config.guild(ctx.guild).notify_channel():
                 response += "\nYou will need to set up AutoCheck in order for this to take effect."
             if not await self.get_api_key(service, config_services):
@@ -522,16 +491,12 @@ class BanCheck(commands.Cog):
             if not config_services.get(service, {}).get("autoban", False):
                 await ctx.send(
                     info(
-                        "Automatic banning with {} is already disabled.".format(
-                            self.get_nice_service_name(service)
-                        )
+                        f"Automatic banning with {self.get_nice_service_name(service)} is already disabled."
                     )
                 )
                 return
             config_services[service]["autoban"] = False
-        response = "Automatic banning with {} has now been disabled.".format(
-            self.get_nice_service_name(service)
-        )
+        response = f"Automatic banning with {self.get_nice_service_name(service)} has now been disabled."
         await ctx.send(checkmark(response))
 
     @bancheckset.group()
@@ -575,7 +540,7 @@ class BanCheck(commands.Cog):
         ctx: commands.Context,
         member: Union[discord.Member, int],
         *,
-        ban_message: str
+        ban_message: str,
     ):
         """Send a ban report to all enabled global ban lists.
 
@@ -598,7 +563,7 @@ class BanCheck(commands.Cog):
         member: Union[discord.Member, int],
         proof_image_url: str,
         *,
-        ban_message: str
+        ban_message: str,
     ):
         """Send a ban report to all enabled global ban lists.
 
@@ -682,9 +647,7 @@ class BanCheck(commands.Cog):
         pred = MessagePredicate.yes_or_no(ctx)
         await ctx.send(
             question(
-                "Are you **sure** you want to send this ban report for **{}**? (yes/no)".format(
-                    member
-                )
+                f"Are you **sure** you want to send this ban report for **{member}**? (yes/no)"
             )
         )
         try:
@@ -705,17 +668,14 @@ class BanCheck(commands.Cog):
             sent.append(response.service)
             if response.result and response.reason:
                 description += checkmark(
-                    "**{}:** Sent ({})\n".format(response.service, response.reason)
+                    f"**{response.service}:** Sent ({response.reason})\n"
                 )
             elif response.result:
-                description += checkmark("**{}:** Sent\n".format(response.service))
+                description += checkmark(f"**{response.service}:** Sent\n")
             else:
                 is_error = True
                 description += error(
-                    "**{}:** Failure ({})\n".format(
-                        response.service,
-                        response.reason if response.reason else "No reason given",
-                    )
+                    f"**{response.service}:** Failure ({response.reason if response.reason else 'No reason given'})\n"
                 )
 
         # Generate results
@@ -723,7 +683,7 @@ class BanCheck(commands.Cog):
             await self.send_embed(
                 ctx.channel,
                 self.embed_maker(
-                    "Errors occured while sending reports for **{}**".format(member),
+                    f"Errors occured while sending reports for **{member}**",
                     discord.Colour.red(),
                     description,
                     member_avatar_url,
@@ -733,9 +693,9 @@ class BanCheck(commands.Cog):
             await self.send_embed(
                 ctx.channel,
                 self.embed_maker(
-                    "Reports sent for **{}**".format(member),
+                    f"Reports sent for **{member}**",
                     discord.Colour.green(),
-                    "Services: {}".format(", ".join(sent)),
+                    f"Services: {', '.join(sent)}",
                     member_avatar_url,
                 ),
             )
@@ -791,11 +751,11 @@ class BanCheck(commands.Cog):
         is_error = False
         checked = []
         if isinstance(member, discord.Member):
-            description = "**Name:** {}\n**ID:** {}\n\n".format(member.name, member.id)
+            description = f"**Name:** {member.name}\n**ID:** {member.id}\n\n"
             member_id = member.id
             member_avatar_url = member.avatar_url
         else:
-            description = "**ID:** {}\n\n".format(member)
+            description = f"**ID:** {member}\n\n"
             member_id = member
             member_avatar_url = None
 
@@ -824,32 +784,26 @@ class BanCheck(commands.Cog):
 
                 proof = " (No proof provided)"
                 if response.proof_url:
-                    proof = " ([proof]({}))".format(response.proof_url)
+                    proof = f" ([proof]({response.proof_url}))"
 
                 description += error(
-                    "**{}:** {}{}\n".format(response.service, response.reason, proof)
+                    f"**{response.service}:** {response.reason}{proof}\n"
                 )
 
             elif response.result == "clear":
-                description += checkmark(
-                    "**{}:** No ban found\n".format(response.service)
-                )
+                description += checkmark(f"**{response.service}:** No ban found\n")
 
             elif response.result == "error":
                 is_error = True
                 description += warning(
-                    "**{}:** Error - {}\n".format(
-                        response.service,
-                        response.reason if response.reason else "No reason given",
-                    )
+                    f"**{response.service}:** Error - {response.reason if response.reason else 'No reason given'}\n"
                 )
 
             else:
                 is_error = True
                 description += warning(
-                    "**{}:** Fatal Error - You should probably let PhasecoreX know about this -> `{}`.\n".format(
-                        response.service, response.result
-                    )
+                    f"**{response.service}:** Fatal Error - "
+                    f"You should probably let PhasecoreX know about this -> `{response.result}`.\n"
                 )
 
         # Display result
@@ -875,10 +829,10 @@ class BanCheck(commands.Cog):
                 try:
                     reasons = []
                     for name, reason in banned_services.items():
-                        reasons.append("{} ({})".format(name, reason))
+                        reasons.append(f"{name} ({reason})")
                     await channel.guild.ban(
                         member,
-                        reason="BanCheck auto ban: {}".format(", ".join(reasons)),
+                        reason=f"BanCheck auto ban: {', '.join(reasons)}",
                         delete_message_days=1,
                     )
                     # Update guild ban totals
@@ -924,9 +878,9 @@ class BanCheck(commands.Cog):
             await self.send_embed(
                 channel,
                 self.embed_maker(
-                    "No ban found for **{}**".format(member),
+                    f"No ban found for **{member}**",
                     discord.Colour.green(),
-                    "Checked: {}".format(", ".join(checked)),
+                    f"Checked: {', '.join(checked)}",
                     member_avatar_url,
                 ),
             )
@@ -935,15 +889,13 @@ class BanCheck(commands.Cog):
         """Format BanCheck services."""
         service_class = self.all_supported_services.get(service_name, False)
         if not service_class:
-            return "`{}`".format(service_name)
-        result = " `{}` - [{}]({})".format(
-            service_name, service_class.SERVICE_NAME, service_class.SERVICE_URL
-        )
+            return f"`{service_name}`"
+        result = f" `{service_name}` - [{service_class.SERVICE_NAME}]({service_class.SERVICE_URL})"
         if reason:
-            result += " {}".format(reason)
+            result += f" {reason}"
         if show_help:
             try:
-                result += " ({})".format(service_class.SERVICE_HINT)
+                result += f" ({service_class.SERVICE_HINT})"
             except AttributeError:
                 pass  # No hint for this service
         return result
@@ -983,7 +935,7 @@ class BanCheck(commands.Cog):
         result = self.all_supported_services.get(service, False)
         if result:
             return result.SERVICE_NAME
-        return "`{}`".format(service)
+        return f"`{service}`"
 
     @staticmethod
     async def send_embed(ctx, embed):

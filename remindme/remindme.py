@@ -147,9 +147,7 @@ class RemindMe(commands.Cog):
         await self.config.guild(ctx.guild).me_too.set(me_too)
         await ctx.send(
             checkmark(
-                "I will {} ask if others want to be reminded.".format(
-                    "now" if me_too else "no longer"
-                )
+                f"I will {'now' if me_too else 'no longer'} ask if others want to be reminded."
             )
         )
 
@@ -160,9 +158,7 @@ class RemindMe(commands.Cog):
         await self.config.max_user_reminders.set(maximum)
         await ctx.send(
             checkmark(
-                "Maximum reminders per user is now set to {}".format(
-                    await self.config.max_user_reminders()
-                )
+                f"Maximum reminders per user is now set to {await self.config.max_user_reminders()}"
             )
         )
 
@@ -199,7 +195,7 @@ class RemindMe(commands.Cog):
             return
 
         embed = discord.Embed(
-            title="Reminders for {}".format(author.display_name),
+            title=f"Reminders for {author.display_name}",
             color=await ctx.embed_color(),
         )
         embed.set_thumbnail(url=author.avatar_url)
@@ -264,9 +260,8 @@ class RemindMe(commands.Cog):
             current_reminders.append(new_reminder)
         await self.send_message(
             ctx,
-            "Reminder with ID# **{}** has been edited successfully, and will now remind you {} from now.".format(
-                reminder_id, future_text
-            ),
+            f"Reminder with ID# **{reminder_id}** has been edited successfully, "
+            f"and will now remind you {future_text} from now.",
         )
 
     @modify.command()
@@ -289,9 +284,7 @@ class RemindMe(commands.Cog):
             current_reminders.append(new_reminder)
         await self.send_message(
             ctx,
-            "Reminder with ID# **{}** has been edited successfully.".format(
-                reminder_id
-            ),
+            f"Reminder with ID# **{reminder_id}** has been edited successfully.",
         )
 
     @reminder.command(aliases=["delete"])
@@ -331,12 +324,8 @@ class RemindMe(commands.Cog):
             plural = "reminder" if maximum == 1 else "reminders"
             await self.send_message(
                 ctx,
-                (
-                    "You have too many reminders! "
-                    "I can only keep track of {} {} for you at a time.".format(
-                        maximum, plural
-                    )
-                ),
+                "You have too many reminders! "
+                f"I can only keep track of {maximum} {plural} for you at a time.",
             )
             return
 
@@ -345,7 +334,7 @@ class RemindMe(commands.Cog):
             if not time_delta:
                 # Try again if the user is doing the old "[p]remindme 4 hours ..." format
                 time_unit = text.split()[0]
-                time = "{} {}".format(time, time_unit)
+                time = f"{time} {time_unit}"
                 text = text[len(time_unit) :].strip()
                 time_delta = parse_timedelta(time, minimum=timedelta(minutes=1))
                 if not text or not time_delta:
@@ -375,9 +364,7 @@ class RemindMe(commands.Cog):
         }
         async with self.config.reminders() as current_reminders:
             current_reminders.append(reminder)
-        await self.send_message(
-            ctx, "I will remind you that in {}.".format(future_text)
-        )
+        await self.send_message(ctx, f"I will remind you that in {future_text}.")
 
         if (
             ctx.guild
@@ -445,7 +432,7 @@ class RemindMe(commands.Cog):
         if reminder_to_delete:
             await self._do_reminder_delete(reminder_to_delete)
             await self.send_message(
-                ctx, "Reminder with ID# **{}** has been removed.".format(int_index)
+                ctx, f"Reminder with ID# **{int_index}** has been removed."
             )
         else:
             await self.send_non_existant_msg(ctx, int_index)
@@ -473,9 +460,8 @@ class RemindMe(commands.Cog):
         """Send a message telling the user the reminder ID does not exist."""
         await self.send_message(
             ctx,
-            "Reminder with ID# **{}** does not exist! Check the reminder list and verify you typed the correct ID#.".format(
-                reminder_id
-            ),
+            f"Reminder with ID# **{reminder_id}** does not exist! "
+            "Check the reminder list and verify you typed the correct ID#.",
         )
 
     @staticmethod
@@ -558,9 +544,7 @@ class RemindMe(commands.Cog):
             async with self.config.reminders() as current_reminders:
                 current_reminders.append(reminder)
             await member.send(
-                "Hello! I will remind you of that in {}.".format(
-                    reminder["FUTURE_TEXT"]
-                )
+                f"Hello! I will remind you of that in {reminder['FUTURE_TEXT']}."
             )
         except KeyError:
             return
@@ -586,11 +570,11 @@ class RemindMe(commands.Cog):
                         )
                         reminder_text = reminder["REMINDER"]
                         if "JUMP_LINK" in reminder:
-                            reminder_text += "\n\n[original message]({})".format(
-                                reminder["JUMP_LINK"]
+                            reminder_text += (
+                                f"\n\n[original message]({reminder['JUMP_LINK']})"
                             )
                         embed.add_field(
-                            name="From {} ago:".format(reminder["FUTURE_TEXT"]),
+                            name=f"From {reminder['FUTURE_TEXT']} ago:",
                             value=reminder_text,
                         )
                         await user.send(embed=embed)

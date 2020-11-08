@@ -41,7 +41,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                         avc_settings["dest_category_id"]
                     )
                     autoroom_section = SettingDisplay(
-                        "AutoRoom - {}".format(source_channel.name)
+                        f"AutoRoom - {source_channel.name}"
                     )
                     autoroom_section.add(
                         "Room type",
@@ -49,7 +49,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     )
                     autoroom_section.add(
                         "Destination category",
-                        "#{}".format(dest_category.name)
+                        f"#{dest_category.name}"
                         if dest_category
                         else "INVALID CATEGORY",
                     )
@@ -78,9 +78,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     bitrate_string = ""
                     if "bitrate" in avc_settings:
                         if avc_settings["bitrate"] == "max":
-                            bitrate_string = "Guild maximum ({}kbps)".format(
-                                int(ctx.guild.bitrate_limit // 1000)
-                            )
+                            bitrate_string = f"Guild maximum ({int(ctx.guild.bitrate_limit // 1000)}kbps)"
                         else:
                             bitrate_string = "{}kbps".format(
                                 self.normalize_bitrate(
@@ -110,9 +108,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         await self.config.guild(ctx.guild).admin_access.set(admin_access)
         await ctx.send(
             checkmark(
-                "Admins are {} able to join (new) private AutoRooms.".format(
-                    "now" if admin_access else "no longer"
-                )
+                f"Admins are {'now' if admin_access else 'no longer'} able to join (new) private AutoRooms."
             )
         )
 
@@ -123,9 +119,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         await self.config.guild(ctx.guild).mod_access.set(mod_access)
         await ctx.send(
             checkmark(
-                "Moderators are {} able to join (new) private AutoRooms.".format(
-                    "now" if mod_access else "no longer"
-                )
+                f"Moderators are {'now' if mod_access else 'no longer'} able to join (new) private AutoRooms."
             )
         )
 
@@ -210,9 +204,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 pass
         await ctx.send(
             checkmark(
-                "**{}** is no longer an AutoRoom Source channel.".format(
-                    autoroom_source.mention
-                )
+                f"**{autoroom_source.mention}** is no longer an AutoRoom Source channel."
             )
         )
 
@@ -247,17 +239,13 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             except KeyError:
                 await ctx.send(
                     error(
-                        "**{}** is not an AutoRoom Source channel.".format(
-                            autoroom_source.mention
-                        )
+                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                     )
                 )
             else:
                 await ctx.send(
                     checkmark(
-                        "New AutoRooms created by **{}** will be {}.".format(
-                            autoroom_source.mention, room_type
-                        )
+                        f"New AutoRooms created by **{autoroom_source.mention}** will be {room_type}."
                     )
                 )
 
@@ -285,9 +273,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             except KeyError:
                 await ctx.send(
                     error(
-                        "**{}** is not an AutoRoom Source channel.".format(
-                            autoroom_source.mention
-                        )
+                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                     )
                 )
                 return
@@ -313,9 +299,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             except KeyError:
                 await ctx.send(
                     error(
-                        "**{}** is not an AutoRoom Source channel.".format(
-                            autoroom_source.mention
-                        )
+                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                     )
                 )
                 return
@@ -329,21 +313,17 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         if member_roles:
             await ctx.send(
                 checkmark(
-                    "{}\n"
-                    "New AutoRooms created by **{}** will be visible by users with any of the following roles:\n"
-                    "{}".format(
-                        action,
-                        autoroom_source.mention,
-                        ", ".join([role.mention for role in member_roles]),
-                    )
+                    f"{action}\n"
+                    f"New AutoRooms created by **{autoroom_source.mention}** will be visible by users "
+                    "with any of the following roles:\n"
+                    f"{', '.join([role.mention for role in member_roles])}"
                 )
             )
         else:
             await ctx.send(
                 checkmark(
-                    "{}\nNew AutoRooms created by **{}** will be visible by all users.".format(
-                        action, autoroom_source.mention
-                    )
+                    f"{action}\n"
+                    f"New AutoRooms created by **{autoroom_source.mention}** will be visible by all users."
                 )
             )
 
@@ -376,17 +356,14 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             except KeyError:
                 await ctx.send(
                     error(
-                        "**{}** is not an AutoRoom Source channel.".format(
-                            autoroom_source.mention
-                        )
+                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                     )
                 )
             else:
                 await ctx.send(
                     checkmark(
-                        "New AutoRooms created by **{}** will use the **{}** format.".format(
-                            autoroom_source.mention, room_type.capitalize()
-                        )
+                        f"New AutoRooms created by **{autoroom_source.mention}** "
+                        f"will use the **{room_type.capitalize()}** format."
                     )
                 )
 
@@ -409,9 +386,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             except KeyError:
                 await ctx.send(
                     error(
-                        "**{}** is not an AutoRoom Source channel.".format(
-                            autoroom_source.mention
-                        )
+                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                     )
                 )
                 return
@@ -422,18 +397,15 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     pass
                 await ctx.send(
                     checkmark(
-                        "New AutoRooms created by **{}** will have the default bitrate.".format(
-                            autoroom_source.mention
-                        )
+                        f"New AutoRooms created by **{autoroom_source.mention}** will have the default bitrate."
                     )
                 )
             elif bitrate_kbps == "max":
                 settings["bitrate"] = "max"
                 await ctx.send(
                     checkmark(
-                        "New AutoRooms created by **{}** will have the max bitrate allowed by the guild.".format(
-                            autoroom_source.mention
-                        )
+                        f"New AutoRooms created by **{autoroom_source.mention}** "
+                        "will have the max bitrate allowed by the guild."
                     )
                 )
             elif isinstance(bitrate_kbps, int):
@@ -441,9 +413,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 settings["bitrate"] = int(bitrate_kbps)
                 await ctx.send(
                     checkmark(
-                        "New AutoRooms created by **{}** will have a bitrate of {}kbps.".format(
-                            autoroom_source.mention, int(bitrate_kbps) // 1000
-                        )
+                        f"New AutoRooms created by **{autoroom_source.mention}** "
+                        f"will have a bitrate of {int(bitrate_kbps) // 1000}kbps."
                     )
                 )
             else:
@@ -469,9 +440,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             except KeyError:
                 await ctx.send(
                     error(
-                        "**{}** is not an AutoRoom Source channel.".format(
-                            autoroom_source.mention
-                        )
+                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                     )
                 )
                 return
@@ -482,18 +451,15 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     pass
                 await ctx.send(
                     checkmark(
-                        "New AutoRooms created by **{}** will not have a user limit.".format(
-                            autoroom_source.mention
-                        )
+                        f"New AutoRooms created by **{autoroom_source.mention}** will not have a user limit."
                     )
                 )
             else:
                 settings["user_limit"] = user_limit
                 await ctx.send(
                     checkmark(
-                        "New AutoRooms created by **{}** will have a user limit of {}.".format(
-                            autoroom_source.mention, user_limit
-                        )
+                        f"New AutoRooms created by **{autoroom_source.mention}** "
+                        f"will have a user limit of {user_limit}."
                     )
                 )
 

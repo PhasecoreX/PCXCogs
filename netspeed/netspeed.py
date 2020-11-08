@@ -50,15 +50,13 @@ class NetSpeed(commands.Cog):
         message_down = waiting
         message_up = waiting
         if step > 0:
-            message_ping = "**{}** ms".format(results_dict["ping"])
+            message_ping = f"**{results_dict['ping']}** ms"
             message_down = measuring
         if step > 1:
-            message_down = "**{:.2f}** mbps".format(
-                results_dict["download"] / 1_000_000
-            )
+            message_down = f"**{results_dict['download'] / 1_000_000:.2f}** mbps"
             message_up = measuring
         if step > 2:
-            message_up = "**{:.2f}** mbps".format(results_dict["upload"] / 1_000_000)
+            message_up = f"**{results_dict['upload'] / 1_000_000:.2f}** mbps"
             title = "NetSpeed Results"
             color = discord.Color.green()
         embed = discord.Embed(title=title, color=color)

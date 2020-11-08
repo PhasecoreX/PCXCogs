@@ -135,6 +135,6 @@ class UwU(commands.Cog):
             and "-" not in uwu
             and not random.randint(0, 6)
         ):
-            uwu = "{}-{}".format(uwu[0], uwu)
+            uwu = f"{uwu[0]}-{uwu}"
 
         return uwu

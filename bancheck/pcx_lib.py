@@ -12,7 +12,7 @@ headers = {"user-agent": "Red-DiscordBot/" + redbot_version}
 
 def checkmark(text: str) -> str:
     """Get text prefixed with a checkmark emoji."""
-    return "\N{WHITE HEAVY CHECK MARK} {}".format(text)
+    return f"\N{WHITE HEAVY CHECK MARK} {text}"
 
 
 async def delete(message: discord.Message, *, delay=None) -> bool:
@@ -106,9 +106,9 @@ class SettingDisplay:
         if not self._settings:
             return msg
         if self.header:
-            msg += "--- {} ---\n".format(self.header)
+            msg += f"--- {self.header} ---\n"
         for setting in self._settings:
-            msg += "{} [{}]\n".format(setting[0].ljust(self._length, " "), setting[1])
+            msg += f"{setting[0].ljust(self._length, ' ')} [{setting[1]}]\n"
         return msg.strip()
 
     def display(self, *additional) -> str:

@@ -145,9 +145,7 @@ class UpdateNotify(commands.Cog):
         await self.config.frequency.set(frequency.total_seconds())
         await ctx.send(
             checkmark(
-                "Update check frequency has been set to {}.".format(
-                    humanize_timedelta(timedelta=frequency)
-                )
+                f"Update check frequency has been set to {humanize_timedelta(timedelta=frequency)}."
             )
         )
         self.enable_bg_loop()
@@ -170,9 +168,7 @@ class UpdateNotify(commands.Cog):
         await self.config.check_red_discordbot.set(state)
         await ctx.send(
             checkmark(
-                "Red-DiscordBot version checking is now {}.".format(
-                    "enabled" if state else "disabled"
-                )
+                f"Red-DiscordBot version checking is now {'enabled' if state else 'disabled'}."
             )
         )
 
@@ -189,9 +185,7 @@ class UpdateNotify(commands.Cog):
         await self.config.check_pcx_docker.set(state)
         await ctx.send(
             checkmark(
-                "Docker image version checking is now {}.".format(
-                    "enabled" if state else "disabled"
-                )
+                f"Docker image version checking is now {'enabled' if state else 'disabled'}."
             )
         )
 
@@ -362,13 +356,12 @@ class UpdateNotify(commands.Cog):
         if manual and not message:
             if await self.config.check_red_discordbot():
                 if running_newer_redbot:
-                    message += "You are running a newer version of Red-DiscordBot ({}) than what is available on PyPI ({})".format(
-                        self.notified_version, latest_redbot_version
+                    message += (
+                        f"You are running a newer version of Red-DiscordBot ({self.notified_version}) "
+                        f"than what is available on PyPI ({latest_redbot_version})"
                     )
                 else:
-                    message += "You are already running the latest version of Red-DiscordBot ({})".format(
-                        self.notified_version
-                    )
+                    message += f"You are already running the latest version of Red-DiscordBot ({self.notified_version})"
             if self.docker_version and await self.config.check_pcx_docker():
                 message += (
                     "\nThe `phasecorex/red-discordbot` Docker image is {}up-to-date."

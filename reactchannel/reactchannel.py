@@ -109,9 +109,7 @@ class ReactChannel(commands.Cog):
             if isinstance(channel_type, list):
                 emojis = " ".join(channel_type)
                 channel_type = "custom"
-            message += "\n  - <#{}>: {} - {}".format(
-                channel_id, channel_type.capitalize(), emojis
-            )
+            message += f"\n  - <#{channel_id}>: {channel_type.capitalize()} - {emojis}"
         if not message:
             message = " None"
         message = "ReactChannels configured:" + message
@@ -157,9 +155,7 @@ class ReactChannel(commands.Cog):
             except discord.HTTPException:
                 await ctx.send(
                     error(
-                        "{} is not a valid emoji I can use!".format(
-                            "That" if len(channel_type) == 1 else "One of those emojis"
-                        )
+                        f"{'That' if len(channel_type) == 1 else 'One of those emojis'} is not a valid emoji I can use!"
                     )
                 )
                 return
@@ -169,12 +165,10 @@ class ReactChannel(commands.Cog):
         custom_emojis = ""
         if isinstance(channel_type_name, list):
             channel_type_name = "custom"
-            custom_emojis = " ({})".format(", ".join(channel_type))
+            custom_emojis = f" ({', '.join(channel_type)})"
         await ctx.send(
             checkmark(
-                "<#{}> is now a {} ReactChannel.{}".format(
-                    str(channel.id), channel_type_name, custom_emojis
-                )
+                f"{channel.mention} is now a {channel_type_name} ReactChannel.{custom_emojis}"
             )
         )
         if (
@@ -203,9 +197,7 @@ class ReactChannel(commands.Cog):
                 pass
         await ctx.send(
             checkmark(
-                "ReactChannel functionality has been disabled on <#{}>.".format(
-                    str(channel.id)
-                )
+                f"ReactChannel functionality has been disabled on {channel.mention}."
             )
         )
 
@@ -214,8 +206,8 @@ class ReactChannel(commands.Cog):
         """Manage emojis used for ReactChannels."""
         upvote = await self._get_emoji(ctx.guild, "upvote")
         downvote = await self._get_emoji(ctx.guild, "downvote")
-        message = "Upvote emoji: {}\n".format(upvote if upvote else "None")
-        message += "Downvote emoji: {}".format(downvote if downvote else "None")
+        message = f"Upvote emoji: {upvote if upvote else 'None'}\n"
+        message += f"Downvote emoji: {downvote if downvote else 'None'}"
         await ctx.send(message)
 
     @emoji.command(name="upvote")
@@ -237,9 +229,7 @@ class ReactChannel(commands.Cog):
             await setting.set(None)
             await ctx.send(
                 checkmark(
-                    "{} emoji for this guild has been disabled".format(
-                        emoji_type.capitalize()
-                    )
+                    f"{emoji_type.capitalize()} emoji for this guild has been disabled"
                 )
             )
             await self._get_emoji(ctx.guild, emoji_type, refresh=True)
@@ -256,9 +246,7 @@ class ReactChannel(commands.Cog):
             await setting.set(save)
             await ctx.send(
                 checkmark(
-                    "{} emoji for this guild has been set to {}".format(
-                        emoji_type.capitalize(), emoji
-                    )
+                    f"{emoji_type.capitalize()} emoji for this guild has been set to {emoji}"
                 )
             )
             await self._get_emoji(ctx.guild, emoji_type, refresh=True)
@@ -272,9 +260,7 @@ class ReactChannel(commands.Cog):
         member = self.config.member(ctx.message.author)
         total_karma = await member.karma()
         await ctx.send(
-            "{}, you have **{}** message karma".format(
-                ctx.message.author.mention, total_karma
-            )
+            f"{ctx.message.author.mention}, you have **{total_karma}** message karma"
         )
 
     @commands.command()
@@ -283,7 +269,7 @@ class ReactChannel(commands.Cog):
         """View this guilds upvote reaction."""
         upvote = await self._get_emoji(ctx.guild, "upvote")
         if upvote:
-            await ctx.send("This guilds upvote emoji is {}".format(upvote))
+            await ctx.send(f"This guilds upvote emoji is {upvote}")
         else:
             await ctx.send("This guild does not have an upvote emoji set")
 
@@ -293,7 +279,7 @@ class ReactChannel(commands.Cog):
         """View this guilds downvote reaction."""
         downvote = await self._get_emoji(ctx.guild, "downvote")
         if downvote:
-            await ctx.send("This guilds downvote emoji is {}".format(downvote))
+            await ctx.send(f"This guilds downvote emoji is {downvote}")
         else:
             await ctx.send("This guild does not have a downvote emoji set")
 

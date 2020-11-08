@@ -39,9 +39,7 @@ class Wikipedia(commands.Cog):
                             # No embeds here :(
                             await ctx.send(
                                 warning(
-                                    "I'm not allowed to do embeds here...\n{}".format(
-                                        page["fullurl"]
-                                    )
+                                    f"I'm not allowed to do embeds here...\n{page['fullurl']}"
                                 )
                             )
                             return
@@ -98,11 +96,11 @@ class Wikipedia(commands.Cog):
 
         if len(description) > 1500:
             description = description[:1500].strip()
-            description += "... [(read more)]({})".format(url)
+            description += f"... [(read more)]({url})"
 
         embed = discord.Embed(
-            title="Wikipedia: {}".format(title),
-            description="\u2063\n{}\n\u2063".format(description),
+            title=f"Wikipedia: {title}",
+            description=f"\u2063\n{description}\n\u2063",
             color=discord.Color.blue(),
             url=url,
         )

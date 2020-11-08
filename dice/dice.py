@@ -66,9 +66,8 @@ class Dice(commands.Cog):
             pred = MessagePredicate.yes_or_no(ctx)
             await ctx.send(
                 question(
-                    "Are you **sure** you want to set the maximum rolls to {}? (yes/no)\n"
-                    "Setting this over one million will allow other users to "
-                    "slow down/freeze/crash your bot!".format(maximum)
+                    f"Are you **sure** you want to set the maximum rolls to {maximum}? (yes/no)\n"
+                    "Setting this over one million will allow other users to slow down/freeze/crash your bot!"
                 )
             )
             try:
@@ -81,9 +80,7 @@ class Dice(commands.Cog):
             else:
                 await ctx.send(
                     error(
-                        "Maximum dice rolls per user has been left at {}".format(
-                            await self.config.max_dice_rolls()
-                        )
+                        f"Maximum dice rolls per user has been left at {await self.config.max_dice_rolls()}"
                     )
                 )
                 return
@@ -93,9 +90,7 @@ class Dice(commands.Cog):
 
         await ctx.send(
             checkmark(
-                "Maximum dice rolls per user {} {}".format(
-                    action, await self.config.max_dice_rolls()
-                )
+                f"Maximum dice rolls per user {action} {await self.config.max_dice_rolls()}"
             )
         )
 
@@ -110,9 +105,7 @@ class Dice(commands.Cog):
         await self.config.max_die_sides.set(maximum)
         await ctx.send(
             checkmark(
-                "Maximum die sides is now set to {}".format(
-                    await self.config.max_die_sides()
-                )
+                f"Maximum die sides is now set to {await self.config.max_die_sides()}"
             )
         )
 
@@ -137,11 +130,7 @@ class Dice(commands.Cog):
                 maxSides=await self.config.max_die_sides(),
             )
             result = dr.parse(roll)
-            roll_message = "\N{GAME DIE} {} rolled {} and got **{}**".format(
-                ctx.message.author.mention,
-                roll,
-                result.result,
-            )
+            roll_message = f"\N{GAME DIE} {ctx.message.author.mention} rolled {roll} and got **{result.result}**"
             if len(roll_message) > 2000:
                 raise ValueError("resulting roll message is too big to send in Discord")
             roll_log = "\n".join(result.strings())
@@ -151,7 +140,7 @@ class Dice(commands.Cog):
             roll_log = roll_log.replace(",", ", ")
             if len(roll_message) + len(roll_log) > 2000:
                 roll_log = "*(Roll log too long to display)*"
-            await ctx.send("{}\n{}".format(roll_message, roll_log))
+            await ctx.send(f"{roll_message}\n{roll_log}")
         except (
             ValueError,
             NotImplementedError,
@@ -161,8 +150,6 @@ class Dice(commands.Cog):
         ) as exception:
             await ctx.send(
                 error(
-                    "{}, I couldn't parse your dice formula:\n`{}`".format(
-                        ctx.message.author.mention, str(exception)
-                    )
+                    f"{ctx.message.author.mention}, I couldn't parse your dice formula:\n`{str(exception)}`"
                 )
             )
