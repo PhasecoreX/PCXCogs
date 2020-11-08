@@ -1,5 +1,4 @@
 """A user lookup result."""
-from redbot.core.utils.chat_formatting import escape
 
 
 class LookupResult:

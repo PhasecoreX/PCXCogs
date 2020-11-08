@@ -4,7 +4,6 @@ import logging
 from datetime import timedelta
 
 import aiohttp
-import discord
 from redbot.core import Config
 from redbot.core import __version__ as redbot_version
 from redbot.core import checks, commands
@@ -13,15 +12,15 @@ from redbot.core.utils.chat_formatting import humanize_timedelta
 from .pcx_lib import SettingDisplay, checkmark, delete
 
 __author__ = "PhasecoreX"
-user_agent = "Red-DiscordBot/{} Heartbeat (https://github.com/PhasecoreX/PCXCogs)".format(
-    redbot_version
+user_agent = (
+    f"Red-DiscordBot/{redbot_version} Heartbeat (https://github.com/PhasecoreX/PCXCogs)"
 )
 log = logging.getLogger("red.pcxcogs.heartbeat")
 
 
 class Heartbeat(commands.Cog):
     """Monitor your bots uptime.
-    
+
     The bot owner can specify a URL that the bot will ping (send a GET request)
     at a configurable frequency. Using this with an uptime tracking service can
     warn you when your bot isn't connected to the internet (and thus usually
@@ -147,7 +146,8 @@ class Heartbeat(commands.Cog):
             while retries > 0:
                 try:
                     await self.session.get(
-                        url, headers={"user-agent": user_agent},
+                        url,
+                        headers={"user-agent": user_agent},
                     )
                     break
                 except aiohttp.ClientConnectionError:

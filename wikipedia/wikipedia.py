@@ -52,7 +52,7 @@ class Wikipedia(commands.Cog):
 
         if not embeds:
             await ctx.send(
-                error("I'm sorry, I couldn't find \"{}\" on Wikipedia".format(query))
+                error(f"I'm sorry, I couldn't find \"{query}\" on Wikipedia")
             )
         elif len(embeds) == 1:
             await ctx.send(embed=embeds[0])
@@ -62,31 +62,26 @@ class Wikipedia(commands.Cog):
     @staticmethod
     def generate_payload(query: str):
         """Generate the payload for Wikipedia based on a query string."""
-        payload = {}
-        # Main module
-        payload["action"] = "query"  # Fetch data from and about MediaWiki
-        payload["format"] = "json"  # Output data in JSON format
-
-        # format:json options
-        payload["formatversion"] = "2"  # Modern format
-
-        # action:query options
-        payload["generator"] = "search"  # Get list of pages by executing a query module
-        payload["redirects"] = "1"  # Automatically resolve redirects
-        payload["prop"] = "extracts|info|pageimages"  # Which properties to get
-
-        # action:query/generator:search options
-        payload["gsrsearch"] = "intitle:{}".format(query)  # Search for page titles
-
-        # action:query/prop:extracts options
-        payload["exintro"] = "1"  # Return only content before the first section
-        payload["explaintext"] = "1"  # Return extracts as plain text
-
-        # action:query/prop:info options
-        payload["inprop"] = "url"  # Gives a full URL for each page
-
-        # action:query/prop:pageimages options
-        payload["piprop"] = "original"  # Return URL of page image, if any
+        payload = {
+            # Main module
+            "action": "query",  # Fetch data from and about MediaWiki
+            "format": "json",  # Output data in JSON format
+            # format:json options
+            "formatversion": "2",  # Modern format
+            # action:query options
+            "generator": "search",  # Get list of pages by executing a query module
+            "redirects": "1",  # Automatically resolve redirects
+            "prop": "extracts|info|pageimages",  # Which properties to get
+            # action:query/generator:search options
+            "gsrsearch": f"intitle:{query}",  # Search for page titles
+            # action:query/prop:extracts options
+            "exintro": "1",  # Return only content before the first section
+            "explaintext": "1",  # Return extracts as plain text
+            # action:query/prop:info options
+            "inprop": "url",  # Gives a full URL for each page
+            # action:query/prop:pageimages options
+            "piprop": "original",  # Return URL of page image, if any
+        }
         return payload
 
     @staticmethod
@@ -107,7 +102,7 @@ class Wikipedia(commands.Cog):
 
         embed = discord.Embed(
             title="Wikipedia: {}".format(title),
-            description=u"\u2063\n{}\n\u2063".format(description),
+            description="\u2063\n{}\n\u2063".format(description),
             color=discord.Color.blue(),
             url=url,
         )

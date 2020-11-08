@@ -262,7 +262,7 @@ class UpdateNotify(commands.Cog):
                         commit_date = datetime.datetime.fromisoformat(
                             commit_date_string
                         )
-                        return (sha, commit_date)
+                        return sha, commit_date
             except aiohttp.ServerConnectionError:
                 log.warning(
                     "GitHub seems to be having some issues at the moment while checking for the latest Docker commit. "

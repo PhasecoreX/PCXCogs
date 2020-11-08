@@ -138,7 +138,9 @@ class Dice(commands.Cog):
             )
             result = dr.parse(roll)
             roll_message = "\N{GAME DIE} {} rolled {} and got **{}**".format(
-                ctx.message.author.mention, roll, result.result,
+                ctx.message.author.mention,
+                roll,
+                result.result,
             )
             if len(roll_message) > 2000:
                 raise ValueError("resulting roll message is too big to send in Discord")

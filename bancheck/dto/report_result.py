@@ -1,5 +1,4 @@
 """A user Report result."""
-from redbot.core.utils.chat_formatting import escape
 
 
 class ReportResult:
