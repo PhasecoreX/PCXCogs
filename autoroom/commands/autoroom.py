@@ -203,6 +203,8 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
 
     async def _get_autoroom_info(self, autoroom: discord.VoiceChannel):
         """Get info for an AutoRoom, or None if the voice channel isn't an AutoRoom."""
+        if not autoroom:
+            return None
         owner_id = await self.config.channel(autoroom).owner()
         if not owner_id:
             return None
