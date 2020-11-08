@@ -1,13 +1,16 @@
 """Package for ReactChannel cog."""
+import json
+from pathlib import Path
+
+from redbot.core.bot import Red
+
 from .reactchannel import ReactChannel
 
-__red_end_user_data_statement__ = (
-    "This cog stores Discord IDs along with a karma value based on total upvotes and downvotes on the users messages. "
-    "Users may reset/remove their own karma total by making a data removal request."
-)
+with open(Path(__file__).parent / "info.json") as fp:
+    __red_end_user_data_statement__ = json.load(fp)["end_user_data_statement"]
 
 
-async def setup(bot):
+async def setup(bot: Red) -> None:
     """Load ReactChannel cog."""
     cog = ReactChannel(bot)
     await cog.initialize()
