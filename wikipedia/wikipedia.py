@@ -13,6 +13,8 @@ __author__ = "PhasecoreX"
 class Wikipedia(commands.Cog):
     """Look up stuff on Wikipedia."""
 
+    DISAMBIGUATION_CAT = "Category:All disambiguation pages"
+
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete."""
         return
@@ -38,7 +40,14 @@ class Wikipedia(commands.Cog):
                 )
                 for page in result["query"]["pages"]:
                     try:
-                        embeds.append(self.generate_embed(page))
+                        if (
+                            "categories" in page
+                            and page["categories"]
+                            and "title" in page["categories"][0]
+                            and page["categories"][0]["title"]
+                            == self.DISAMBIGUATION_CAT
+                        ):
+                            continue  # Skip disambiguation pages
                         if not ctx.channel.permissions_for(ctx.me).embed_links:
                             # No embeds here :(
                             await ctx.send(
@@ -47,6 +56,7 @@ class Wikipedia(commands.Cog):
                                 )
                             )
                             return
+                        embeds.append(self.generate_embed(page))
                         if not ctx.channel.permissions_for(ctx.me).add_reactions:
                             break  # Menu can't function so only show first result
                     except KeyError:
@@ -61,8 +71,7 @@ class Wikipedia(commands.Cog):
         else:
             await menu(ctx, embeds, DEFAULT_CONTROLS, timeout=60.0)
 
-    @staticmethod
-    def generate_payload(query: str):
+    def generate_payload(self, query: str):
         """Generate the payload for Wikipedia based on a query string."""
         query_tokens = query.split()
         payload = {
@@ -74,7 +83,7 @@ class Wikipedia(commands.Cog):
             # action:query options
             "generator": "search",  # Get list of pages by executing a query module
             "redirects": "1",  # Automatically resolve redirects
-            "prop": "extracts|info|pageimages|revisions",  # Which properties to get
+            "prop": "extracts|info|pageimages|revisions|categories",  # Which properties to get
             # action:query/generator:search options
             "gsrsearch": f"intitle:{' intitle:'.join(query_tokens)}",  # Search for page titles
             # action:query/prop:extracts options
@@ -86,6 +95,8 @@ class Wikipedia(commands.Cog):
             "piprop": "original",  # Return URL of page image, if any
             # action:query/prop:revisions options
             "rvprop": "timestamp",  # Return timestamp of last revision
+            # action:query/prop:revisions options
+            "clcategories": self.DISAMBIGUATION_CAT,  # Only list this category
         }
         return payload
 
