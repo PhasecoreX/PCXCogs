@@ -113,12 +113,13 @@ class Wikipedia(commands.Cog):
             description=description,
             color=discord.Color.blue(),
             url=url,
+            timestamp=timestamp,
         )
         if image:
             embed.set_image(url=image)
         text = "Information provided by Wikimedia"
         if timestamp:
-            text += f"\nPage last edited on {timestamp.strftime('%Y-%m-%d')}, at {timestamp.strftime('%H:%M')} (UTC)"
+            text += f"\nArticle last updated"
         embed.set_footer(
             text=text,
             icon_url=(
