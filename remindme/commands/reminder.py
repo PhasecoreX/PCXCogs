@@ -70,14 +70,15 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         await embed_splitter(embed, author)
 
     @reminder.command(aliases=["add"])
-    async def create(self, ctx: commands.Context, time: str, *, text: str):
-        """Create a reminder. Same as [p]remindme.
+    async def create(self, ctx: commands.Context, time: str, *, text: str = ""):
+        """Create a reminder, with optional reminder [text] for context. Same as [p]remindme.
 
         Accepts: seconds, minutes, hours, days, weeks
         Examples:
-        - [p]reminder create 2min Do that thing soon in 2 minutes
-        - [p]remindme create 3h40m Do that thing later in 3 hours and 40 minutes
-        - [p]reminder create 3 days Have sushi with Ryan and Heather
+        - `[p]reminder create 2min Do that thing soon in 2 minutes`
+        - `[p]reminder create 3h40m Do that thing later in 3 hours and 40 minutes`
+        - `[p]reminder create 3 days Old format number and time unit still works`
+        - `[p]reminder create 8h`
         """
         await self._create_reminder(ctx, time, text=text)
 
@@ -153,13 +154,14 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
 
     @commands.command()
     async def remindme(self, ctx: commands.Context, time: str, *, text: str = ""):
-        """Send you <text> when the time is up.
+        """Create a reminder, with optional reminder [text] for context.
 
         Accepts: seconds, minutes, hours, days, weeks
         Examples:
-        - [p]remindme 2min Do that thing in 2 minutes
-        - [p]remindme 3h40m Do that thing in 3 hours and 40 minutes
-        - [p]remindme 3 days Have sushi with Ryan and Heather
+        - `[p]remindme 2min Do that thing soon in 2 minutes`
+        - `[p]remindme 3h40m Do that thing later in 3 hours and 40 minutes`
+        - `[p]remindme 3 days Old format number and time unit still works`
+        - `[p]remindme 8h`
         """
         await self._create_reminder(ctx, time, text=text)
 
