@@ -5,6 +5,7 @@ import logging
 import os
 
 import aiohttp
+from dateutil.parser import isoparse
 from redbot.core import Config, VersionInfo, checks, commands
 from redbot.core import version_info as redbot_version
 from redbot.core.utils.chat_formatting import humanize_timedelta
@@ -206,10 +207,14 @@ class UpdateNotify(commands.Cog):
                 status = "Waiting for build"
             setting_display = SettingDisplay()
             setting_display.add("Local Docker tag", self.docker_tag)
-            setting_display.add("Local Docker version", self.docker_version)
-            setting_display.add("Latest Docker commit", commit[0])
-            setting_display.add("Latest Docker commit date", commit[1])
-            setting_display.add("Latest Docker build date", build)
+            setting_display.add("Local Docker version", self.docker_version[:7])
+            setting_display.add("Latest Docker commit", commit[0][:7])
+            setting_display.add(
+                "Latest Docker commit date", commit[1].isoformat(timespec="seconds")
+            )
+            setting_display.add(
+                "Latest Docker build date", build.isoformat(timespec="seconds")
+            )
             setting_display.add("Local Docker Status", status)
             await ctx.send(setting_display)
 
@@ -250,12 +255,7 @@ class UpdateNotify(commands.Cog):
                             url = data["parents"][0]["url"]
                             continue
                         sha = data["sha"]
-                        commit_date_string = data["commit"]["committer"]["date"].rstrip(
-                            "Z"
-                        )
-                        commit_date = datetime.datetime.fromisoformat(
-                            commit_date_string
-                        )
+                        commit_date = isoparse(data["commit"]["committer"]["date"])
                         return sha, commit_date
             except aiohttp.ServerConnectionError:
                 log.warning(
@@ -279,9 +279,7 @@ class UpdateNotify(commands.Cog):
                         data = await resp.json()
                         for docker_image in data["results"]:
                             if docker_image["name"] == tag:
-                                return datetime.datetime.fromisoformat(
-                                    docker_image["last_updated"][:19]
-                                )
+                                return isoparse(docker_image["last_updated"])
                         url = data["next"]
             except aiohttp.ServerConnectionError:
                 log.warning(
