@@ -1,6 +1,7 @@
 """Wikipedia cog for Red-DiscordBot ported by PhasecoreX."""
 import aiohttp
 import discord
+from dateutil.parser import isoparse
 from redbot.core import __version__ as redbot_version
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import error, warning
@@ -69,7 +70,7 @@ class Wikipedia(commands.Cog):
             # action:query options
             "generator": "search",  # Get list of pages by executing a query module
             "redirects": "1",  # Automatically resolve redirects
-            "prop": "extracts|info|pageimages",  # Which properties to get
+            "prop": "extracts|info|pageimages|revisions",  # Which properties to get
             # action:query/generator:search options
             "gsrsearch": f"intitle:{query}",  # Search for page titles
             # action:query/prop:extracts options
@@ -79,6 +80,8 @@ class Wikipedia(commands.Cog):
             "inprop": "url",  # Gives a full URL for each page
             # action:query/prop:pageimages options
             "piprop": "original",  # Return URL of page image, if any
+            # action:query/prop:revisions options
+            "rvprop": "timestamp",  # Return timestamp of last revision
         }
         return payload
 
@@ -93,21 +96,31 @@ class Wikipedia(commands.Cog):
             else None
         )
         url = page_json["fullurl"]
+        timestamp = (
+            isoparse(page_json["revisions"][0]["timestamp"])
+            if "revisions" in page_json
+            and page_json["revisions"]
+            and "timestamp" in page_json["revisions"][0]
+            else None
+        )
 
-        if len(description) > 1500:
-            description = description[:1500].strip()
+        if len(description) > 1000:
+            description = description[:1000].strip()
             description += f"... [(read more)]({url})"
 
         embed = discord.Embed(
             title=f"Wikipedia: {title}",
-            description=f"\u2063\n{description}\n\u2063",
+            description=description,
             color=discord.Color.blue(),
             url=url,
         )
         if image:
             embed.set_image(url=image)
+        text = "Information provided by Wikimedia"
+        if timestamp:
+            text += f"\nPage last edited on {timestamp.strftime('%Y-%m-%d')}, at {timestamp.strftime('%H:%M')} (UTC)"
         embed.set_footer(
-            text="Information provided by Wikimedia",
+            text=text,
             icon_url=(
                 "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Wikimedia-logo.png"
                 "/600px-Wikimedia-logo.png"
