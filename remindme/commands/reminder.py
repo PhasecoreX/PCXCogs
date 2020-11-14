@@ -184,15 +184,15 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
 
         try:
             time_delta = parse_timedelta(time, minimum=timedelta(minutes=1))
-            if not time_delta:
+            if not time_delta and text:
                 # Try again if the user is doing the old "[p]remindme 4 hours ..." format
                 time_unit = text.split()[0]
                 time = f"{time} {time_unit}"
                 text = text[len(time_unit) :].strip()
                 time_delta = parse_timedelta(time, minimum=timedelta(minutes=1))
-                if not time_delta:
-                    await ctx.send_help()
-                    return
+            if not time_delta:
+                await ctx.send_help()
+                return
         except commands.BadArgument as ba:
             await self._send_message(ctx, str(ba))
             return
@@ -217,7 +217,9 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         }
         async with self.config.reminders() as current_reminders:
             current_reminders.append(reminder)
-        await self._send_message(ctx, f"I will remind you that in {future_text}.")
+        await self._send_message(
+            ctx, f"I will remind you of {'that' if text else 'this'} in {future_text}."
+        )
 
         if (
             ctx.guild
