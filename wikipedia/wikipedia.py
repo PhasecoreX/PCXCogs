@@ -33,6 +33,9 @@ class Wikipedia(commands.Cog):
 
             embeds = []
             if "query" in result and "pages" in result["query"]:
+                result["query"]["pages"].sort(
+                    key=lambda unsorted_page: unsorted_page["index"]
+                )
                 for page in result["query"]["pages"]:
                     try:
                         embeds.append(self.generate_embed(page))
@@ -40,7 +43,7 @@ class Wikipedia(commands.Cog):
                             # No embeds here :(
                             await ctx.send(
                                 warning(
-                                    f"I'm not allowed to do embeds here...\n{page['fullurl']}"
+                                    f"I'm not allowed to do embeds here, so here's the first result:\n{page['fullurl']}"
                                 )
                             )
                             return
@@ -61,6 +64,7 @@ class Wikipedia(commands.Cog):
     @staticmethod
     def generate_payload(query: str):
         """Generate the payload for Wikipedia based on a query string."""
+        query_tokens = query.split()
         payload = {
             # Main module
             "action": "query",  # Fetch data from and about MediaWiki
@@ -72,7 +76,7 @@ class Wikipedia(commands.Cog):
             "redirects": "1",  # Automatically resolve redirects
             "prop": "extracts|info|pageimages|revisions",  # Which properties to get
             # action:query/generator:search options
-            "gsrsearch": f"intitle:{query}",  # Search for page titles
+            "gsrsearch": f"intitle:{' intitle:'.join(query_tokens)}",  # Search for page titles
             # action:query/prop:extracts options
             "exintro": "1",  # Return only content before the first section
             "explaintext": "1",  # Return extracts as plain text
