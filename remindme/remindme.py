@@ -184,34 +184,40 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
         to_remove = []
         for reminder in await self.config.reminders():
             if reminder["FUTURE"] <= int(current_time.time()):
+                user = self.bot.get_user(reminder["USER_ID"])
+                if user is None:
+                    # Can't see the user (no shared servers): delete reminder
+                    to_remove.append(reminder)
+                    continue
+
+                embed = discord.Embed(
+                    title=":bell: Reminder! :bell:",
+                    color=await self.bot.get_embed_color(user),
+                )
+                reminder_text = reminder["REMINDER"]
+                if "JUMP_LINK" in reminder:
+                    reminder_text += f"\n\n[original message]({reminder['JUMP_LINK']})"
+                embed.add_field(
+                    name=f"From {reminder['FUTURE_TEXT']} ago:",
+                    value=reminder_text,
+                )
+
                 try:
-                    user = self.bot.get_user(reminder["USER_ID"])
-                    if user is not None:
-                        embed = discord.Embed(
-                            title=":bell: Reminder! :bell:",
-                            color=await self.bot.get_embed_color(user),
-                        )
-                        reminder_text = reminder["REMINDER"]
-                        if "JUMP_LINK" in reminder:
-                            reminder_text += (
-                                f"\n\n[original message]({reminder['JUMP_LINK']})"
-                            )
-                        embed.add_field(
-                            name=f"From {reminder['FUTURE_TEXT']} ago:",
-                            value=reminder_text,
-                        )
-                        await user.send(embed=embed)
-                        total_sent = await self.config.total_sent()
-                        await self.config.total_sent.set(total_sent + 1)
-                    else:
-                        # Can't see the user (no shared servers)
-                        to_remove.append(reminder)
+                    await user.send(embed=embed)
                 except (discord.Forbidden, discord.NotFound):
+                    # Can't send DM's to user: delete reminder
                     to_remove.append(reminder)
                 except discord.HTTPException:
+                    # Something weird happened: retry next time
                     pass
                 else:
+                    total_sent = await self.config.total_sent()
+                    await self.config.total_sent.set(total_sent + 1)
                     to_remove.append(reminder)
-        for reminder in to_remove:
+        if to_remove:
             async with self.config.reminders() as current_reminders:
-                current_reminders.remove(reminder)
+                for reminder in to_remove:
+                    try:
+                        current_reminders.remove(reminder)
+                    except ValueError:
+                        pass
