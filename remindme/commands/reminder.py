@@ -1,20 +1,24 @@
 import asyncio
+import re
+import time as current_time
 from abc import ABC
 from datetime import timedelta
-import time as current_time
 
 import discord
+from redbot.core import commands
 from redbot.core.commands import parse_timedelta
 from redbot.core.utils.chat_formatting import humanize_timedelta
 from redbot.core.utils.predicates import MessagePredicate
 
 from ..abc import CompositeMetaClass, MixinMeta
-from redbot.core import commands
-
-from ..pcx_lib import embed_splitter, delete
+from ..pcx_lib import delete, embed_splitter
 
 
 class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
+    def __init__(self):
+        self.split_all = re.compile(r"(\s+)")
+        self.alpha_num = re.compile(r"[\W_]+")
+
     @commands.group()
     async def reminder(self, ctx: commands.Context):
         """Manage your reminders."""
@@ -65,22 +69,19 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 value=reminder["REMINDER"],
                 inline=False,
             )
-        if ctx.guild is not None:
-            await self._send_message(ctx, "Check your DMs for a full list!")
-        await embed_splitter(embed, author)
+        try:
+            await embed_splitter(embed, author)
+            await ctx.tick()
+        except discord.Forbidden:
+            await self._send_message(ctx, "I can't DM you...")
 
     @reminder.command(aliases=["add"])
-    async def create(self, ctx: commands.Context, time: str, *, text: str = ""):
-        """Create a reminder, with optional reminder [text] for context. Same as [p]remindme.
+    async def create(self, ctx: commands.Context, *, time_and_optional_text: str = ""):
+        """Create a reminder with optional reminder text.
 
-        Accepts: seconds, minutes, hours, days, weeks
-        Examples:
-        - `[p]reminder create 2min Do that thing soon in 2 minutes`
-        - `[p]reminder create 3h40m Do that thing later in 3 hours and 40 minutes`
-        - `[p]reminder create 3 days Old format number and time unit still works`
-        - `[p]reminder create 8h`
+        Same as `[p]remindme`, so check that for usage help.
         """
-        await self._create_reminder(ctx, time, text=text)
+        await self._create_reminder(ctx, time_and_optional_text)
 
     @reminder.group(aliases=["edit"])
     async def modify(self, ctx: commands.Context):
@@ -141,7 +142,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             f"Reminder with ID# **{reminder_id}** has been edited successfully.",
         )
 
-    @reminder.command(aliases=["delete"])
+    @reminder.command(aliases=["delete", "del"])
     async def remove(self, ctx: commands.Context, index: str):
         """Delete a reminder.
 
@@ -153,24 +154,35 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         await self._delete_reminder(ctx, index)
 
     @commands.command()
-    async def remindme(self, ctx: commands.Context, time: str, *, text: str = ""):
-        """Create a reminder, with optional reminder [text] for context.
+    async def remindme(
+        self, ctx: commands.Context, *, time_and_optional_text: str = ""
+    ):
+        """Create a reminder with optional reminder text.
 
-        Accepts: seconds, minutes, hours, days, weeks
+        Either of the following formats are allowed:
+        `[p]remindme [in] <time> [to] [reminder_text]`
+        `[p]remindme [to] [reminder_text] [in] <time>`
+
+        `<time>` supports commas, spaces, and "and":
+        `12h30m`, `6 hours 15 minutes`, `2 weeks, 4 days, and 10 seconds`
+        Accepts seconds, minutes, hours, days, and weeks
+
         Examples:
-        - `[p]remindme 2min Do that thing soon in 2 minutes`
-        - `[p]remindme 3h40m Do that thing later in 3 hours and 40 minutes`
-        - `[p]remindme 3 days Old format number and time unit still works`
-        - `[p]remindme 8h`
+        `[p]remindme in 8min45sec to do that thing`
+        `[p]remindme to water my plants in 2 hours`
+        `[p]remindme in 3 days`
+        `[p]remindme 8h`
         """
-        await self._create_reminder(ctx, time, text=text)
+        await self._create_reminder(ctx, time_and_optional_text)
 
     @commands.command()
     async def forgetme(self, ctx: commands.Context):
         """Remove all of your upcoming reminders."""
         await self._delete_reminder(ctx, "all")
 
-    async def _create_reminder(self, ctx: commands.Context, time: str, text: str):
+    async def _create_reminder(
+        self, ctx: commands.Context, time_and_optional_text: str
+    ):
         """Logic to create a reminder."""
         author = ctx.message.author
         maximum = await self.config.max_user_reminders()
@@ -184,22 +196,85 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
             return
 
+        # Supported:
+        # [p]remindme in {time} to {text}
+        # [p]remindme in {time}    {text}
+        # [p]remindme in {time}
+        # [p]remindme    {time} to {text}
+        # [p]remindme    {time}    {text}
+        # [p]remindme    {time}
+        # [p]remindme to {text} in {time}
+        # [p]remindme to {text}    {time}
+        # [p]remindme    {text} in {time}
+        # [p]remindme    {text}    {time}
+
+        # find the time delta(s) in the text
+        time = ""
+        index = -1
+        time_index_start = -1
+        time_index_end = -1
+        prev_num = ""
+        full_split = self.split_all.split(time_and_optional_text.strip())
+        for chunk in full_split:
+            index += 1
+            if chunk.isspace():
+                continue
+            chunk = self.alpha_num.sub("", chunk)
+            if chunk == "and" and not prev_num:
+                # "and" can appear between time deltas
+                continue
+            if chunk.isdigit():
+                prev_num = chunk
+                if time_index_start == -1:
+                    time_index_start = index
+                continue
+            if chunk.isalpha() and prev_num:
+                chunk = f"{prev_num} {chunk}"
+            try:
+                if parse_timedelta(chunk):
+                    time = f"{time} {chunk}" if time else chunk
+                    if time_index_start == -1:
+                        time_index_start = index
+                    time_index_end = index
+                elif time:
+                    break
+                else:
+                    time_index_start = -1
+            except commands.BadArgument:
+                pass
+            prev_num = ""
+        if not time:
+            await ctx.send_help()
+            return
+        # At this point we have a time string able to be parsed for a time delta,
+        # as well as the starting and ending index of where it appeared in the text
+
+        # detect preceding "in" so it can be removed from text as well
+        if (
+            time_index_start > 1
+            and self.alpha_num.sub("", full_split[time_index_start - 2]) == "in"
+        ):
+            time_index_start -= 2
+        # the time portion of the text must now either be at the beginning or the end
+        if time_index_start != 0 and time_index_end != len(full_split) - 1:
+            await ctx.send_help()
+            return
+        # delete time (and optional "in", and surrounding space) from the text
+        del full_split[
+            max(time_index_start - 1, 0) : min(time_index_end + 2, len(full_split))
+        ]
+        # if the text begins with an optional "to", delete that as well
+        if len(full_split) > 1 and self.alpha_num.sub("", full_split[0]) == "to":
+            del full_split[0:2]
+
+        # parse resulting time delta
         try:
             time_delta = parse_timedelta(time, minimum=timedelta(minutes=1))
-            if not time_delta and text:
-                # Try again if the user is doing the old "[p]remindme 4 hours ..." format
-                time_unit = text.split()[0]
-                time = f"{time} {time_unit}"
-                text = text[len(time_unit) :].strip()
-                time_delta = parse_timedelta(time, minimum=timedelta(minutes=1))
-            if not time_delta:
-                await ctx.send_help()
-                return
         except commands.BadArgument as ba:
             await self._send_message(ctx, str(ba))
             return
-
-        text = text.strip()
+        # recreate cleaned up text
+        text = "".join(full_split).strip()
         if len(text) > 1000:
             await self._send_message(ctx, "Your reminder text is too long.")
             return
