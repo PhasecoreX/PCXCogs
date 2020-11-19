@@ -33,8 +33,6 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         "member_roles": [],
         "associated_text_channel": None,
     }
-    bitrate_min_kbps = 8
-    user_limit_max = 99
 
     def __init__(self, bot):
         """Set up the cog."""
@@ -84,6 +82,20 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                             avc_settings["member_roles"] = [member_role]
                     await self.config.guild_from_id(guild_id).clear_raw("member_role")
             await self.config.schema_version.set(2)
+
+        if schema_version < 3:
+            # Delete bitrate and user limit
+            guild_dict = await self.config.all_guilds()
+            for guild_id, guild_info in guild_dict.items():
+                async with self.config.guild_from_id(
+                    guild_id
+                ).auto_voice_channels() as avcs:
+                    for avc_settings in avcs.values():
+                        if "bitrate" in avc_settings:
+                            del avc_settings["bitrate"]
+                        if "user_limit" in avc_settings:
+                            del avc_settings["user_limit"]
+            await self.config.schema_version.set(3)
 
     async def _cleanup_autorooms(self):
         """Remove non-existent AutoRooms from the config."""
@@ -187,40 +199,60 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 dest_category = guild.get_channel(avc_settings["dest_category_id"])
                 if not source_channel or not dest_category:
                     continue
-                members = source_channel.members
-                for member in members:
+
+                # Gather settings from source channel
+                options = {
+                    "bitrate": source_channel.bitrate,
+                    "user_limit": source_channel.user_limit,
+                }
+                common_overwrites = {
+                    guild.me: discord.PermissionOverwrite(
+                        view_channel=True,
+                        connect=True,
+                        manage_channels=True,
+                        manage_roles=True,
+                        move_members=True,
+                    )
+                }
+                if (
+                    source_channel.overwrites
+                    and guild.default_role in source_channel.overwrites
+                ):
+                    common_overwrites[guild.default_role] = source_channel.overwrites[
+                        guild.default_role
+                    ]
+                member_roles = await self.get_member_roles_for_source(source_channel)
+                for member_role in member_roles or [guild.default_role]:
+                    if member_role not in common_overwrites:
+                        common_overwrites[member_role] = discord.PermissionOverwrite()
+                    common_overwrites[member_role].update(
+                        view_channel=avc_settings["room_type"] == "public",
+                        connect=avc_settings["room_type"] == "public",
+                    )
+                if member_roles:
+                    # We have a member role, deny @everyone
+                    if guild.default_role not in common_overwrites:
+                        common_overwrites[
+                            guild.default_role
+                        ] = discord.PermissionOverwrite()
+                    common_overwrites[guild.default_role].update(
+                        view_channel=False, connect=False
+                    )
+                for role in additional_allowed_roles:
+                    # Add all the mod/admin roles, if required
+                    common_overwrites[role] = discord.PermissionOverwrite(
+                        view_channel=True, connect=True
+                    )
+
+                for member in source_channel.members:
                     overwrites = {
-                        guild.me: discord.PermissionOverwrite(
-                            view_channel=True,
-                            connect=True,
-                            manage_channels=True,
-                            manage_roles=True,
-                            move_members=True,
-                        ),
                         member: discord.PermissionOverwrite(
                             view_channel=True,
                             connect=True,
                             manage_channels=True,
-                        ),
+                        )
                     }
-                    member_roles = await self.get_member_roles_for_source(
-                        source_channel
-                    )
-                    for member_role in member_roles or [guild.default_role]:
-                        overwrites[member_role] = discord.PermissionOverwrite(
-                            view_channel=avc_settings["room_type"] == "public",
-                            connect=avc_settings["room_type"] == "public",
-                        )
-                    if guild.default_role not in overwrites:
-                        # We have a member role, deny @everyone
-                        overwrites[guild.default_role] = discord.PermissionOverwrite(
-                            view_channel=False, connect=False
-                        )
-                    for role in additional_allowed_roles:
-                        # Add all the mod/admin roles, if required
-                        overwrites[role] = discord.PermissionOverwrite(
-                            view_channel=True, connect=True
-                        )
+                    overwrites.update(common_overwrites)
                     new_channel_name = ""
                     if "channel_name_type" in avc_settings:
                         if avc_settings["channel_name_type"] == "game":
@@ -230,18 +262,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                                     break
                     if not new_channel_name:
                         new_channel_name = f"{member.display_name}'s Room"
-                    options = {}
-                    if "bitrate" in avc_settings:
-                        if avc_settings["bitrate"] == "max":
-                            options["bitrate"] = guild.bitrate_limit
-                        else:
-                            options["bitrate"] = self.normalize_bitrate(
-                                avc_settings["bitrate"], guild
-                            )
-                    if "user_limit" in avc_settings:
-                        options["user_limit"] = self.normalize_user_limit(
-                            avc_settings["user_limit"]
-                        )
+                    # Create new AutoRoom
                     new_voice_channel = await guild.create_voice_channel(
                         name=new_channel_name,
                         category=dest_category,
@@ -390,11 +411,3 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             if isinstance(who, discord.Member):
                 return await self.bot.is_mod(who)
         return False
-
-    def normalize_bitrate(self, bitrate: int, guild: discord.Guild):
-        """Return a normalized bitrate value."""
-        return min(max(bitrate, self.bitrate_min_kbps * 1000), guild.bitrate_limit)
-
-    def normalize_user_limit(self, users: int):
-        """Return a normalized user limit value."""
-        return min(max(users, 0), self.user_limit_max)

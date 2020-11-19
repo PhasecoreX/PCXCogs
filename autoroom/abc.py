@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Union, List
+from typing import List, Union
 
 import discord
-from redbot.core import commands, Config
+from redbot.core import Config, commands
 from redbot.core.bot import Red
 
 
@@ -31,12 +31,4 @@ class MixinMeta(ABC):
     async def get_member_roles_for_source(
         self, autoroom_source: discord.VoiceChannel
     ) -> List[discord.Role]:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def normalize_bitrate(self, bitrate: int, guild: discord.Guild):
-        raise NotImplementedError()
-
-    @abstractmethod
-    def normalize_user_limit(self, users: int):
         raise NotImplementedError()

@@ -1,10 +1,9 @@
 """The autoroomset command."""
 from abc import ABC
-from typing import Union
 
 import discord
 from redbot.core import checks, commands
-from redbot.core.utils.chat_formatting import error
+from redbot.core.utils.chat_formatting import error, info
 
 from ..abc import CompositeMetaClass, MixinMeta
 from ..pcx_lib import SettingDisplay, checkmark
@@ -75,24 +74,6 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                         if "channel_name_type" in avc_settings
                         else "Username",
                     )
-                    bitrate_string = ""
-                    if "bitrate" in avc_settings:
-                        if avc_settings["bitrate"] == "max":
-                            bitrate_string = f"Guild maximum ({int(ctx.guild.bitrate_limit // 1000)}kbps)"
-                        else:
-                            bitrate_string = "{}kbps".format(
-                                self.normalize_bitrate(
-                                    avc_settings["bitrate"], ctx.guild
-                                )
-                                // 1000
-                            )
-                    if bitrate_string:
-                        autoroom_section.add("Bitrate", bitrate_string)
-                    if "user_limit" in avc_settings:
-                        autoroom_section.add(
-                            "User Limit",
-                            self.normalize_user_limit(avc_settings["user_limit"]),
-                        )
                     autoroom_sections.append(autoroom_section)
 
         await ctx.send(guild_section.display(*autoroom_sections))
@@ -368,102 +349,6 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
 
     @modify.command()
-    async def bitrate(
-        self,
-        ctx: commands.Context,
-        bitrate_kbps: Union[int, str],
-        autoroom_source: discord.VoiceChannel,
-    ):
-        """Set the default bitrate of an AutoRoom.
-
-        `bitrate_kbps` can either be a number of kilobits per second, or:
-        - `default` - The default bitrate of Discord (usually 64kbps)
-        - `max` - The maximum allowed bitrate for the guild
-        """
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            try:
-                settings = avcs[str(autoroom_source.id)]
-            except KeyError:
-                await ctx.send(
-                    error(
-                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                    )
-                )
-                return
-            if bitrate_kbps in ("default", 0):
-                try:
-                    del settings["bitrate"]
-                except KeyError:
-                    pass
-                await ctx.send(
-                    checkmark(
-                        f"New AutoRooms created by **{autoroom_source.mention}** will have the default bitrate."
-                    )
-                )
-            elif bitrate_kbps == "max":
-                settings["bitrate"] = "max"
-                await ctx.send(
-                    checkmark(
-                        f"New AutoRooms created by **{autoroom_source.mention}** "
-                        "will have the max bitrate allowed by the guild."
-                    )
-                )
-            elif isinstance(bitrate_kbps, int):
-                bitrate_kbps = self.normalize_bitrate(bitrate_kbps * 1000, ctx.guild)
-                settings["bitrate"] = int(bitrate_kbps)
-                await ctx.send(
-                    checkmark(
-                        f"New AutoRooms created by **{autoroom_source.mention}** "
-                        f"will have a bitrate of {int(bitrate_kbps) // 1000}kbps."
-                    )
-                )
-            else:
-                await ctx.send(
-                    error(
-                        "`bitrate_kbps` needs to be a number of kilobits per second, "
-                        "or either of the strings `default` or `max`"
-                    )
-                )
-
-    @modify.command()
-    async def users(
-        self,
-        ctx: commands.Context,
-        user_limit: int,
-        autoroom_source: discord.VoiceChannel,
-    ):
-        """Set the default user limit of an AutoRoom, or 0 for no limit (default)."""
-        user_limit = self.normalize_user_limit(user_limit)
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            try:
-                settings = avcs[str(autoroom_source.id)]
-            except KeyError:
-                await ctx.send(
-                    error(
-                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                    )
-                )
-                return
-            if user_limit == 0:
-                try:
-                    del settings["user_limit"]
-                except KeyError:
-                    pass
-                await ctx.send(
-                    checkmark(
-                        f"New AutoRooms created by **{autoroom_source.mention}** will not have a user limit."
-                    )
-                )
-            else:
-                settings["user_limit"] = user_limit
-                await ctx.send(
-                    checkmark(
-                        f"New AutoRooms created by **{autoroom_source.mention}** "
-                        f"will have a user limit of {user_limit}."
-                    )
-                )
-
-    @modify.command()
     async def text(
         self,
         ctx: commands.Context,
@@ -490,3 +375,34 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     f"{'now' if 'text_channel' in settings else 'no longer'} get their own text channel."
                 )
             )
+
+    @modify.command()
+    async def perms(
+        self,
+        ctx: commands.Context,
+    ):
+        """Learn how to modify default permissions."""
+        await ctx.send(
+            info(
+                "Any permissions set for the `@everyone` role on an AutoRoom Source will be copied to the "
+                "resulting AutoRoom. The only two permissions that will be overwritten are **View Channel** "
+                "and **Connect**, which depend on the AutoRoom Sources public/private setting, as well as "
+                "any member roles enabled for it.\n\n"
+                "Do note that you don't need to set any permissions on the AutoRoom Source channel for this "
+                "cog to work correctly. This functionality is for the advanced user with a complex server "
+                "structure, or for users that want to selectively enable/disable certain functionality "
+                "(e.g. video, voice activity/PTT, invites) in AutoRooms."
+            )
+        )
+
+    @modify.command(aliases=["bitrate", "users"])
+    async def other(
+        self,
+        ctx: commands.Context,
+    ):
+        """Learn how to modify default bitrate and user limits."""
+        await ctx.send(
+            info(
+                "Default bitrate and user limit settings are now copied from the AutoRoom Source."
+            )
+        )
