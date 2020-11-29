@@ -265,7 +265,7 @@ class UpdateNotify(commands.Cog):
                         raise aiohttp.ServerConnectionError
                     data = await resp.json()
                     for run in data["workflow_runs"]:
-                        if run["event"] in valid_events:
+                        if run["event"] in valid_events and run["name"] == "build":
                             commit_sha = run["head_commit"]["id"]
                             commit_message = run["head_commit"]["message"]
                             return commit_sha, commit_message, run["event"] == "push"
