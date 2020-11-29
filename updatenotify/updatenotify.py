@@ -222,7 +222,7 @@ class UpdateNotify(commands.Cog):
             )
         else:
             commit = await self.get_latest_github_actions_build(
-                await self.config.pcx_docker_feature_only
+                await self.config.pcx_docker_feature_only()
             )
             setting_display = SettingDisplay()
             setting_display.add(
