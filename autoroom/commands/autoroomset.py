@@ -78,6 +78,19 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
 
         await ctx.send(guild_section.display(*autoroom_sections))
 
+        if (
+            not ctx.guild.me.guild_permissions.manage_channels
+            or not ctx.guild.me.guild_permissions.move_members
+        ):
+            await ctx.send(
+                error(
+                    "The AutoRoom cog requires me to have the **Manage Channels** and **Move Members** "
+                    "server permissions in order to work correctly. "
+                    "I do not have one or both of these server permissions, so AutoRooms will not be created."
+                )
+            )
+            return
+
     @autoroomset.group()
     async def access(self, ctx: commands.Context):
         """Control access to all AutoRooms."""
@@ -155,6 +168,18 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         room_type: str,
     ):
         """Save the new room settings."""
+        if (
+            not ctx.guild.me.guild_permissions.manage_channels
+            or not ctx.guild.me.guild_permissions.move_members
+        ):
+            await ctx.send(
+                error(
+                    "The AutoRoom cog requires me to have the **Manage Channels** and **Move Members** "
+                    "server permissions in order to work correctly. "
+                    "Try creating the AutoRoom Source again once I have these permissions."
+                )
+            )
+            return
         async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
             vc_id = str(source_voice_channel.id)
             avcs[vc_id] = {}
