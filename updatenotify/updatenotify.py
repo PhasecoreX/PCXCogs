@@ -131,12 +131,12 @@ class UpdateNotify(commands.Cog):
                 "Check Docker image update",
                 "Enabled" if await self.config.check_pcx_docker() else "Disabled",
             )
-            global_section.add(
-                "Docker image check type",
-                "New features only"
-                if await self.config.pcx_docker_feature_only()
-                else "All updates",
-            )
+            # global_section.add(
+            #     "Docker image check type",
+            #     "New features only"
+            #     if await self.config.pcx_docker_feature_only()
+            #     else "All updates",
+            # )
         await ctx.send(global_section)
 
     @updatenotify.command()
