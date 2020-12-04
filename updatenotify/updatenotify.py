@@ -5,9 +5,14 @@ import logging
 import os
 
 import aiohttp
-from redbot.core import Config, VersionInfo, checks, commands
-from redbot.core import version_info as redbot_version
-from redbot.core.utils.chat_formatting import humanize_timedelta, box
+from redbot.core import (
+    Config,
+    VersionInfo,
+    checks,
+    commands,
+    version_info as redbot_version,
+)
+from redbot.core.utils.chat_formatting import box, humanize_timedelta
 
 from .pcx_lib import SettingDisplay, checkmark
 
@@ -192,26 +197,26 @@ class UpdateNotify(commands.Cog):
             )
         )
 
-    @docker.command(name="type")
-    async def docker_type(self, ctx: commands.Context):
-        """Toggle checking for feature updates or all updates."""
-        state = await self.config.pcx_docker_feature_only()
-        state = not state
-        await self.config.pcx_docker_feature_only.set(state)
-        if state:
-            await ctx.send(
-                checkmark(
-                    "UpdateNotify will now only check for Docker image updates "
-                    "that were caused by the codebase being updated (new features/bugfixes)."
-                )
-            )
-        else:
-            await ctx.send(
-                checkmark(
-                    "UpdateNotify will now check for any Docker image updates, "
-                    "even ones caused by the base image being updated."
-                )
-            )
+    # @docker.command(name="type")
+    # async def docker_type(self, ctx: commands.Context):
+    #     """Toggle checking for feature updates or all updates."""
+    #     state = await self.config.pcx_docker_feature_only()
+    #     state = not state
+    #     await self.config.pcx_docker_feature_only.set(state)
+    #     if state:
+    #         await ctx.send(
+    #             checkmark(
+    #                 "UpdateNotify will now only check for Docker image updates "
+    #                 "that were caused by the codebase being updated (new features/bugfixes)."
+    #             )
+    #         )
+    #     else:
+    #         await ctx.send(
+    #             checkmark(
+    #                 "UpdateNotify will now check for any Docker image updates, "
+    #                 "even ones caused by the base image being updated."
+    #             )
+    #         )
 
     @docker.command()
     async def debug(self, ctx: commands.Context):
@@ -256,8 +261,8 @@ class UpdateNotify(commands.Cog):
     @staticmethod
     async def get_latest_github_actions_build(feature_only):
         """Check GitHub for the latest update to phasecorex/red-discordbot."""
-        url = "https://api.github.com/repos/phasecorex/docker-red-discordbot/actions/runs?branch=master&status=success"
-        valid_events = ["push"] if feature_only else ["push", "repository_dispatch"]
+        url = "https://api.github.com/repos/phasecorex/docker-red-discordbot/actions/runs?branch=master&status=success&event=push"
+        valid_events = ["push"]
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.get(url) as resp:
