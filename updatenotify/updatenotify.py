@@ -44,8 +44,10 @@ class UpdateNotify(commands.Cog):
         )
         self.config.register_global(**self.default_global_settings)
 
-        self.docker_version = os.environ.get("PCX_DISCORDBOT_COMMIT")
-        self.notified_docker_version = self.docker_version
+        self.docker_commit = os.environ.get("PCX_DISCORDBOT_COMMIT")
+        self.notified_docker_commit = self.docker_commit
+        self.docker_build = os.environ.get("PCX_DISCORDBOT_BUILD")
+        self.notified_docker_build = self.docker_build
         self.notified_version = redbot_version
 
         self.next_check = datetime.datetime.now()
@@ -126,17 +128,17 @@ class UpdateNotify(commands.Cog):
             "Check Red-DiscordBot update",
             "Enabled" if await self.config.check_red_discordbot() else "Disabled",
         )
-        if self.docker_version:
+        if self.docker_commit:
             global_section.add(
                 "Check Docker image update",
                 "Enabled" if await self.config.check_pcx_docker() else "Disabled",
             )
-            # global_section.add(
-            #     "Docker image check type",
-            #     "New features only"
-            #     if await self.config.pcx_docker_feature_only()
-            #     else "All updates",
-            # )
+            global_section.add(
+                "Docker image check type",
+                "New features only"
+                if await self.config.pcx_docker_feature_only()
+                else "All updates",
+            )
         await ctx.send(global_section)
 
     @updatenotify.command()
@@ -197,48 +199,56 @@ class UpdateNotify(commands.Cog):
             )
         )
 
-    # @docker.command(name="type")
-    # async def docker_type(self, ctx: commands.Context):
-    #     """Toggle checking for feature updates or all updates."""
-    #     state = await self.config.pcx_docker_feature_only()
-    #     state = not state
-    #     await self.config.pcx_docker_feature_only.set(state)
-    #     if state:
-    #         await ctx.send(
-    #             checkmark(
-    #                 "UpdateNotify will now only check for Docker image updates "
-    #                 "that were caused by the codebase being updated (new features/bugfixes)."
-    #             )
-    #         )
-    #     else:
-    #         await ctx.send(
-    #             checkmark(
-    #                 "UpdateNotify will now check for any Docker image updates, "
-    #                 "even ones caused by the base image being updated."
-    #             )
-    #         )
+    @docker.command(name="type")
+    async def docker_type(self, ctx: commands.Context):
+        """Toggle checking for feature updates or all updates."""
+        state = await self.config.pcx_docker_feature_only()
+        state = not state
+        await self.config.pcx_docker_feature_only.set(state)
+        if state:
+            await ctx.send(
+                checkmark(
+                    "UpdateNotify will now only check for Docker image updates "
+                    "that were caused by the codebase being updated (new features/bugfixes)."
+                )
+            )
+        else:
+            await ctx.send(
+                checkmark(
+                    "UpdateNotify will now check for any Docker image updates, "
+                    "including ones caused by the base image being updated (potential security updates)."
+                )
+            )
 
     @docker.command()
     async def debug(self, ctx: commands.Context):
         """Print out debug version numbers."""
-        if not self.docker_version:
+        if not self.docker_commit:
             await ctx.send(
                 "This debug option is only really useful if you're using the phasecorex/red-discordbot Docker image."
             )
         else:
-            commit = await self.get_latest_github_actions_build(
-                await self.config.pcx_docker_feature_only()
-            )
+            build = await self.get_latest_github_actions_build()
             setting_display = SettingDisplay()
-            setting_display.add(
-                "Local Docker Status",
-                "Up to date"
-                if commit[0] == self.docker_version
-                else "Update available",
-            )
-            setting_display.add("Local Docker version hash", self.docker_version[:7])
-            setting_display.add("Latest Docker commit hash", commit[0][:7])
-            setting_display.add("Latest Docker commit message", commit[1])
+            setting_display.add("Local Docker commit hash", self.docker_commit[:7])
+            setting_display.add("Latest Docker commit hash", build["sha"][:7])
+            setting_display.add("Local Docker build number", self.docker_build)
+            setting_display.add("Latest Docker build number", build["id"])
+            if await self.config.pcx_docker_feature_only():
+                setting_display.add(
+                    "Local Docker Status (based on hash)",
+                    "Up to date"
+                    if build["sha"] == self.docker_commit
+                    else "Update available",
+                )
+            else:
+                setting_display.add(
+                    "Local Docker Status (based on build num)",
+                    "Up to date"
+                    if build["id"] == self.docker_build
+                    else "Update available",
+                )
+            setting_display.add("Latest Docker commit message", build["message"])
             await ctx.send(setting_display)
 
     @staticmethod
@@ -259,10 +269,9 @@ class UpdateNotify(commands.Cog):
                 )
 
     @staticmethod
-    async def get_latest_github_actions_build(feature_only):
+    async def get_latest_github_actions_build():
         """Check GitHub for the latest update to phasecorex/red-discordbot."""
-        url = "https://api.github.com/repos/phasecorex/docker-red-discordbot/actions/runs?branch=master&status=success&event=push"
-        valid_events = ["push"]
+        url = "https://api.github.com/repos/phasecorex/docker-red-discordbot/actions/runs?branch=master&status=success"
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.get(url) as resp:
@@ -270,10 +279,18 @@ class UpdateNotify(commands.Cog):
                         raise aiohttp.ServerConnectionError
                     data = await resp.json()
                     for run in data["workflow_runs"]:
-                        if run["event"] in valid_events and run["name"] == "build":
+                        if (
+                            run["event"] in ("push", "repository_dispatch")
+                            and run["name"] == "build"
+                        ):
+                            build_id = str(run["id"])
                             commit_sha = run["head_commit"]["id"]
                             commit_message = run["head_commit"]["message"]
-                            return commit_sha, commit_message, run["event"] == "push"
+                            return {
+                                "sha": commit_sha,
+                                "id": build_id,
+                                "message": commit_message,
+                            }
             except aiohttp.ServerConnectionError:
                 log.warning(
                     "GitHub seems to be having some issues at the moment while checking for the latest Docker commit. "
@@ -284,7 +301,8 @@ class UpdateNotify(commands.Cog):
         """Check for all updates."""
         if manual:
             self.notified_version = redbot_version
-            self.notified_docker_version = self.docker_version
+            self.notified_docker_commit = self.docker_commit
+            self.notified_docker_build = self.docker_build
 
         latest_redbot_version = None
         if await self.config.check_red_discordbot():
@@ -296,29 +314,35 @@ class UpdateNotify(commands.Cog):
             latest_redbot_version and self.notified_version > latest_redbot_version
         )
 
-        update_docker = False
-        if self.docker_version and await self.config.check_pcx_docker():
-            latest_docker_version = await self.get_latest_github_actions_build(
-                await self.config.pcx_docker_feature_only()
-            )
-            if (
-                latest_docker_version
-                and self.notified_docker_version != latest_docker_version[0]
-            ):
-                update_docker = True
+        update_docker_commit = False
+        update_docker_build = False
+        if self.docker_commit and await self.config.check_pcx_docker():
+            latest_docker_build = await self.get_latest_github_actions_build()
+            if latest_docker_build:
+                update_docker_commit = (
+                    self.notified_docker_commit != latest_docker_build["sha"]
+                )
+                update_docker_build = (
+                    self.notified_docker_build != latest_docker_build["id"]
+                )
 
         message = ""
 
+        feature_only = await self.config.pcx_docker_feature_only()
+        update_docker = update_docker_commit or (
+            update_docker_build and not feature_only
+        )
         if update_docker:
-            self.notified_docker_version = latest_docker_version[0]
+            self.notified_docker_commit = latest_docker_build["sha"]
+            self.notified_docker_build = latest_docker_build["id"]
             message += (
                 "There is a newer version of the `phasecorex/red-discordbot` Docker image available!\n"
                 "You will need to use Docker to manually stop, pull, and restart the new image.\n\n"
             )
-            if latest_docker_version[2]:
+            if update_docker_commit:
                 message += (
                     "This update was caused by new code being pushed, with a commit message of:\n"
-                    f"{box(latest_docker_version[1])}\n"
+                    f"{box(latest_docker_build['message'])}\n"
                 )
             else:
                 message += (
@@ -340,7 +364,7 @@ class UpdateNotify(commands.Cog):
                     "When you stop, pull, and restart the new image, I will also "
                     "update myself automatically as I start up."
                 )
-            elif self.docker_version:
+            elif self.docker_commit:
                 message += (
                     "It looks like you're using the `phasecorex/red-discordbot` Docker image!\n"
                     "Simply issue the `[p]restart` command to have me "
@@ -356,7 +380,7 @@ class UpdateNotify(commands.Cog):
                     )
                 else:
                     message += f"You are already running the latest version of Red-DiscordBot ({self.notified_version})"
-            if self.docker_version and await self.config.check_pcx_docker():
+            if self.docker_commit and await self.config.check_pcx_docker():
                 message += (
                     "\nThe `phasecorex/red-discordbot` Docker image is {}up-to-date."
                 ).format("also " if message else "")
