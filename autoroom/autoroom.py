@@ -196,9 +196,14 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         async with self.autoroom_create_lock:
             for avc_id, avc_settings in auto_voice_channels.items():
                 source_channel = guild.get_channel(int(avc_id))
-                dest_category = guild.get_channel(avc_settings["dest_category_id"])
-                if not source_channel or not dest_category:
+                if not source_channel or not source_channel.members:
                     continue
+                dest_category = guild.get_channel(avc_settings["dest_category_id"])
+                if not dest_category:
+                    continue
+                taken_chanel_names = [
+                    voice_channel.name for voice_channel in dest_category.voice_channels
+                ]
 
                 # Gather settings from source channel
                 options = {
@@ -262,9 +267,18 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                                     break
                     if not new_channel_name:
                         new_channel_name = f"{member.display_name}'s Room"
+                    # Check for duplicate names
+                    new_channel_name_deduped = new_channel_name
+                    dedupe_counter = 1
+                    while new_channel_name_deduped in taken_chanel_names:
+                        dedupe_counter += 1
+                        new_channel_name_deduped = (
+                            f"{new_channel_name} ({dedupe_counter})"
+                        )
+                    taken_chanel_names.append(new_channel_name_deduped)
                     # Create new AutoRoom
                     new_voice_channel = await guild.create_voice_channel(
-                        name=new_channel_name,
+                        name=new_channel_name_deduped,
                         category=dest_category,
                         reason="AutoRoom: New AutoRoom needed.",
                         overwrites=overwrites,
@@ -297,7 +311,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                             ),
                         }
                         new_text_channel = await guild.create_text_channel(
-                            name="AutoRoom Text Channel",
+                            name=new_channel_name_deduped,
                             category=dest_category,
                             reason="AutoRoom: New text channel needed.",
                             overwrites=overwrites,
