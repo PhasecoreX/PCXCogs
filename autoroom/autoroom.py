@@ -311,7 +311,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                             ),
                         }
                         new_text_channel = await guild.create_text_channel(
-                            name=new_channel_name_deduped,
+                            name=new_channel_name_deduped.replace("'s ", " "),
                             category=dest_category,
                             reason="AutoRoom: New text channel needed.",
                             overwrites=overwrites,
