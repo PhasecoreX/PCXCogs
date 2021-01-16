@@ -1,7 +1,8 @@
 from abc import ABC
 
+from redbot.core import checks, commands
+
 from ..abc import CompositeMetaClass, MixinMeta
-from redbot.core import commands, checks
 from ..pcx_lib import SettingDisplay, checkmark
 
 
@@ -30,8 +31,23 @@ class RemindMeSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 "Maximum reminders per user", await self.config.max_user_reminders()
             )
 
+            reminders = [
+                reminder["REPEAT"] if "REPEAT" in reminder else None
+                for reminder in await self.config.reminders()
+            ]
+            pending_reminders_message = f"{len(reminders)}"
+            if reminders:
+                repeating_reminders = [repeat for repeat in reminders if repeat]
+                if repeating_reminders:
+                    pending_reminders_message += (
+                        f" ({len(repeating_reminders)} "
+                        f"{'is' if len(repeating_reminders) == 1 else 'are'} repeating)"
+                    )
             stats_section = SettingDisplay("Stats")
-            stats_section.add("Pending reminders", len(await self.config.reminders()))
+            stats_section.add(
+                "Pending reminders",
+                pending_reminders_message,
+            )
             stats_section.add("Total reminders sent", await self.config.total_sent())
 
             await ctx.send(guild_section.display(global_section, stats_section))
