@@ -1,9 +1,10 @@
 """Wikipedia cog for Red-DiscordBot ported by PhasecoreX."""
+import re
+
 import aiohttp
 import discord
 from dateutil.parser import isoparse
-from redbot.core import __version__ as redbot_version
-from redbot.core import commands
+from redbot.core import __version__ as redbot_version, commands
 from redbot.core.utils.chat_formatting import error, warning
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 
@@ -14,6 +15,8 @@ class Wikipedia(commands.Cog):
     """Look up stuff on Wikipedia."""
 
     DISAMBIGUATION_CAT = "Category:All disambiguation pages"
+    WHITESPACE = re.compile(r"[\n\s]{4,}")
+    NEWLINES = re.compile(r"\n+")
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete."""
@@ -24,8 +27,7 @@ class Wikipedia(commands.Cog):
         """Get information from Wikipedia."""
         async with ctx.typing():
             payload = self.generate_payload(query)
-            conn = aiohttp.TCPConnector()
-            async with aiohttp.ClientSession(connector=conn) as session:
+            async with aiohttp.ClientSession() as session:
                 async with session.get(
                     "https://en.wikipedia.org/w/api.php",
                     params=payload,
@@ -67,8 +69,13 @@ class Wikipedia(commands.Cog):
                 error(f"I'm sorry, I couldn't find \"{query}\" on Wikipedia")
             )
         elif len(embeds) == 1:
+            embeds[0].set_author(name=f"Result 1 of 1")
             await ctx.send(embed=embeds[0])
         else:
+            count = 0
+            for embed in embeds:
+                count += 1
+                embed.set_author(name=f"Result {count} of {len(embeds)}")
             await menu(ctx, embeds, DEFAULT_CONTROLS, timeout=60.0)
 
     def generate_payload(self, query: str):
@@ -100,11 +107,10 @@ class Wikipedia(commands.Cog):
         }
         return payload
 
-    @staticmethod
-    def generate_embed(page_json):
+    def generate_embed(self, page_json):
         """Generate the embed for the json page."""
         title = page_json["title"]
-        description = page_json["extract"].strip().replace("\n", "\n\n")
+        description: str = page_json["extract"].strip()
         image = (
             page_json["original"]["source"]
             if "original" in page_json and "source" in page_json["original"]
@@ -119,7 +125,14 @@ class Wikipedia(commands.Cog):
             else None
         )
 
-        if len(description) > 1000:
+        whitespace_location = None
+        whitespace_check_result = self.WHITESPACE.search(description)
+        if whitespace_check_result:
+            whitespace_location = whitespace_check_result.start()
+        if whitespace_location:
+            description = description[:whitespace_location].strip()
+        description = self.NEWLINES.sub("\n\n", description)
+        if len(description) > 1000 or whitespace_location:
             description = description[:1000].strip()
             description += f"... [(read more)]({url})"
 
