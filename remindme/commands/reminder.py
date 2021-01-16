@@ -5,6 +5,7 @@ from abc import ABC
 from datetime import timedelta
 
 import discord
+from discord.ext.commands import BadArgument
 from redbot.core import commands
 from redbot.core.commands import parse_timedelta
 from redbot.core.utils.chat_formatting import humanize_timedelta
@@ -16,8 +17,14 @@ from ..pcx_lib import delete, embed_splitter
 
 class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     def __init__(self):
-        self.split_all = re.compile(r"(\s+)")
-        self.alpha_num = re.compile(r"[\W_]+")
+        self.timedelta_begin = re.compile(
+            r"^(in\s*|every\s*)?(\d+\s*(weeks?|w|days?|d|hours?|hrs|hr?|minutes?|mins?|m(?!o)|seconds?|secs?|s)\b"
+            r"([\s,]*(and)?\s*\d+\s*(weeks?|w|days?|d|hours?|hrs|hr?|minutes?|mins?|m(?!o)|seconds?|secs?|s)\b)*)"
+        )
+        self.timedelta_end = re.compile(
+            r"\b(in\s*|every\s*)?(\d+\s*(weeks?|w|days?|d|hours?|hrs|hr?|minutes?|mins?|m(?!o)|seconds?|secs?|s)\b"
+            r"([\s,]*(and)?\s*\d+\s*(weeks?|w|days?|d|hours?|hrs|hr?|minutes?|mins?|m(?!o)|seconds?|secs?|s)\b)*)$"
+        )
 
     @commands.group()
     async def reminder(self, ctx: commands.Context):
@@ -39,7 +46,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         elif sort == "added":
             pass
         elif sort == "id":
-            to_send.sort(key=lambda reminder_info: reminder["USER_REMINDER_ID"])
+            to_send.sort(key=lambda reminder_info: reminder_info["USER_REMINDER_ID"])
         else:
             await self._send_message(
                 ctx,
@@ -56,22 +63,33 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             color=await ctx.embed_color(),
         )
         embed.set_thumbnail(url=author.avatar_url)
-        current_timestamp = int(current_time.time())
+        current_time_seconds = int(current_time.time())
         for reminder in to_send:
-            delta = reminder["FUTURE"] - current_timestamp
+            delta = reminder["FUTURE"] - current_time_seconds
+            reminder_title = "ID# {} — {}".format(
+                reminder["USER_REMINDER_ID"],
+                "In {}".format(humanize_timedelta(seconds=delta))
+                if delta > 0
+                else "Now!",
+            )
+            if "REPEAT" in reminder and reminder["REPEAT"]:
+                reminder_title = (
+                    f"{reminder_title.rstrip('!')}, "
+                    f"repeating every {humanize_timedelta(seconds=reminder['REPEAT'])}"
+                )
+            reminder_text = reminder["REMINDER"]
+            if "JUMP_LINK" in reminder:
+                reminder_text += f"\n([original message]({reminder['JUMP_LINK']}))"
+            reminder_text = reminder_text or "(no reminder text or jump link)"
             embed.add_field(
-                name="ID# {} — {}".format(
-                    reminder["USER_REMINDER_ID"],
-                    "In {}".format(humanize_timedelta(seconds=delta))
-                    if delta > 0
-                    else "Now!",
-                ),
-                value=reminder["REMINDER"],
+                name=reminder_title,
+                value=reminder_text,
                 inline=False,
             )
         try:
             await embed_splitter(embed, author)
-            await ctx.tick()
+            if ctx.guild:
+                await ctx.tick()
         except discord.Forbidden:
             await self._send_message(ctx, "I can't DM you...")
 
@@ -104,8 +122,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         except commands.BadArgument as ba:
             await self._send_message(ctx, str(ba))
             return
-        seconds = time_delta.total_seconds()
-        future = int(current_time.time() + seconds)
+        future = int(current_time.time() + time_delta.total_seconds())
         future_text = humanize_timedelta(timedelta=time_delta)
 
         new_reminder = old_reminder.copy()
@@ -113,11 +130,56 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         async with self.config.reminders() as current_reminders:
             current_reminders.remove(old_reminder)
             current_reminders.append(new_reminder)
-        await self._send_message(
-            ctx,
-            f"Reminder with ID# **{reminder_id}** has been edited successfully, "
-            f"and will now remind you {future_text} from now.",
+        message = (
+            f"Reminder with ID# **{reminder_id}** will now remind you in {future_text}"
         )
+        if "REPEAT" in new_reminder and new_reminder["REPEAT"]:
+            message += f", repeating every {humanize_timedelta(seconds=new_reminder['REPEAT'])} thereafter."
+        else:
+            message += "."
+        await self._send_message(ctx, message)
+
+    @modify.command()
+    async def repeat(self, ctx: commands.Context, reminder_id: int, *, time: str):
+        """Modify the repeating time of an existing reminder. Pass "0" to <time> in order to disable repeating."""
+        users_reminders = await self.get_user_reminders(ctx.message.author.id)
+        old_reminder = self._get_reminder(users_reminders, reminder_id)
+        if not old_reminder:
+            await self._send_non_existant_msg(ctx, reminder_id)
+            return
+        if time.lower() in ["0", "stop", "none", "false", "no", "cancel", "n"]:
+            new_reminder = old_reminder.copy()
+            new_reminder.update(REPEAT=None)
+            async with self.config.reminders() as current_reminders:
+                current_reminders.remove(old_reminder)
+                current_reminders.append(new_reminder)
+            await self._send_message(
+                ctx,
+                f"Reminder with ID# **{reminder_id}** will not repeat anymore. The final reminder will be sent "
+                f"in {humanize_timedelta(seconds=int(new_reminder['FUTURE'] - current_time.time()))}.",
+            )
+        else:
+            try:
+                time_delta = parse_timedelta(
+                    time, minimum=timedelta(days=1), allowed_units=["weeks", "days"]
+                )
+                if not time_delta:
+                    await ctx.send_help()
+                    return
+            except commands.BadArgument as ba:
+                await self._send_message(ctx, str(ba))
+                return
+            new_reminder = old_reminder.copy()
+            new_reminder.update(REPEAT=int(time_delta.total_seconds()))
+            async with self.config.reminders() as current_reminders:
+                current_reminders.remove(old_reminder)
+                current_reminders.append(new_reminder)
+            await self._send_message(
+                ctx,
+                f"Reminder with ID# **{reminder_id}** will now remind you "
+                f"every {humanize_timedelta(timedelta=time_delta)}, with the first reminder being sent "
+                f"in {humanize_timedelta(seconds=int(new_reminder['FUTURE'] - current_time.time()))}.",
+            )
 
     @modify.command()
     async def text(self, ctx: commands.Context, reminder_id: int, *, text: str):
@@ -165,13 +227,18 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
 
         `<time>` supports commas, spaces, and "and":
         `12h30m`, `6 hours 15 minutes`, `2 weeks, 4 days, and 10 seconds`
-        Accepts seconds, minutes, hours, days, and weeks
+        Accepts seconds, minutes, hours, days, and weeks.
+
+        You can also add `every <repeat_time>` to the command for repeating reminders.
+        `<repeat_time>` accepts days and weeks only, but otherwise is the same as `<time>`.
 
         Examples:
         `[p]remindme in 8min45sec to do that thing`
         `[p]remindme to water my plants in 2 hours`
         `[p]remindme in 3 days`
         `[p]remindme 8h`
+        `[p]remindme every 1 week to take out the trash`
+        `[p]remindme in 1 hour to drink some water every 1 day`
         """
         await self._create_reminder(ctx, time_and_optional_text)
 
@@ -196,107 +263,47 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
             return
 
-        # Supported:
-        # [p]remindme in {time} to {text}
-        # [p]remindme in {time}    {text}
-        # [p]remindme in {time}
-        # [p]remindme    {time} to {text}
-        # [p]remindme    {time}    {text}
-        # [p]remindme    {time}
-        # [p]remindme to {text} in {time}
-        # [p]remindme to {text}    {time}
-        # [p]remindme    {text} in {time}
-        # [p]remindme    {text}    {time}
-
-        # find the time delta(s) in the text
-        time = ""
-        index = -1
-        time_index_start = -1
-        time_index_end = -1
-        prev_num = ""
-        full_split = self.split_all.split(time_and_optional_text.strip())
-        for chunk in full_split:
-            index += 1
-            if chunk.isspace():
-                continue
-            chunk = self.alpha_num.sub("", chunk)
-            if chunk == "and" and not prev_num:
-                # "and" can appear between time deltas
-                continue
-            if chunk.isdigit():
-                prev_num = chunk
-                if time_index_start == -1:
-                    time_index_start = index
-                continue
-            if chunk.isalpha() and prev_num:
-                chunk = f"{prev_num} {chunk}"
-            try:
-                if parse_timedelta(chunk):
-                    time = f"{time} {chunk}" if time else chunk
-                    if time_index_start == -1:
-                        time_index_start = index
-                    time_index_end = index
-                elif time:
-                    break
-                else:
-                    time_index_start = -1
-            except commands.BadArgument:
-                pass
-            prev_num = ""
-        if not time:
-            await ctx.send_help()
-            return
-        # At this point we have a time string able to be parsed for a time delta,
-        # as well as the starting and ending index of where it appeared in the text
-
-        # detect preceding "in" so it can be removed from text as well
-        if (
-            time_index_start > 1
-            and self.alpha_num.sub("", full_split[time_index_start - 2]) == "in"
-        ):
-            time_index_start -= 2
-        # the time portion of the text must now either be at the beginning or the end
-        if time_index_start != 0 and time_index_end != len(full_split) - 1:
-            await ctx.send_help()
-            return
-        # delete time (and optional "in", and surrounding space) from the text
-        del full_split[
-            max(time_index_start - 1, 0) : min(time_index_end + 2, len(full_split))
-        ]
-        # if the text begins with an optional "to", delete that as well
-        if len(full_split) > 1 and self.alpha_num.sub("", full_split[0]) == "to":
-            del full_split[0:2]
-
-        # parse resulting time delta
         try:
-            time_delta = parse_timedelta(time, minimum=timedelta(minutes=1))
+            (
+                reminder_time,
+                reminder_time_repeat,
+                reminder_text,
+            ) = self._process_reminder_text(time_and_optional_text.strip())
         except commands.BadArgument as ba:
             await self._send_message(ctx, str(ba))
             return
-        # recreate cleaned up text
-        text = "".join(full_split).strip()
-        if len(text) > 1000:
-            await self._send_message(ctx, "Your reminder text is too long.")
+        if not reminder_time:
+            await ctx.send_help()
             return
 
-        seconds = time_delta.total_seconds()
-        future = int(current_time.time() + seconds)
-        future_text = humanize_timedelta(timedelta=time_delta)
         next_reminder_id = self.get_next_user_reminder_id(users_reminders)
+        repeat = (
+            int(reminder_time_repeat.total_seconds()) if reminder_time_repeat else None
+        )
+        future = int(current_time.time() + reminder_time.total_seconds())
+        future_text = humanize_timedelta(timedelta=reminder_time)
 
         reminder = {
             "USER_REMINDER_ID": next_reminder_id,
             "USER_ID": author.id,
-            "REMINDER": text,
+            "REMINDER": reminder_text,
+            "REPEAT": repeat,
             "FUTURE": future,
             "FUTURE_TEXT": future_text,
             "JUMP_LINK": ctx.message.jump_url,
         }
         async with self.config.reminders() as current_reminders:
             current_reminders.append(reminder)
-        await self._send_message(
-            ctx, f"I will remind you of {'that' if text else 'this'} in {future_text}."
-        )
+        message = f"I will remind you of {'that' if reminder_text else 'this'} "
+        if repeat:
+            message += f"every {humanize_timedelta(timedelta=reminder_time_repeat)}"
+        else:
+            message += f"in {future_text}"
+        if repeat and reminder_time_repeat != reminder_time:
+            message += f", with the first reminder in {future_text}."
+        else:
+            message += "."
+        await self._send_message(ctx, message)
 
         if (
             ctx.guild
@@ -304,13 +311,105 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             and ctx.channel.permissions_for(ctx.me).add_reactions
         ):
             query: discord.Message = await ctx.send(
-                "If anyone else would like to be reminded as well, click the bell below!"
+                f"If anyone else would like {'these reminders' if repeat else 'to be reminded'} as well, "
+                "click the bell below!"
             )
             self.me_too_reminders[query.id] = reminder
             await query.add_reaction(self.reminder_emoji)
             await asyncio.sleep(30)
             await delete(query)
             del self.me_too_reminders[query.id]
+
+    def _process_reminder_text(self, reminder_text):
+        """Completely process the given reminder text into timedeltas, removing them from the reminder text.
+
+        Takes all "every {time_repeat}", "in {time}", and "{time}" from the beginning of the reminder_text.
+        At most one instance of "every {time_repeat}" and one instance of "in {time}" or "{time}" will be consumed.
+        If the parser runs into a timedelta (in or every) that has already been parsed, parsing stops.
+        Same process is then repeated from the end of the string.
+
+        If an "every" time is provided but no "in" time, the "every" time will be copied over to the "in" time.
+        """
+
+        reminder_time = None
+        reminder_time_repeat = None
+        # find the time delta(s) at the beginning of the text
+        (
+            reminder_time,
+            reminder_time_repeat,
+            reminder_text,
+        ) = self._process_reminder_text_from_ends(
+            reminder_time, reminder_time_repeat, reminder_text, self.timedelta_begin
+        )
+        # find the time delta(s) at the end of the text
+        (
+            reminder_time,
+            reminder_time_repeat,
+            reminder_text,
+        ) = self._process_reminder_text_from_ends(
+            reminder_time, reminder_time_repeat, reminder_text, self.timedelta_end
+        )
+        # cleanup
+        reminder_time = reminder_time or reminder_time_repeat
+        if len(reminder_text) > 1 and reminder_text[0:2] == "to":
+            reminder_text = reminder_text[2:].strip()
+        return reminder_time, reminder_time_repeat, reminder_text
+
+    def _process_reminder_text_from_ends(
+        self, reminder_time, reminder_time_repeat, reminder_text, search_regex
+    ):
+        """Repeatedly regex search and modify the reminder_text looking for all instances of timedeltas."""
+        while regex_result := search_regex.search(reminder_text):
+            repeating = regex_result[1] and regex_result[1].strip() == "every"
+            if (repeating and reminder_time_repeat) or (
+                not repeating and reminder_time
+            ):
+                break
+            parsed_timedelta = self._parse_timedelta(regex_result[2], repeating)
+            if not parsed_timedelta:
+                break
+            reminder_text = (
+                reminder_text[0 : regex_result.span()[0]]
+                + reminder_text[regex_result.span()[1] + 1 :]
+            ).strip()
+            if repeating:
+                reminder_time_repeat = parsed_timedelta
+            else:
+                reminder_time = parsed_timedelta
+        return reminder_time, reminder_time_repeat, reminder_text
+
+    @staticmethod
+    def _parse_timedelta(timedelta_string, repeating):
+        """Parse a timedelta, taking into account if it is a repeating timedelta (day minimum) or not."""
+        result = None
+        testing_text = ""
+        for chunk in timedelta_string.split():
+            if chunk == "and":
+                continue
+            if chunk.isdigit():
+                testing_text += chunk
+                continue
+            testing_text += chunk.rstrip(",")
+            if repeating:
+                try:
+                    parsed = parse_timedelta(
+                        testing_text,
+                        minimum=timedelta(days=1),
+                        allowed_units=["weeks", "days"],
+                    )
+                except commands.BadArgument as ba:
+                    orig_message = str(ba)[0].lower() + str(ba)[1:]
+                    raise BadArgument(
+                        f"For the repeating portion of this reminder, {orig_message}. "
+                        "You must only use `days` or `weeks` when dealing with repeating reminders."
+                    )
+            else:
+                parsed = parse_timedelta(testing_text, minimum=timedelta(minutes=1))
+            if parsed != result:
+                result = parsed
+            else:
+                return None
+        return result
 
     async def _delete_reminder(self, ctx: commands.Context, index: str):
         """Logic to delete reminders."""

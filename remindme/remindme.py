@@ -5,6 +5,7 @@ import time as current_time
 
 import discord
 from redbot.core import Config, commands
+from redbot.core.utils.chat_formatting import humanize_timedelta
 
 from .abc import CompositeMetaClass
 from .commands import Commands
@@ -25,6 +26,7 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
     default_guild_settings = {
         "me_too": False,
     }
+    SEND_DELAY_SECONDS = 30
 
     def __init__(self, bot):
         """Set up the cog."""
@@ -133,9 +135,20 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
             )
             async with self.config.reminders() as current_reminders:
                 current_reminders.append(reminder)
-            await member.send(
-                f"Hello! I will remind you of that in {reminder['FUTURE_TEXT']}."
-            )
+            message = "Hello! I will also send you "
+            if reminder["REPEAT"]:
+                human_repeat = humanize_timedelta(seconds=reminder["REPEAT"])
+                message += f"those reminders every {human_repeat}"
+                if human_repeat != reminder["FUTURE_TEXT"]:
+                    message += (
+                        f", with the first reminder in {reminder['FUTURE_TEXT']}."
+                    )
+                else:
+                    message += "."
+            else:
+                message += f"that reminder in {reminder['FUTURE_TEXT']}."
+
+            await member.send(message)
         except KeyError:
             return
 
@@ -183,22 +196,33 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
         """Send reminders that have expired."""
         to_remove = []
         for reminder in await self.config.reminders():
-            if reminder["FUTURE"] <= int(current_time.time()):
+            current_time_seconds = int(current_time.time())
+            if reminder["FUTURE"] <= current_time_seconds:
                 user = self.bot.get_user(reminder["USER_ID"])
                 if user is None:
                     # Can't see the user (no shared servers): delete reminder
                     to_remove.append(reminder)
                     continue
 
+                delay = current_time_seconds - reminder["FUTURE"]
                 embed = discord.Embed(
-                    title=":bell: Reminder! :bell:",
+                    title=f":bell:{' (Delayed)' if delay > self.SEND_DELAY_SECONDS else ''} Reminder! :bell:",
                     color=await self.bot.get_embed_color(user),
                 )
+                if delay > self.SEND_DELAY_SECONDS:
+                    embed.set_footer(
+                        text=f"This was supposed to send {humanize_timedelta(seconds=delay)} ago.\n"
+                        "I might be having network or server issues, or perhaps I just started up.\n"
+                        "Sorry about that!"
+                    )
+                embed_name = f"From {reminder['FUTURE_TEXT']} ago:"
+                if "REPEAT" in reminder and reminder["REPEAT"]:
+                    embed_name = f"Repeating reminder every {humanize_timedelta(seconds=max(reminder['REPEAT'], 86400))}:"
                 reminder_text = reminder["REMINDER"]
                 if "JUMP_LINK" in reminder:
                     reminder_text += f"\n\n[original message]({reminder['JUMP_LINK']})"
                 embed.add_field(
-                    name=f"From {reminder['FUTURE_TEXT']} ago:",
+                    name=embed_name,
                     value=reminder_text,
                 )
 
@@ -218,6 +242,18 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
             async with self.config.reminders() as current_reminders:
                 for reminder in to_remove:
                     try:
+                        new_reminder = None
+                        if "REPEAT" in reminder and reminder["REPEAT"]:
+                            new_reminder = reminder.copy()
+                            if new_reminder["REPEAT"] < 86400:
+                                new_reminder["REPEAT"] = 86400
+                            while new_reminder["FUTURE"] <= int(current_time.time()):
+                                new_reminder["FUTURE"] += new_reminder["REPEAT"]
+                            new_reminder["FUTURE_TEXT"] = humanize_timedelta(
+                                seconds=new_reminder["REPEAT"]
+                            )
                         current_reminders.remove(reminder)
+                        if new_reminder:
+                            current_reminders.append(new_reminder)
                     except ValueError:
                         pass
