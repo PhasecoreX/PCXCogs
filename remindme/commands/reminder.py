@@ -17,13 +17,33 @@ from ..pcx_lib import delete, embed_splitter
 
 class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     def __init__(self):
+        optional_in_every = r"(in\s+|every\s+)?"
+        amount_and_time = r"\d+\s*(weeks?|w|days?|d|hours?|hrs|hr?|minutes?|mins?|m(?!o)|seconds?|secs?|s)"
+        optional_comma_space_and = r"[\s,]*(and)?\s*"
+
         self.timedelta_begin = re.compile(
-            r"^(in\s*|every\s*)?(\d+\s*(weeks?|w|days?|d|hours?|hrs|hr?|minutes?|mins?|m(?!o)|seconds?|secs?|s)\b"
-            r"([\s,]*(and)?\s*\d+\s*(weeks?|w|days?|d|hours?|hrs|hr?|minutes?|mins?|m(?!o)|seconds?|secs?|s)\b)*)"
+            r"^"
+            + optional_in_every
+            + r"("
+            + amount_and_time
+            + r"("
+            + optional_comma_space_and
+            + amount_and_time
+            + r")*"
+            + r")"
+            + r"\b"
         )
         self.timedelta_end = re.compile(
-            r"\b(in\s*|every\s*)?(\d+\s*(weeks?|w|days?|d|hours?|hrs|hr?|minutes?|mins?|m(?!o)|seconds?|secs?|s)\b"
-            r"([\s,]*(and)?\s*\d+\s*(weeks?|w|days?|d|hours?|hrs|hr?|minutes?|mins?|m(?!o)|seconds?|secs?|s)\b)*)$"
+            r"\b"
+            + optional_in_every
+            + r"("
+            + amount_and_time
+            + r"("
+            + optional_comma_space_and
+            + amount_and_time
+            + r")*"
+            + r")"
+            + r"$"
         )
 
     @commands.group()
