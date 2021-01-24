@@ -117,21 +117,25 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                         f"AutoRoom - {source_channel.name}"
                     )
                     overwritten_perms = False
-                    for testing_overwrite in source_channel.overwrites[
-                        ctx.guild.default_role
-                    ]:
-                        if testing_overwrite[1] is not None:
-                            perm = getattr(
-                                ctx.guild.me.guild_permissions, testing_overwrite[0]
-                            )
-                            has_all_perms = has_all_perms and perm
-                            autoroom_section.add(
-                                testing_overwrite[0],
-                                perm,
-                            )
-                            overwritten_perms = True
-                    if overwritten_perms:
-                        autoroom_sections.append(autoroom_section)
+                    if (
+                        source_channel.overwrites
+                        and ctx.guild.default_role in source_channel.overwrites
+                    ):
+                        for testing_overwrite in source_channel.overwrites[
+                            ctx.guild.default_role
+                        ]:
+                            if testing_overwrite[1] is not None:
+                                perm = getattr(
+                                    ctx.guild.me.guild_permissions, testing_overwrite[0]
+                                )
+                                has_all_perms = has_all_perms and perm
+                                autoroom_section.add(
+                                    testing_overwrite[0],
+                                    perm,
+                                )
+                                overwritten_perms = True
+                        if overwritten_perms:
+                            autoroom_sections.append(autoroom_section)
 
         await ctx.send(permission_section.display(*autoroom_sections))
 

@@ -446,7 +446,11 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             async with self.config.guild(guild).auto_voice_channels() as avcs:
                 for avc_id, avc_settings in avcs.items():
                     source_channel = guild.get_channel(int(avc_id))
-                    if source_channel:
+                    if (
+                        source_channel
+                        and source_channel.overwrites
+                        and guild.default_role in source_channel.overwrites
+                    ):
                         for testing_overwrite in source_channel.overwrites[
                             guild.default_role
                         ]:
