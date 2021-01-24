@@ -181,10 +181,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
 
     async def _process_autoroom_create(self, guild, auto_voice_channels):
         """Create a voice channel for each member in an AutoRoom Source channel."""
-        if (
-            not guild.me.guild_permissions.manage_channels
-            or not guild.me.guild_permissions.move_members
-        ):
+        if not await self.check_required_perms(guild):
             return
         additional_allowed_roles = []
         if await self.config.guild(guild).mod_access():
@@ -215,7 +212,6 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                         view_channel=True,
                         connect=True,
                         manage_channels=True,
-                        manage_roles=True,
                         move_members=True,
                     )
                 }
@@ -223,6 +219,17 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                     source_channel.overwrites
                     and guild.default_role in source_channel.overwrites
                 ):
+                    enough_perms = True
+                    for testing_overwrite in source_channel.overwrites[
+                        guild.default_role
+                    ]:
+                        if testing_overwrite[1] is not None and not getattr(
+                            guild.me.guild_permissions, testing_overwrite[0]
+                        ):
+                            enough_perms = False
+                            break
+                    if not enough_perms:
+                        continue
                     common_overwrites[guild.default_role] = source_channel.overwrites[
                         guild.default_role
                     ]
@@ -301,7 +308,6 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                             guild.me: discord.PermissionOverwrite(
                                 read_messages=True,
                                 manage_channels=True,
-                                manage_roles=True,
                                 manage_messages=True,
                             ),
                             member: discord.PermissionOverwrite(
@@ -425,3 +431,27 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             if isinstance(who, discord.Member):
                 return await self.bot.is_mod(who)
         return False
+
+    async def check_required_perms(
+        self, guild: discord.guild, also_check_autorooms: bool = False
+    ):
+        result = (
+            guild.me.guild_permissions.view_channel
+            and guild.me.guild_permissions.manage_channels
+            and guild.me.guild_permissions.manage_roles
+            and guild.me.guild_permissions.connect
+            and guild.me.guild_permissions.move_members
+        )
+        if also_check_autorooms:
+            async with self.config.guild(guild).auto_voice_channels() as avcs:
+                for avc_id, avc_settings in avcs.items():
+                    source_channel = guild.get_channel(int(avc_id))
+                    if source_channel:
+                        for testing_overwrite in source_channel.overwrites[
+                            guild.default_role
+                        ]:
+                            if testing_overwrite[1] is not None and not getattr(
+                                guild.me.guild_permissions, testing_overwrite[0]
+                            ):
+                                return False
+        return result

@@ -78,15 +78,71 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
 
         await ctx.send(guild_section.display(*autoroom_sections))
 
-        if (
-            not ctx.guild.me.guild_permissions.manage_channels
-            or not ctx.guild.me.guild_permissions.move_members
-        ):
+        if not await self.check_required_perms(ctx.guild, also_check_autorooms=True):
             await ctx.send(
                 error(
-                    "The AutoRoom cog requires me to have the **Manage Channels** and **Move Members** "
-                    "server permissions in order to work correctly. "
-                    "I do not have one or both of these server permissions, so AutoRooms will not be created."
+                    "It looks like I am missing one or more required server permissions. "
+                    "Until I have them, the AutoRoom cog may not function properly. "
+                    "Check `[p]autoroomset permissions` for more information."
+                )
+            )
+            return
+
+    @autoroomset.command(aliases=["perms"])
+    async def permissions(self, ctx: commands.Context):
+        """Check that the bot has all needed permissions."""
+        has_all_perms = await self.check_required_perms(ctx.guild)
+
+        permission_section = SettingDisplay("Permission Check")
+        permission_section.add(
+            "View channels", ctx.guild.me.guild_permissions.view_channel
+        )
+        permission_section.add(
+            "Manage channels", ctx.guild.me.guild_permissions.manage_channels
+        )
+        permission_section.add(
+            "Manage roles", ctx.guild.me.guild_permissions.manage_roles
+        )
+        permission_section.add("Connect", ctx.guild.me.guild_permissions.connect)
+        permission_section.add(
+            "Move members", ctx.guild.me.guild_permissions.move_members
+        )
+
+        autoroom_sections = []
+        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
+            for avc_id, avc_settings in avcs.items():
+                source_channel = ctx.guild.get_channel(int(avc_id))
+                if source_channel:
+                    autoroom_section = SettingDisplay(
+                        f"AutoRoom - {source_channel.name}"
+                    )
+                    overwritten_perms = False
+                    for testing_overwrite in source_channel.overwrites[
+                        ctx.guild.default_role
+                    ]:
+                        if testing_overwrite[1] is not None:
+                            perm = getattr(
+                                ctx.guild.me.guild_permissions, testing_overwrite[0]
+                            )
+                            has_all_perms = has_all_perms and perm
+                            autoroom_section.add(
+                                testing_overwrite[0],
+                                perm,
+                            )
+                            overwritten_perms = True
+                    if overwritten_perms:
+                        autoroom_sections.append(autoroom_section)
+
+        await ctx.send(permission_section.display(*autoroom_sections))
+
+        if not has_all_perms:
+            await ctx.send(
+                error(
+                    "It looks like I am missing one or more required server permissions. "
+                    "Until I have them, the AutoRoom cog may not function properly.\n\n"
+                    "In the case of missing AutoRoom Source specific permissions, only those channels "
+                    "will not work. This can be fixed by either removing `@everyone` permission overrides "
+                    "in the AutoRoom Source, or by giving me those permissions server-wide."
                 )
             )
             return
@@ -168,14 +224,11 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         room_type: str,
     ):
         """Save the new room settings."""
-        if (
-            not ctx.guild.me.guild_permissions.manage_channels
-            or not ctx.guild.me.guild_permissions.move_members
-        ):
+        if not await self.check_required_perms(ctx.guild):
             await ctx.send(
                 error(
-                    "The AutoRoom cog requires me to have the **Manage Channels** and **Move Members** "
-                    "server permissions in order to work correctly. "
+                    "I am missing a permission that the AutoRoom cog requires me to have. "
+                    "Check `[p]autoroomset permissions` for more details. "
                     "Try creating the AutoRoom Source again once I have these permissions."
                 )
             )
@@ -410,7 +463,9 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         await ctx.send(
             info(
                 "Any permissions set for the `@everyone` role on an AutoRoom Source will be copied to the "
-                "resulting AutoRoom. The only two permissions that will be overwritten are **View Channel** "
+                "resulting AutoRoom. Regardless if the permission in the AutoRoom Source is allowed or denied, "
+                "the bot itself will need to have this permission allowed server-wide (with the roles it has). "
+                "The only two permissions that will be overwritten are **View Channel** "
                 "and **Connect**, which depend on the AutoRoom Sources public/private setting, as well as "
                 "any member roles enabled for it.\n\n"
                 "Do note that you don't need to set any permissions on the AutoRoom Source channel for this "
