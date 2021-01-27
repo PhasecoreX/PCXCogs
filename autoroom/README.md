@@ -1,5 +1,5 @@
 # AutoRoom Instructions
-[p] = prefix
+[p] = prefix.
 Use [p]bancheckset autocheck set to set the channel that autocheck results go to, then you need to enable services with [p]bancheckset service
 
 [p]bancheckset settings will give you an overview of what's enabled and not.
