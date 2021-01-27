@@ -5,7 +5,7 @@ from typing import Union
 import discord
 from redbot.core import Config, checks, commands
 from redbot.core.utils import AsyncIter
-from redbot.core.utils.chat_formatting import error, info
+from redbot.core.utils.chat_formatting import box, error, info
 
 from .pcx_lib import checkmark, delete
 
@@ -204,11 +204,12 @@ class ReactChannel(commands.Cog):
     @reactchannelset.group()
     async def emoji(self, ctx: commands.Context):
         """Manage emojis used for ReactChannels."""
-        upvote = await self._get_emoji(ctx.guild, "upvote")
-        downvote = await self._get_emoji(ctx.guild, "downvote")
-        message = f"Upvote emoji: {upvote if upvote else 'None'}\n"
-        message += f"Downvote emoji: {downvote if downvote else 'None'}"
-        await ctx.send(message)
+        if not ctx.invoked_subcommand:
+            upvote = await self._get_emoji(ctx.guild, "upvote")
+            downvote = await self._get_emoji(ctx.guild, "downvote")
+            message = f"Upvote emoji: {upvote if upvote else 'None'}\n"
+            message += f"Downvote emoji: {downvote if downvote else 'None'}"
+            await ctx.send(message)
 
     @emoji.command(name="upvote")
     async def set_upvote(self, ctx: commands.Context, emoji: Union[str, int]):
@@ -255,13 +256,37 @@ class ReactChannel(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    async def karma(self, ctx: commands.Context):
-        """View your total karma for upvoted messages in this guild."""
-        member = self.config.member(ctx.message.author)
-        total_karma = await member.karma()
-        await ctx.send(
-            f"{ctx.message.author.mention}, you have **{total_karma}** message karma"
+    async def karma(self, ctx: commands.Context, member: discord.Member = None):
+        """View your (or another users) total karma for messages in this guild."""
+        prefix = f"{ctx.message.author.mention}, you have"
+        if member and member != ctx.message.author:
+            prefix = f"{member.display_name} has"
+        else:
+            member = ctx.message.author
+        member_config = self.config.member(member)
+        total_karma = await member_config.karma()
+        await ctx.send(f"{prefix} **{total_karma}** message karma")
+
+    @commands.command()
+    @commands.guild_only()
+    async def karmatop(self, ctx: commands.Context):
+        """View the members in this server with the highest total karma."""
+        all_guild_members_dict = await self.config.all_members(ctx.guild)
+        all_guild_members_sorted_list = sorted(
+            all_guild_members_dict.items(),
+            key=lambda x: x[1]["karma"],
+            reverse=True,
         )
+        added = 0  # We want the top 10 that are still in the guild
+        message = "Rank | Name                             | Karma\n-----------------------------------------------\n"
+        for data in all_guild_members_sorted_list:
+            member = ctx.guild.get_member(data[0])
+            if member:
+                added += 1
+                message += f"{str(added).rjust(3)}  | {member.display_name[:32].ljust(32)} | {data[1]['karma']}\n"
+                if added > 14:
+                    break
+        await ctx.send(box(message))
 
     @commands.command()
     @commands.guild_only()
@@ -269,7 +294,9 @@ class ReactChannel(commands.Cog):
         """View this guilds upvote reaction."""
         upvote = await self._get_emoji(ctx.guild, "upvote")
         if upvote:
-            await ctx.send(f"This guilds upvote emoji is {upvote}")
+            await ctx.send(
+                f"This guilds upvote emoji is {upvote}. React to other members messages to give them karma!"
+            )
         else:
             await ctx.send("This guild does not have an upvote emoji set")
 
@@ -279,7 +306,9 @@ class ReactChannel(commands.Cog):
         """View this guilds downvote reaction."""
         downvote = await self._get_emoji(ctx.guild, "downvote")
         if downvote:
-            await ctx.send(f"This guilds downvote emoji is {downvote}")
+            await ctx.send(
+                f"This guilds downvote emoji is {downvote}. React to other members messages to remove karma."
+            )
         else:
             await ctx.send("This guild does not have a downvote emoji set")
 
