@@ -20,10 +20,12 @@ __author__ = "PhasecoreX"
 class BanCheck(commands.Cog):
     """Look up users on various ban lists.
 
-    Admins can lookup users on all supported and enabled global banning
-    services at the same time. Admins can also have all new users
-    automatically checked when they join the guild, and optionally
-    banned if they are found on a list.
+    This cog allows server admins to check their members against multiple external ban lists.
+    It can also automatically check new members that join the server,
+    and optionally ban them if they appear in a list.
+
+    For a quick rundown on how to get started with this cog,
+    check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/bancheck/README.md)
     """
 
     default_global_settings = {"schema_version": 0, "total_bans": 0}
@@ -109,7 +111,11 @@ class BanCheck(commands.Cog):
     @commands.group()
     @checks.is_owner()
     async def banchecksetglobal(self, ctx: commands.Context):
-        """Configure global BanCheck settings."""
+        """Configure global BanCheck settings.
+
+        For a quick rundown on how to get started with this cog,
+        check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/bancheck/README.md)
+        """
         pass
 
     @banchecksetglobal.command(name="settings")
@@ -187,7 +193,11 @@ class BanCheck(commands.Cog):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
     async def bancheckset(self, ctx: commands.Context):
-        """Configure BanCheck for this server."""
+        """Configure BanCheck for this server.
+
+        For a quick rundown on how to get started with this cog,
+        check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/bancheck/README.md)
+        """
         pass
 
     @bancheckset.command()
@@ -230,7 +240,6 @@ class BanCheck(commands.Cog):
         )
         # Service status
         enabled_services = ""
-        disabled_services = ""
         for service_name in self.all_supported_services:
             if config_services.get(service_name, {}).get(
                 "enabled", False
@@ -239,21 +248,15 @@ class BanCheck(commands.Cog):
                 if config_services.get(service_name, {}).get("autoban", False):
                     enabled_services += " (AutoBan enabled)"
                 enabled_services += "\n"
-            else:
-                disabled_services += f"**{self.get_nice_service_name(service_name)}**"
-                if not await self.get_api_key(service_name, config_services):
-                    if service_name in self.supported_global_services:
-                        disabled_services += " (Global API key not set)"
-                    else:
-                        disabled_services += " (API key not set)"
-                disabled_services += "\n"
         if enabled_services:
             embed.add_field(
                 name=checkmark("Enabled Services"), value=enabled_services, inline=False
             )
-        if disabled_services:
+        else:
             embed.add_field(
-                name=error("Disabled Services"), value=disabled_services, inline=False
+                name=error("Enabled Services"),
+                value="No services are enabled!\nCheck out `[p]bancheckset service settings` for more information.",
+                inline=False,
             )
         await self.send_embed(ctx, embed)
 
@@ -298,7 +301,7 @@ class BanCheck(commands.Cog):
         elif not autoban_services:
             embed.add_field(
                 name=error("AutoBan"),
-                value="**Disabled**\n(no BanCheck services are set to AutoBan)",
+                value="**Disabled**\n(No BanCheck services are set to AutoBan)",
             )
         elif not ban_members_permission:
             embed.add_field(
@@ -330,37 +333,74 @@ class BanCheck(commands.Cog):
         )
         config_services = await self.config.guild(ctx.guild).services()
         enabled_services = ""
+        enabled_services_api = ""
+        enabled_services_global_api = ""
         disabled_services = ""
+        disabled_services_api = ""
+        disabled_services_global_api = ""
         for service_name in self.all_supported_services:
             api_key = await self.get_api_key(service_name, config_services)
-            if api_key and config_services.get(service_name, {}).get("enabled", False):
-                enabled_services += (
-                    f"{await self.format_service_name_url(service_name)}\n"
-                )
+            enabled = config_services.get(service_name, {}).get("enabled", False)
+            show_help = service_name in self.supported_guild_services and not api_key
+            service_name_formatted = (
+                f"{await self.format_service_name_url(service_name, show_help)}\n"
+            )
+            if enabled and api_key:
+                enabled_services += service_name_formatted
+            elif enabled and service_name in self.supported_global_services:
+                enabled_services_global_api += service_name_formatted
+            elif enabled:
+                enabled_services_api += service_name_formatted
+            elif api_key:
+                disabled_services += service_name_formatted
+            elif service_name in self.supported_global_services:
+                disabled_services_global_api += service_name_formatted
             else:
-                reason = ""
-                if not api_key:
-                    if service_name in self.supported_global_services:
-                        reason = "(Global API key not set)"
-                    else:
-                        reason = "(API key not set)"
-                disabled_services += "{}\n".format(
-                    await self.format_service_name_url(
-                        service_name,
-                        True
-                        if service_name in self.supported_guild_services
-                        else False,
-                        reason,
-                    )
-                )
+                disabled_services_api += service_name_formatted
         if enabled_services:
             embed.add_field(
                 name=checkmark("Enabled Services"), value=enabled_services, inline=False
             )
+        if enabled_services_api:
+            embed.add_field(
+                name=warning("Enabled Services (Missing API Key)"),
+                value=enabled_services_api,
+                inline=False,
+            )
+        if enabled_services_global_api:
+            embed.add_field(
+                name=warning("Enabled Services (Missing Global API Key)"),
+                value=enabled_services_global_api,
+                inline=False,
+            )
         if disabled_services:
             embed.add_field(
-                name=error("Disabled Services"), value=disabled_services, inline=False
+                name=error("Disabled Services"),
+                value=disabled_services,
+                inline=False,
             )
+        if disabled_services_api:
+            embed.add_field(
+                name=error("Disabled Services (Missing API Key)"),
+                value=disabled_services_api,
+                inline=False,
+            )
+        if disabled_services_global_api:
+            embed.add_field(
+                name=error("Disabled Services (Missing Global API Key)"),
+                value=disabled_services_global_api,
+                inline=False,
+            )
+        description = ""
+        if enabled_services_api or disabled_services_api:
+            description += "You can set missing API keys with\n`[p]bancheckset service api <service> [api_key]`.\n\n"
+        if enabled_services_global_api or disabled_services_global_api:
+            description += (
+                "You must wait for the bot owner to set missing global API keys, at which point any "
+                "service that uses global API keys that you have enabled will automatically begin working.\n"
+            )
+        if description:
+            embed.description = description
         await self.send_embed(ctx, embed)
 
     @service.command(name="api")
@@ -885,14 +925,12 @@ class BanCheck(commands.Cog):
                 ),
             )
 
-    async def format_service_name_url(self, service_name, show_help=False, reason=""):
+    async def format_service_name_url(self, service_name, show_help=False):
         """Format BanCheck services."""
-        service_class = self.all_supported_services.get(service_name, False)
+        service_class = self.all_supported_services.get(service_name, None)
         if not service_class:
             return f"`{service_name}`"
         result = f" `{service_name}` - [{service_class.SERVICE_NAME}]({service_class.SERVICE_URL})"
-        if reason:
-            result += f" {reason}"
         if show_help:
             try:
                 result += f" ({service_class.SERVICE_HINT})"
@@ -906,7 +944,7 @@ class BanCheck(commands.Cog):
         Returns the first:
         - False if this isn't a valid service
         - The global API key if defined
-        - The guild level API key if defined
+        - The guild API key if defined
         - True if no API key is required for this
         - False otherwise
         """
