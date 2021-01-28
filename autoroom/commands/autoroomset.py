@@ -16,7 +16,11 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
     async def autoroomset(self, ctx: commands.Context):
-        """Configure the AutoRoom cog."""
+        """Configure the AutoRoom cog.
+
+        For a quick rundown on how to get started with this cog,
+        check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)
+        """
 
     @autoroomset.command()
     async def settings(self, ctx: commands.Context):

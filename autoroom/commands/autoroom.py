@@ -5,7 +5,7 @@ from typing import Union
 
 import discord
 from redbot.core import commands
-from redbot.core.utils.chat_formatting import error, humanize_timedelta
+from redbot.core.utils.chat_formatting import error, humanize_timedelta, info
 
 from ..abc import CompositeMetaClass, MixinMeta
 from ..pcx_lib import SettingDisplay, delete
@@ -17,7 +17,11 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     @commands.group()
     @commands.guild_only()
     async def autoroom(self, ctx: commands.Context):
-        """Manage your AutoRoom."""
+        """Manage your AutoRoom.
+
+        For a quick rundown on how to manage your AutoRoom,
+        check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)
+        """
 
     @autoroom.command(name="settings", aliases=["info"])
     async def autoroom_settings(self, ctx: commands.Context):
@@ -58,6 +62,34 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         )
 
         await ctx.send(room_settings)
+
+    @autoroom.command(name="name")
+    async def autoroom_name(self, ctx: commands.Context):
+        """Learn how to change the name of your AutoRoom."""
+        await self._notify_edit_channel(ctx)
+
+    @autoroom.command()
+    async def bitrate(self, ctx: commands.Context):
+        """Learn how to change the bitrate of your AutoRoom."""
+        await self._notify_edit_channel(ctx)
+
+    @autoroom.command()
+    async def users(self, ctx: commands.Context):
+        """Learn how to change the user limit of your AutoRoom."""
+        await self._notify_edit_channel(ctx)
+
+    @staticmethod
+    async def _notify_edit_channel(ctx: commands.Context):
+        """Tell the user how to modify name/bitrate/user limit."""
+        hint = await ctx.send(
+            info(
+                f"{ctx.message.author.mention}, if you want to modify your AutoRooms name, bitrate, or user limit, "
+                "you can do this by editing the channel directly, either by right clicking the channel on desktop, "
+                "or long pressing it on mobile."
+            )
+        )
+        await delete(ctx.message, delay=15)
+        await delete(hint, delay=15)
 
     @autoroom.command()
     async def public(self, ctx: commands.Context):
