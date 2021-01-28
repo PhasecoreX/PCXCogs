@@ -85,7 +85,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         If the user is already in your AutoRoom, they will be disconnected.
 
         If a user is no longer able to access the room due to denying a role,
-        they too will be disconnected. Keep in mind that if the guild is using
+        they too will be disconnected. Keep in mind that if the server is using
         member roles, denying roles will probably not work as expected.
         """
         if await self._process_allow_deny(ctx, False, member_or_role=member_or_role):
@@ -153,7 +153,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 denied_message = "don't be so hard on yourself! This is your AutoRoom!"
             elif member_or_role == ctx.guild.owner:
                 denied_message = (
-                    "I don't know if you know this, but that's the guild owner... "
+                    "I don't know if you know this, but that's the server owner... "
                     "I can't deny them from entering your AutoRoom."
                 )
             elif await self.is_admin_or_admin_role(member_or_role):

@@ -118,18 +118,18 @@ class BanCheck(commands.Cog):
         embed = discord.Embed(
             title="BanCheck Global Settings",
             description=(
-                "Setting an API key globally will allow any guild this bot is in to use that service for ban checking. "
-                "These services require the bot itself to go through an approval process, and "
-                "only allow one API key per bot."
+                "Setting an API key globally will allow any server this bot is in to use that service "
+                "for ban checking. These services require the bot itself to go through an approval process, "
+                "and only allow one API key per bot. Thus, only you, the bot owner, can set these API keys."
             ),
             color=await ctx.embed_color(),
         )
         total_bans = await self.config.total_bans()
         users = "user" if total_bans == 1 else "users"
-        total_guilds = len(self.bot.guilds)
-        guilds = "guild" if total_guilds == 1 else "guilds"
+        total_servers = len(self.bot.guilds)
+        servers = "server" if total_servers == 1 else "servers"
         embed.set_footer(
-            text=f"AutoBanned a total of {total_bans} {users} across {total_guilds} {guilds}"
+            text=f"AutoBanned a total of {total_bans} {users} across {total_servers} {servers}"
         )
         enabled_services = ""
         disabled_services = ""
@@ -164,7 +164,7 @@ class BanCheck(commands.Cog):
             await ctx.send(
                 info(
                     f"{self.get_nice_service_name(service)} is not a global service, "
-                    "and should be set up per guild using the command:\n\n"
+                    "and should be set up per server using the command:\n\n"
                     f"`[p]bancheckset service api {service} <your_api_key_here>`"
                 )
             )
@@ -187,7 +187,7 @@ class BanCheck(commands.Cog):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
     async def bancheckset(self, ctx: commands.Context):
-        """Configure BanCheck for this guild."""
+        """Configure BanCheck for this server."""
         pass
 
     @bancheckset.command()
@@ -202,7 +202,7 @@ class BanCheck(commands.Cog):
         total_bans = await self.config.guild(ctx.guild).total_bans()
         users = "user" if total_bans == 1 else "users"
         embed.set_footer(
-            text=f"AutoBanned a total of {total_bans} {users} in this guild"
+            text=f"AutoBanned a total of {total_bans} {users} in this server"
         )
         # Get info
         any_enabled = False

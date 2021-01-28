@@ -19,7 +19,7 @@ class ReactChannel(commands.Cog):
     will automatically have reactions applied. Depending on the type of ReactChannel,
     click these reactions could trigger automatic actions.
 
-    Additionally, Admins can set up a guildwide upvote and/or downvote emojis, where
+    Additionally, Admins can set up a server-wide upvote and/or downvote emojis, where
     reacting to messages with these (in any channel) will increase or decrease the
     message owners total karma.
     """
@@ -178,7 +178,7 @@ class ReactChannel(commands.Cog):
         ):
             await ctx.send(
                 info(
-                    "You do not have an upvote or downvote emoji set for this guild. "
+                    "You do not have an upvote or downvote emoji set for this server. "
                     "You will need at least one set in order for this ReactChannel to work. "
                     "Check `[p]reactchannelset emoji` for more information."
                 )
@@ -230,7 +230,7 @@ class ReactChannel(commands.Cog):
             await setting.set(None)
             await ctx.send(
                 checkmark(
-                    f"{emoji_type.capitalize()} emoji for this guild has been disabled"
+                    f"{emoji_type.capitalize()} emoji for this server has been disabled"
                 )
             )
             await self._get_emoji(ctx.guild, emoji_type, refresh=True)
@@ -247,7 +247,7 @@ class ReactChannel(commands.Cog):
             await setting.set(save)
             await ctx.send(
                 checkmark(
-                    f"{emoji_type.capitalize()} emoji for this guild has been set to {emoji}"
+                    f"{emoji_type.capitalize()} emoji for this server has been set to {emoji}"
                 )
             )
             await self._get_emoji(ctx.guild, emoji_type, refresh=True)
@@ -257,7 +257,7 @@ class ReactChannel(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def karma(self, ctx: commands.Context, member: discord.Member = None):
-        """View your (or another users) total karma for messages in this guild."""
+        """View your (or another users) total karma for messages in this server."""
         prefix = f"{ctx.message.author.mention}, you have"
         if member and member != ctx.message.author:
             prefix = f"{member.display_name} has"
@@ -291,26 +291,26 @@ class ReactChannel(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def upvote(self, ctx: commands.Context):
-        """View this guilds upvote reaction."""
+        """View this servers upvote reaction."""
         upvote = await self._get_emoji(ctx.guild, "upvote")
         if upvote:
             await ctx.send(
-                f"This guilds upvote emoji is {upvote}. React to other members messages to give them karma!"
+                f"This servers upvote emoji is {upvote}. React to other members messages to give them karma!"
             )
         else:
-            await ctx.send("This guild does not have an upvote emoji set")
+            await ctx.send("This server does not have an upvote emoji set")
 
     @commands.command()
     @commands.guild_only()
     async def downvote(self, ctx: commands.Context):
-        """View this guilds downvote reaction."""
+        """View this servers downvote reaction."""
         downvote = await self._get_emoji(ctx.guild, "downvote")
         if downvote:
             await ctx.send(
-                f"This guilds downvote emoji is {downvote}. React to other members messages to remove karma."
+                f"This servers downvote emoji is {downvote}. React to other members messages to remove karma."
             )
         else:
-            await ctx.send("This guild does not have a downvote emoji set")
+            await ctx.send("This server does not have a downvote emoji set")
 
     @commands.Cog.listener()
     async def on_message_without_command(self, message: discord.Message):

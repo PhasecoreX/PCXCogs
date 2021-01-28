@@ -21,12 +21,12 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     @autoroomset.command()
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
-        guild_section = SettingDisplay("Guild Settings")
-        guild_section.add(
+        server_section = SettingDisplay("Server Settings")
+        server_section.add(
             "Admin private channel access",
             await self.config.guild(ctx.guild).admin_access(),
         )
-        guild_section.add(
+        server_section.add(
             "Moderator private channel access",
             await self.config.guild(ctx.guild).mod_access(),
         )
@@ -76,7 +76,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     )
                     autoroom_sections.append(autoroom_section)
 
-        await ctx.send(guild_section.display(*autoroom_sections))
+        await ctx.send(server_section.display(*autoroom_sections))
 
         if not await self.check_required_perms(ctx.guild, also_check_autorooms=True):
             await ctx.send(

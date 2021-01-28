@@ -16,9 +16,9 @@ class RemindMeSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     @remindmeset.command()
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
-        guild_section = SettingDisplay("Guild Settings")
+        server_section = SettingDisplay("Server Settings")
         if ctx.guild:
-            guild_section.add(
+            server_section.add(
                 "Me too",
                 "Enabled"
                 if await self.config.guild(ctx.guild).me_too()
@@ -50,15 +50,15 @@ class RemindMeSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
             stats_section.add("Total reminders sent", await self.config.total_sent())
 
-            await ctx.send(guild_section.display(global_section, stats_section))
+            await ctx.send(server_section.display(global_section, stats_section))
 
         else:
-            await ctx.send(guild_section)
+            await ctx.send(server_section)
 
     @remindmeset.command()
     @commands.guild_only()
     async def metoo(self, ctx: commands.Context):
-        """Toggle the bot asking if others want to be reminded in this guild.
+        """Toggle the bot asking if others want to be reminded in this server.
 
         If the bot doesn't have the Add Reactions permission in the channel, it won't ask regardless.
         """
