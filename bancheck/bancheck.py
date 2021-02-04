@@ -643,7 +643,7 @@ class BanCheck(commands.Cog):
         for service_name, service_config in config_services.items():
             if not service_config.get("enabled", False):
                 continue  # This service is not enabled
-            service_class = self.all_supported_services.get(service_name, False)
+            service_class = self.all_supported_services.get(service_name, None)
             if not service_class:
                 continue  # This service is not supported
             try:
@@ -809,7 +809,7 @@ class BanCheck(commands.Cog):
             if not service_config.get("enabled", False):
                 continue
             autoban = service_config.get("autoban", False)
-            service_class = self.all_supported_services.get(service_name, False)
+            service_class = self.all_supported_services.get(service_name, None)
             if not service_class:
                 continue
             api_key = await self.get_api_key(service_name, config_services)
@@ -975,7 +975,7 @@ class BanCheck(commands.Cog):
 
     def get_nice_service_name(self, service: str):
         """Get the nice name for a service."""
-        result = self.all_supported_services.get(service, False)
+        result = self.all_supported_services.get(service, None)
         if result:
             return result.SERVICE_NAME
         return f"`{service}`"

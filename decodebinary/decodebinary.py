@@ -66,7 +66,7 @@ class DecodeBinary(commands.Cog):
             "Enabled in this channel",
             "No" if ctx.message.channel.id in ignored_channels else "Yes",
         )
-        await ctx.send(channel_section)
+        await ctx.send(str(channel_section))
 
     @decodebinaryset.group()
     async def ignore(self, ctx: commands.Context):

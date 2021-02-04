@@ -139,7 +139,7 @@ class UpdateNotify(commands.Cog):
                 if await self.config.pcx_docker_feature_only()
                 else "All updates",
             )
-        await ctx.send(global_section)
+        await ctx.send(str(global_section))
 
     @updatenotify.command()
     async def frequency(
@@ -249,7 +249,7 @@ class UpdateNotify(commands.Cog):
                     else "Update available",
                 )
             setting_display.add("Latest Docker commit message", build["message"])
-            await ctx.send(setting_display)
+            await ctx.send(str(setting_display))
 
     @staticmethod
     async def get_latest_redbot_version():
@@ -316,6 +316,7 @@ class UpdateNotify(commands.Cog):
 
         update_docker_commit = False
         update_docker_build = False
+        latest_docker_build = None
         if self.docker_commit and await self.config.check_pcx_docker():
             latest_docker_build = await self.get_latest_github_actions_build()
             if latest_docker_build:

@@ -53,7 +53,7 @@ class RemindMeSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await ctx.send(server_section.display(global_section, stats_section))
 
         else:
-            await ctx.send(server_section)
+            await ctx.send(str(server_section))
 
     @remindmeset.command()
     @commands.guild_only()

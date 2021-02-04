@@ -61,7 +61,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             ),
         )
 
-        await ctx.send(room_settings)
+        await ctx.send(str(room_settings))
 
     @autoroom.command(name="name")
     async def autoroom_name(self, ctx: commands.Context):

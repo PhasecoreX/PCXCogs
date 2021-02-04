@@ -1,6 +1,6 @@
 """ReactChannel cog for Red-DiscordBot by PhasecoreX."""
 import datetime
-from typing import Union
+from typing import Optional, Union
 
 import discord
 from redbot.core import Config, checks, commands
@@ -134,13 +134,16 @@ class ReactChannel(commands.Cog):
 
     @enable.command()
     async def custom(self, ctx: commands.Context, *, emojis: str):
-        """All messages will have the specified emoji(s). When specifying multiple, make sure there's a space between each emoji."""
+        """All messages will have the specified emoji(s).
+
+        When specifying multiple, make sure there's a space between each emoji.
+        """
         await self._save_channel(ctx, None, list(dict.fromkeys(emojis.split())))
 
     async def _save_channel(
         self,
         ctx: commands.Context,
-        channel: discord.TextChannel,
+        channel: Optional[discord.TextChannel],
         channel_type: Union[str, list],
     ):
         """Actually save the ReactChannel settings."""
@@ -346,7 +349,7 @@ class ReactChannel(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        """Watch for reactions added to messages in react channels (or all channels for karma) and perform actions on them."""
+        """Watch for reactions added to messages."""
         if not payload.guild_id or await self.bot.cog_disabled_in_guild_raw(
             self.qualified_name, payload.guild_id
         ):
@@ -374,6 +377,7 @@ class ReactChannel(commands.Cog):
         upvote = await self._get_emoji(guild, "upvote")
         downvote = await self._get_emoji(guild, "downvote")
         karma = 0
+        opposite_emoji = None
         if upvote and str(payload.emoji) == upvote:
             karma = 1
             opposite_emoji = downvote
@@ -402,7 +406,7 @@ class ReactChannel(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
-        """Watch for reactions removed from messages in react channels (or all channels for karma) and perform actions on them."""
+        """Watch for reactions removed from messages."""
         if not payload.guild_id or await self.bot.cog_disabled_in_guild_raw(
             self.qualified_name, payload.guild_id
         ):

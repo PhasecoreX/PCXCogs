@@ -47,7 +47,7 @@ class Dice(commands.Cog):
             "Maximum number of dice to roll at once", await self.config.max_dice_rolls()
         )
         global_section.add("Maximum sides per die", await self.config.max_die_sides())
-        await ctx.send(global_section)
+        await ctx.send(str(global_section))
 
     @diceset.command()
     async def rolls(self, ctx: commands.Context, maximum: int):

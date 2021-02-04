@@ -97,7 +97,7 @@ class Heartbeat(commands.Cog):
         global_section.add(
             "Frequency", humanize_timedelta(seconds=await self.config.frequency())
         )
-        await ctx.send(global_section)
+        await ctx.send(str(global_section))
 
     @heartbeat.command()
     async def url(self, ctx: commands.Context, url: str):
