@@ -662,7 +662,7 @@ class BanCheck(commands.Cog):
                 self.embed_maker(
                     "Error",
                     discord.Colour.red(),
-                    "No services have been set up. Please check `[p]bancheckset` for more details.",
+                    "No services have been set up. Please check `[p]bancheckset service settings` for more details.",
                     member_avatar_url,
                 ),
             )
