@@ -162,7 +162,10 @@ class BanCheck(commands.Cog):
     async def global_api(
         self, ctx: commands.Context, service: str, api_key: str = None
     ):
-        """Get information on setting an API key for a global service."""
+        """Set (or delete) an API key for a global service.
+
+        Behind the scenes, this is the same as `[p]set api <service> api_key <your_api_key_here>`
+        """
         if api_key:
             # Try deleting the command as fast as possible, so that others can't see the API key
             await delete(ctx.message)
@@ -182,12 +185,14 @@ class BanCheck(commands.Cog):
                 )
             )
             return
-        await ctx.send(
-            info(
-                "Global API keys are no longer set here. You should run this command instead:\n\n"
-                f"`[p]set api {service} api_key <your_api_key_here>`"
-            )
-        )
+        action = "set"
+        if api_key:
+            await ctx.bot.set_shared_api_tokens(service, api_key=api_key)
+        else:
+            await ctx.bot.remove_shared_api_tokens(service, "api_key")
+            action = "removed"
+        response = f"API key for the {self.get_nice_service_name(service)} BanCheck service has been {action}."
+        await ctx.send(checkmark(response))
 
     @commands.group()
     @commands.guild_only()
