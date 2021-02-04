@@ -653,7 +653,7 @@ class BanCheck(commands.Cog):
             api_key = await self.get_api_key(service_name, config_services)
             if not api_key:
                 continue  # This service needs an API key set to work
-            report_services.append(service_class())
+            report_services.append((service_class(), api_key))
 
         # Send error if there are no services to send to
         if not report_services:
@@ -706,9 +706,13 @@ class BanCheck(commands.Cog):
             return
 
         # Send report to services
-        for report_service in report_services:
-            response = await report_service.report(
-                member_id, api_key, ctx.author.id, ban_message, image_proof_url
+        for report_service_tuple in report_services:
+            response = await report_service_tuple[0].report(
+                member_id,
+                report_service_tuple[1],
+                ctx.author.id,
+                ban_message,
+                image_proof_url,
             )
             sent.append(response.service)
             if response.result and response.reason:
