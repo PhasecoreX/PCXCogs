@@ -9,7 +9,7 @@ from redbot.core.utils.chat_formatting import error, info, question, warning
 from redbot.core.utils.predicates import MessagePredicate
 
 from .pcx_lib import checkmark, delete
-from .services.alertbot import Alertbot
+from .services.alertbot import AlertBot
 from .services.globan import Globan
 from .services.imgur import Imgur
 from .services.ksoftsi import KSoftSi
@@ -35,7 +35,7 @@ class BanCheck(commands.Cog):
         "services": {},
     }
     supported_global_services = {"ksoftsi": KSoftSi}
-    supported_guild_services = {"alertbot": Alertbot, "globan": Globan}
+    supported_guild_services = {"alertbot": AlertBot, "globan": Globan}
     all_supported_services = {**supported_global_services, **supported_guild_services}
 
     def __init__(self, bot):
@@ -728,7 +728,7 @@ class BanCheck(commands.Cog):
             await self.send_embed(
                 ctx.channel,
                 self.embed_maker(
-                    f"Errors occured while sending reports for **{member}**",
+                    f"Errors occurred while sending reports for **{member}**",
                     discord.Colour.red(),
                     description,
                     member_avatar_url,

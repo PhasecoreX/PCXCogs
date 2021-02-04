@@ -1,4 +1,4 @@
-"""Ban lookup for Alertbot."""
+"""Ban lookup for AlertBot."""
 import aiohttp
 from redbot.core import __version__ as redbot_version
 
@@ -9,16 +9,16 @@ user_agent = (
 )
 
 
-class Alertbot:
-    """Ban lookup for Alertbot."""
+class AlertBot:
+    """Ban lookup for AlertBot."""
 
-    SERVICE_NAME = "Alertbot"
+    SERVICE_NAME = "AlertBot"
     SERVICE_API_KEY_REQUIRED = True
     SERVICE_URL = "https://api.alertbot.services"
 
     @staticmethod
     async def lookup(user_id: int, api_key: str):
-        """Perform user lookup on Alertbot."""
+        """Perform user lookup on AlertBot."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
@@ -28,23 +28,23 @@ class Alertbot:
                     data = await resp.json()
                     if int(data["code"]) != 200:
                         return LookupResult(
-                            Alertbot.SERVICE_NAME,
+                            AlertBot.SERVICE_NAME,
                             "error",
                             reason=data["desc"],
                         )
                     if data["data"]["result"]["banned"]:
                         return LookupResult(
-                            Alertbot.SERVICE_NAME,
+                            AlertBot.SERVICE_NAME,
                             "ban",
                             reason=data["data"]["result"]["reason"],
                             proof_url=data["data"]["result"]["proof"]
                             if "proof" in data["data"]["result"]
                             else None,
                         )
-                    return LookupResult(Alertbot.SERVICE_NAME, "clear")
+                    return LookupResult(AlertBot.SERVICE_NAME, "clear")
         except aiohttp.ClientConnectionError:
             return LookupResult(
-                Alertbot.SERVICE_NAME,
+                AlertBot.SERVICE_NAME,
                 "error",
                 reason="Could not connect to host",
             )
@@ -55,7 +55,7 @@ class Alertbot:
         except KeyError:
             pass  # json element does not exist (malformed data)
         return LookupResult(
-            Alertbot.SERVICE_NAME,
+            AlertBot.SERVICE_NAME,
             "error",
             reason="Response data malformed",
         )

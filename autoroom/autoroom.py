@@ -199,7 +199,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 dest_category = guild.get_channel(avc_settings["dest_category_id"])
                 if not dest_category:
                     continue
-                taken_chanel_names = [
+                taken_channel_names = [
                     voice_channel.name for voice_channel in dest_category.voice_channels
                 ]
 
@@ -278,12 +278,12 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                     # Check for duplicate names
                     new_channel_name_deduped = new_channel_name
                     dedupe_counter = 1
-                    while new_channel_name_deduped in taken_chanel_names:
+                    while new_channel_name_deduped in taken_channel_names:
                         dedupe_counter += 1
                         new_channel_name_deduped = (
                             f"{new_channel_name} ({dedupe_counter})"
                         )
-                    taken_chanel_names.append(new_channel_name_deduped)
+                    taken_channel_names.append(new_channel_name_deduped)
                     # Create new AutoRoom
                     new_voice_channel = await guild.create_voice_channel(
                         name=new_channel_name_deduped,

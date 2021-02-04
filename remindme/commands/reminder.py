@@ -132,7 +132,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         users_reminders = await self.get_user_reminders(ctx.message.author.id)
         old_reminder = self._get_reminder(users_reminders, reminder_id)
         if not old_reminder:
-            await self._send_non_existant_msg(ctx, reminder_id)
+            await self._send_non_existent_msg(ctx, reminder_id)
             return
         try:
             time_delta = parse_timedelta(time, minimum=timedelta(minutes=1))
@@ -165,7 +165,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         users_reminders = await self.get_user_reminders(ctx.message.author.id)
         old_reminder = self._get_reminder(users_reminders, reminder_id)
         if not old_reminder:
-            await self._send_non_existant_msg(ctx, reminder_id)
+            await self._send_non_existent_msg(ctx, reminder_id)
             return
         if time.lower() in ["0", "stop", "none", "false", "no", "cancel", "n"]:
             new_reminder = old_reminder.copy()
@@ -207,7 +207,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         users_reminders = await self.get_user_reminders(ctx.message.author.id)
         old_reminder = self._get_reminder(users_reminders, reminder_id)
         if not old_reminder:
-            await self._send_non_existant_msg(ctx, reminder_id)
+            await self._send_non_existent_msg(ctx, reminder_id)
             return
         text = text.strip()
         if len(text) > 1000:
@@ -486,7 +486,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 ctx, f"Reminder with ID# **{int_index}** has been removed."
             )
         else:
-            await self._send_non_existant_msg(ctx, int_index)
+            await self._send_non_existent_msg(ctx, int_index)
 
     async def _do_reminder_delete(self, reminders):
         """Actually delete a reminder."""
@@ -498,7 +498,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             for reminder in reminders:
                 current_reminders.remove(reminder)
 
-    async def _send_non_existant_msg(self, ctx: commands.Context, reminder_id: int):
+    async def _send_non_existent_msg(self, ctx: commands.Context, reminder_id: int):
         """Send a message telling the user the reminder ID does not exist."""
         await self._send_message(
             ctx,

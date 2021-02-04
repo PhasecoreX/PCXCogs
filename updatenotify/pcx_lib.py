@@ -86,7 +86,7 @@ async def embed_splitter(
 
 
 class SettingDisplay:
-    """A formattable list of settings."""
+    """A formatted list of settings."""
 
     def __init__(self, header: str = None):
         """Init."""
