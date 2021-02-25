@@ -38,3 +38,11 @@ class MixinMeta(ABC):
         self, guild: discord.guild, also_check_autorooms: bool = False
     ):
         raise NotImplementedError()
+
+    @abstractmethod
+    async def get_all_autoroom_source_configs(self, guild: discord.guild):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def get_autoroom_source_config(self, autoroom_source: discord.VoiceChannel):
+        raise NotImplementedError()

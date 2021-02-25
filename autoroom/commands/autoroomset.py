@@ -1,9 +1,11 @@
 """The autoroomset command."""
+import asyncio
 from abc import ABC
 
 import discord
 from redbot.core import checks, commands
 from redbot.core.utils.chat_formatting import error, info
+from redbot.core.utils.predicates import MessagePredicate
 
 from ..abc import CompositeMetaClass, MixinMeta
 from ..pcx_lib import SettingDisplay, checkmark
@@ -36,49 +38,40 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         )
 
         autoroom_sections = []
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            for avc_id, avc_settings in avcs.items():
-                source_channel = ctx.guild.get_channel(int(avc_id))
-                if source_channel:
-                    dest_category = ctx.guild.get_channel(
-                        avc_settings["dest_category_id"]
-                    )
-                    autoroom_section = SettingDisplay(
-                        f"AutoRoom - {source_channel.name}"
-                    )
-                    autoroom_section.add(
-                        "Room type",
-                        avc_settings["room_type"].capitalize(),
-                    )
-                    autoroom_section.add(
-                        "Destination category",
-                        f"#{dest_category.name}"
-                        if dest_category
-                        else "INVALID CATEGORY",
-                    )
-                    if "text_channel" in avc_settings and avc_settings["text_channel"]:
-                        autoroom_section.add(
-                            "Text Channel",
-                            "True",
-                        )
-                    if "member_roles" in avc_settings:
-                        roles = []
-                        for member_role_id in avc_settings["member_roles"]:
-                            member_role = ctx.guild.get_role(member_role_id)
-                            if member_role:
-                                roles.append(member_role.name)
-                        if roles:
-                            autoroom_section.add(
-                                "Member Roles" if len(roles) > 1 else "Member Role",
-                                ", ".join(roles),
-                            )
-                    autoroom_section.add(
-                        "Room name format",
-                        avc_settings["channel_name_type"].capitalize()
-                        if "channel_name_type" in avc_settings
-                        else "Username",
-                    )
-                    autoroom_sections.append(autoroom_section)
+        avcs = await self.get_all_autoroom_source_configs(ctx.guild)
+        for avc_id, avc_settings in avcs.items():
+            source_channel = ctx.guild.get_channel(avc_id)
+            if not source_channel:
+                continue
+            dest_category = ctx.guild.get_channel(avc_settings["dest_category_id"])
+            autoroom_section = SettingDisplay(f"AutoRoom - {source_channel.name}")
+            autoroom_section.add(
+                "Room type",
+                avc_settings["room_type"].capitalize(),
+            )
+            autoroom_section.add(
+                "Destination category",
+                f"#{dest_category.name}" if dest_category else "INVALID CATEGORY",
+            )
+            if avc_settings["text_channel"]:
+                autoroom_section.add(
+                    "Text Channel",
+                    "True",
+                )
+            member_roles = []
+            for member_role_id in avc_settings["member_roles"]:
+                member_role = ctx.guild.get_role(member_role_id)
+                if member_role:
+                    member_roles.append(member_role.name)
+            if member_roles:
+                autoroom_section.add(
+                    "Member Roles" if len(member_roles) > 1 else "Member Role",
+                    ", ".join(member_roles),
+                )
+            autoroom_section.add(
+                "Room name format", avc_settings["channel_name_type"].capitalize()
+            )
+            autoroom_sections.append(autoroom_section)
 
         await ctx.send(server_section.display(*autoroom_sections))
 
@@ -113,33 +106,32 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         )
 
         autoroom_sections = []
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            for avc_id, avc_settings in avcs.items():
-                source_channel = ctx.guild.get_channel(int(avc_id))
-                if source_channel:
-                    autoroom_section = SettingDisplay(
-                        f"AutoRoom - {source_channel.name}"
-                    )
-                    overwritten_perms = False
-                    if (
-                        source_channel.overwrites
-                        and ctx.guild.default_role in source_channel.overwrites
-                    ):
-                        for testing_overwrite in source_channel.overwrites[
-                            ctx.guild.default_role
-                        ]:
-                            if testing_overwrite[1] is not None:
-                                perm = getattr(
-                                    ctx.guild.me.guild_permissions, testing_overwrite[0]
-                                )
-                                has_all_perms = has_all_perms and perm
-                                autoroom_section.add(
-                                    testing_overwrite[0],
-                                    perm,
-                                )
-                                overwritten_perms = True
-                        if overwritten_perms:
-                            autoroom_sections.append(autoroom_section)
+        avcs = await self.get_all_autoroom_source_configs(ctx.guild)
+        for avc_id in avcs.keys():
+            source_channel = ctx.guild.get_channel(avc_id)
+            if not source_channel:
+                continue
+            autoroom_section = SettingDisplay(f"AutoRoom - {source_channel.name}")
+            overwritten_perms = False
+            if (
+                source_channel.overwrites
+                and ctx.guild.default_role in source_channel.overwrites
+            ):
+                for testing_overwrite in source_channel.overwrites[
+                    ctx.guild.default_role
+                ]:
+                    if testing_overwrite[1] is not None:
+                        perm = getattr(
+                            ctx.guild.me.guild_permissions, testing_overwrite[0]
+                        )
+                        has_all_perms = has_all_perms and perm
+                        autoroom_section.add(
+                            testing_overwrite[0],
+                            perm,
+                        )
+                        overwritten_perms = True
+                if overwritten_perms:
+                    autoroom_sections.append(autoroom_section)
 
         await ctx.send(permission_section.display(*autoroom_sections))
 
@@ -181,57 +173,19 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
         )
 
-    @autoroomset.group(aliases=["enable", "add"])
-    async def create(self, ctx: commands.Context):
+    @autoroomset.command(aliases=["enable", "add"])
+    async def create(
+        self,
+        ctx: commands.Context,
+        source_voice_channel: discord.VoiceChannel,
+        dest_category: discord.CategoryChannel,
+    ):
         """Create an AutoRoom Source.
 
         Anyone joining an AutoRoom Source will automatically have a new
         voice channel (AutoRoom) created in the destination category,
         and then be moved into it.
         """
-
-    @create.command(name="public")
-    async def create_public(
-        self,
-        ctx: commands.Context,
-        source_voice_channel: discord.VoiceChannel,
-        dest_category: discord.CategoryChannel,
-    ):
-        """Create an AutoRoom Source that creates public AutoRooms.
-
-        The created AutoRooms will allow anyone to join. The AutoRoom owner can
-        block specific members from joining their room, or can switch the room to
-        private mode to selectively allow members instead.
-        """
-        await self._create_new_public_private_room(
-            ctx, source_voice_channel, dest_category, "public"
-        )
-
-    @create.command(name="private")
-    async def create_private(
-        self,
-        ctx: commands.Context,
-        source_voice_channel: discord.VoiceChannel,
-        dest_category: discord.CategoryChannel,
-    ):
-        """Create an AutoRoom Source that creates private AutoRooms.
-
-        The created AutoRooms will not allow anyone to join. The AutoRoom owner will
-        need to allow specific members to join their room, or can switch the room to
-        public mode to selectively block members instead.
-        """
-        await self._create_new_public_private_room(
-            ctx, source_voice_channel, dest_category, "private"
-        )
-
-    async def _create_new_public_private_room(
-        self,
-        ctx: commands.Context,
-        source_voice_channel: discord.VoiceChannel,
-        dest_category: discord.CategoryChannel,
-        room_type: str,
-    ):
-        """Save the new room settings."""
         if not await self.check_required_perms(ctx.guild):
             await ctx.send(
                 error(
@@ -241,19 +195,108 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
             )
             return
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            vc_id = str(source_voice_channel.id)
-            avcs[vc_id] = {}
-            avcs[vc_id]["room_type"] = room_type
-            avcs[vc_id]["dest_category_id"] = dest_category.id
+        new_source = {"dest_category_id": dest_category.id}
+
+        # Public or private
+        options = ["public", "private"]
+        pred = MessagePredicate.lower_contained_in(options, ctx)
+        await ctx.send(
+            "**Welcome to the setup wizard for creating an AutoRoom Source!**"
+            "\n"
+            f"Users joining the {source_voice_channel.mention} AutoRoom Source will have an AutoRoom "
+            f"created in the {dest_category.mention} category and be moved into it."
+            "\n\n"
+            "**Public/Private**"
+            "\n"
+            "AutoRooms can either be public or private. Public AutoRooms are visible to other users, "
+            "where the AutoRoom Owner can kick/ban users out of them. Private AutoRooms are only visible to the "
+            "AutoRoom Owner, where they can allow users into their room."
+            "\n\n"
+            "Would you like these created AutoRooms to be public or private to other users by default? (`public`/`private`)"
+        )
+        try:
+            await ctx.bot.wait_for("message", check=pred, timeout=60)
+        except asyncio.TimeoutError:
+            await ctx.send("No valid answer was received, canceling setup process.")
+            return
+        new_source["room_type"] = options[pred.result]
+
+        # Text channel
+        pred = MessagePredicate.yes_or_no(ctx)
+        await ctx.send(
+            "**Text Channel**"
+            "\n"
+            "AutoRooms can optionally have a text channel created with them, where only the AutoRoom members can"
+            "see and message in it. This is useful to keep AutoRoom specific chat out of your other channels."
+            "\n\n"
+            "Would you like these created AutoRooms to also have a created text channel? (`yes`/`no`)"
+        )
+        try:
+            await ctx.bot.wait_for("message", check=pred, timeout=60)
+        except asyncio.TimeoutError:
+            await ctx.send("No valid answer was received, canceling setup process.")
+            return
+        new_source["text_channel"] = pred.result
+
+        # Channel name
+        options = ["username", "game"]
+        pred = MessagePredicate.lower_contained_in(options, ctx)
+        await ctx.send(
+            "**Channel Name**"
+            "\n"
+            "When an AutoRoom is created, a name will be generated for it. How would you like that name to be generated?"
+            "\n\n"
+            f'`username` - Shows up as "{ctx.author.display_name}\'s Room"\n'
+            "`game    ` - AutoRoom Owner's playing game, otherwise `username`"
+        )
+        try:
+            await ctx.bot.wait_for("message", check=pred, timeout=60)
+        except asyncio.TimeoutError:
+            await ctx.send("No valid answer was received, canceling setup process.")
+            return
+        new_source["channel_name_type"] = options[pred.result]
+
+        # Member role ask
+        pred = MessagePredicate.yes_or_no(ctx)
+        await ctx.send(
+            "**Member Role**"
+            "\n"
+            "By default, Public AutoRooms are visible to the whole server. Some servers have member roles for limiting "
+            "what unverified members can see and do."
+            "\n\n"
+            "Would you like these created AutoRooms to only be visible to a certain member role? (`yes`/`no`)"
+        )
+        try:
+            await ctx.bot.wait_for("message", check=pred, timeout=60)
+        except asyncio.TimeoutError:
+            await ctx.send("No valid answer was received, canceling setup process.")
+            return
+        if pred.result:
+            # Member role get
+            pred = MessagePredicate.valid_role(ctx)
+            await ctx.send(
+                "What role is your member role? Only provide one; if you have multiple, you can add more after the "
+                "setup process."
+            )
+            try:
+                await ctx.bot.wait_for("message", check=pred, timeout=60)
+            except asyncio.TimeoutError:
+                pass
+            if pred.result:
+                new_source["member_roles"] = [pred.result.id]
+            else:
+                await ctx.send("No valid answer was received, canceling setup process.")
+                return
+
+        # Save new source
+        await self.config.custom(
+            "AUTOROOM_SOURCE", ctx.guild.id, source_voice_channel.id
+        ).set(new_source)
         await ctx.send(
             checkmark(
-                "**{}** is now an AutoRoom Source, and will create new {} voice channels in the **{}** category. "
-                "Check out `[p]autoroomset modify` if you'd like to configure this further.".format(
-                    source_voice_channel.mention,
-                    room_type,
-                    dest_category.mention,
-                )
+                "Settings saved successfully!\n"
+                "Check out `[p]autoroomset modify` for even more AutoRoom Source settings, "
+                "or to make modifications to your above answers."
             )
         )
 
@@ -264,11 +307,9 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         autoroom_source: discord.VoiceChannel,
     ):
         """Remove an AutoRoom Source."""
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            try:
-                del avcs[str(autoroom_source.id)]
-            except KeyError:
-                pass
+        await self.config.custom(
+            "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+        ).clear()
         await ctx.send(
             checkmark(
                 f"**{autoroom_source.mention}** is no longer an AutoRoom Source channel."
@@ -283,14 +324,14 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     async def modify_public(
         self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
     ):
-        """Set an AutoRoom Source to create public AutoRooms."""
+        """Set an AutoRoom Source to create public AutoRooms by default."""
         await self._save_public_private(ctx, autoroom_source, "public")
 
     @modify.command(name="private")
     async def modify_private(
         self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
     ):
-        """Set an AutoRoom Source to create private AutoRooms."""
+        """Set an AutoRoom Source to create private AutoRooms by default."""
         await self._save_public_private(ctx, autoroom_source, "private")
 
     async def _save_public_private(
@@ -300,21 +341,21 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         room_type: str,
     ):
         """Save the public/private setting."""
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            try:
-                avcs[str(autoroom_source.id)]["room_type"] = room_type
-            except KeyError:
-                await ctx.send(
-                    error(
-                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                    )
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).room_type.set(room_type)
+            await ctx.send(
+                checkmark(
+                    f"New AutoRooms created by **{autoroom_source.mention}** will be {room_type}."
                 )
-            else:
-                await ctx.send(
-                    checkmark(
-                        f"New AutoRooms created by **{autoroom_source.mention}** will be {room_type}."
-                    )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                 )
+            )
 
     @modify.group()
     async def memberrole(self, ctx: commands.Context):
@@ -331,20 +372,22 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         autoroom_source: discord.VoiceChannel,
     ):
         """Add a role to the list of member roles allowed to see these AutoRooms."""
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            try:
-                if "member_roles" not in avcs[str(autoroom_source.id)]:
-                    avcs[str(autoroom_source.id)]["member_roles"] = [role.id]
-                elif role.id not in avcs[str(autoroom_source.id)]["member_roles"]:
-                    avcs[str(autoroom_source.id)]["member_roles"].append(role.id)
-            except KeyError:
-                await ctx.send(
-                    error(
-                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                    )
+        if await self.get_autoroom_source_config(autoroom_source):
+            member_roles = await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).member_roles()
+            if role.id not in member_roles:
+                member_roles.append(role.id)
+                await self.config.custom(
+                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                ).member_roles.set(member_roles)
+            await self._send_memberrole_message(ctx, autoroom_source, "Added!")
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                 )
-                return
-        await self._send_memberrole_message(ctx, autoroom_source, "Added!")
+            )
 
     @memberrole.command(name="remove")
     async def remove_memberrole(
@@ -354,23 +397,22 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         autoroom_source: discord.VoiceChannel,
     ):
         """Remove a role from the list of member roles allowed to see these AutoRooms."""
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            try:
-                if (
-                    "member_roles" in avcs[str(autoroom_source.id)]
-                    and role.id in avcs[str(autoroom_source.id)]["member_roles"]
-                ):
-                    avcs[str(autoroom_source.id)]["member_roles"].remove(role.id)
-                    if not avcs[str(autoroom_source.id)]["member_roles"]:
-                        del avcs[str(autoroom_source.id)]["member_roles"]
-            except KeyError:
-                await ctx.send(
-                    error(
-                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                    )
+        if await self.get_autoroom_source_config(autoroom_source):
+            member_roles = await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).member_roles()
+            if role.id in member_roles:
+                member_roles.remove(role.id)
+                await self.config.custom(
+                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                ).member_roles.set(member_roles)
+            await self._send_memberrole_message(ctx, autoroom_source, "Removed!")
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                 )
-                return
-        await self._send_memberrole_message(ctx, autoroom_source, "Removed!")
+            )
 
     async def _send_memberrole_message(
         self, ctx: commands.Context, autoroom_source: discord.VoiceChannel, action: str
@@ -417,22 +459,22 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         room_type: str,
     ):
         """Save the room name type."""
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            try:
-                avcs[str(autoroom_source.id)]["channel_name_type"] = room_type
-            except KeyError:
-                await ctx.send(
-                    error(
-                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                    )
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).channel_name_type.set(room_type)
+            await ctx.send(
+                checkmark(
+                    f"New AutoRooms created by **{autoroom_source.mention}** "
+                    f"will use the **{room_type.capitalize()}** format."
                 )
-            else:
-                await ctx.send(
-                    checkmark(
-                        f"New AutoRooms created by **{autoroom_source.mention}** "
-                        f"will use the **{room_type.capitalize()}** format."
-                    )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                 )
+            )
 
     @modify.command()
     async def text(
@@ -441,32 +483,28 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         autoroom_source: discord.VoiceChannel,
     ):
         """Toggle if a text channel should be created as well."""
-        async with self.config.guild(ctx.guild).auto_voice_channels() as avcs:
-            try:
-                settings = avcs[str(autoroom_source.id)]
-            except KeyError:
-                await ctx.send(
-                    error(
-                        f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                    )
-                )
-                return
-            if "text_channel" in settings and settings["text_channel"]:
-                del settings["text_channel"]
-            else:
-                settings["text_channel"] = True
+        if await self.get_autoroom_source_config(autoroom_source):
+            text_channel = await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).text_channel()
+            await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).text_channel.set(not text_channel)
             await ctx.send(
                 checkmark(
                     f"New AutoRooms created by **{autoroom_source.mention}** will "
-                    f"{'now' if 'text_channel' in settings else 'no longer'} get their own text channel."
+                    f"{'now' if not text_channel else 'no longer'} get their own text channel."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
                 )
             )
 
     @modify.command()
-    async def perms(
-        self,
-        ctx: commands.Context,
-    ):
+    async def perms(self, ctx: commands.Context):
         """Learn how to modify default permissions."""
         await ctx.send(
             info(
@@ -475,7 +513,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 "the bot itself will need to have this permission allowed server-wide (with the roles it has). "
                 "The only two permissions that will be overwritten are **View Channel** "
                 "and **Connect**, which depend on the AutoRoom Sources public/private setting, as well as "
-                "any member roles enabled for it.\n\n"
+                "any member roles enabled for it."
+                "\n\n"
                 "Do note that you don't need to set any permissions on the AutoRoom Source channel for this "
                 "cog to work correctly. This functionality is for the advanced user with a complex server "
                 "structure, or for users that want to selectively enable/disable certain functionality "
@@ -484,10 +523,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         )
 
     @modify.command(aliases=["bitrate", "users"])
-    async def other(
-        self,
-        ctx: commands.Context,
-    ):
+    async def other(self, ctx: commands.Context):
         """Learn how to modify default bitrate and user limits."""
         await ctx.send(
             info(
