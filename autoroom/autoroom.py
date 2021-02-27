@@ -7,6 +7,7 @@ from redbot.core import Config, commands
 
 from .abc import CompositeMetaClass
 from .commands import Commands
+from .commands.autoroomset import channel_name_template
 
 __author__ = "PhasecoreX"
 
@@ -33,7 +34,10 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         "room_type": "public",
         "text_channel": False,
         "channel_name_type": "username",
+        "channel_name_format": "",
         "member_roles": [],
+        "increment_format": None,
+        "increment_always": False,
     }
     default_channel_settings = {
         "owner": None,
@@ -276,6 +280,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 )
 
             for member in autoroom_source.members:
+                # Generate overwrites
                 overwrites = {
                     member: discord.PermissionOverwrite(
                         view_channel=True,
@@ -284,24 +289,14 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                     )
                 }
                 overwrites.update(common_overwrites)
-                new_channel_name = ""
-                if autoroom_source_config["channel_name_type"] == "game":
-                    for activity in member.activities:
-                        if activity.type.value == 0:
-                            new_channel_name = activity.name
-                            break
-                if not new_channel_name:
-                    new_channel_name = f"{member.display_name}'s Room"
-                # Check for duplicate names
-                new_channel_name_deduped = new_channel_name
-                dedupe_counter = 1
-                while new_channel_name_deduped in taken_channel_names:
-                    dedupe_counter += 1
-                    new_channel_name_deduped = f"{new_channel_name} ({dedupe_counter})"
-                taken_channel_names.append(new_channel_name_deduped)
+                # Create channel name
+                new_channel_name = self._generate_channel_name(
+                    autoroom_source_config, member, taken_channel_names
+                )
+                taken_channel_names.append(new_channel_name)
                 # Create new AutoRoom
                 new_voice_channel = await guild.create_voice_channel(
-                    name=new_channel_name_deduped,
+                    name=new_channel_name,
                     category=dest_category,
                     reason="AutoRoom: New AutoRoom needed.",
                     overwrites=overwrites,
@@ -333,7 +328,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                         ),
                     }
                     new_text_channel = await guild.create_text_channel(
-                        name=new_channel_name_deduped.replace("'s ", " "),
+                        name=new_channel_name.replace("'s ", " "),
                         category=dest_category,
                         reason="AutoRoom: New text channel needed.",
                         overwrites=overwrites,
@@ -399,6 +394,63 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                     overwrites=overwrites,
                     reason="AutoRoom: Permission change",
                 )
+
+    def _generate_channel_name(
+        self,
+        autoroom_source_config: dict,
+        member: discord.Member,
+        taken_channel_names: list,
+    ):
+        """Return a channel name with an incrementing number appended to it, based on a formatting string."""
+        new_channel_name = ""
+        if autoroom_source_config["channel_name_type"] in channel_name_template:
+            new_channel_name = channel_name_template[
+                autoroom_source_config["channel_name_type"]
+            ]
+        elif autoroom_source_config["channel_name_type"] == "custom":
+            new_channel_name = autoroom_source_config["channel_name_format"]
+
+        if "{game}" in new_channel_name:
+            success = False
+            for activity in member.activities:
+                if activity.type.value == 0:
+                    new_channel_name = new_channel_name.replace("{game}", activity.name)
+                    success = True
+                    break
+            if not success:
+                new_channel_name = None
+
+        if not new_channel_name:
+            # If any of the above formatting failed, default to this template
+            new_channel_name = channel_name_template["username"]
+        new_channel_name = new_channel_name.replace("{username}", member.display_name)
+        new_channel_name = new_channel_name[:100]
+
+        # Check for duplicate names
+        new_channel_name_deduped = new_channel_name
+        dedupe_counter = 1
+        if autoroom_source_config["increment_always"]:
+            new_channel_name_deduped = self._generate_incremented_channel_name(
+                new_channel_name, autoroom_source_config["increment_format"], 1
+            )
+        while new_channel_name_deduped in taken_channel_names:
+            dedupe_counter += 1
+            new_channel_name_deduped = self._generate_incremented_channel_name(
+                new_channel_name,
+                autoroom_source_config["increment_format"],
+                dedupe_counter,
+            )
+        return new_channel_name_deduped
+
+    @staticmethod
+    def _generate_incremented_channel_name(
+        channel_name: str, increment_format: str, number: int
+    ):
+        """Return an incremented channel name, taking into account the 100 character channel name limit."""
+        if not increment_format or "{number}" not in increment_format:
+            increment_format = " ({number})"
+        suffix = increment_format.replace("{number}", str(number))
+        return f"{channel_name[: 100 - len(suffix)]}{suffix}"
 
     async def get_member_roles_for_source(
         self, autoroom_source: discord.VoiceChannel

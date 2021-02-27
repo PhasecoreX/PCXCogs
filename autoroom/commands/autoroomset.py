@@ -10,6 +10,8 @@ from redbot.core.utils.predicates import MessagePredicate
 from ..abc import CompositeMetaClass, MixinMeta
 from ..pcx_lib import SettingDisplay, checkmark
 
+channel_name_template = {"username": "{username}'s Room", "game": "{game}"}
+
 
 class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     """The autoroomset command."""
@@ -68,9 +70,15 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     "Member Roles" if len(member_roles) > 1 else "Member Role",
                     ", ".join(member_roles),
                 )
-            autoroom_section.add(
-                "Room name format", avc_settings["channel_name_type"].capitalize()
-            )
+            room_name_format = "Username"
+            if avc_settings["channel_name_type"] in channel_name_template:
+                room_name_format = avc_settings["channel_name_type"].capitalize()
+            elif (
+                avc_settings["channel_name_type"] == "custom"
+                and avc_settings["channel_name_format"]
+            ):
+                room_name_format = f'Custom: "{avc_settings["channel_name_format"]}"'
+            autoroom_section.add("Room name format", room_name_format)
             autoroom_sections.append(autoroom_section)
 
         await ctx.send(server_section.display(*autoroom_sections))
@@ -444,29 +452,186 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     async def username(
         self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
     ):
-        """Default format: PhasecoreX's Room."""
+        """Default format: PhasecoreX's Room.
+
+        Custom format example: `{username}'s Room`
+        """
         await self._save_room_name(ctx, autoroom_source, "username")
 
     @name.command()
     async def game(self, ctx: commands.Context, autoroom_source: discord.VoiceChannel):
-        """The users current playing game, otherwise the username format."""
+        """The users current playing game, otherwise the username format.
+
+        Custom format example: `{game}`
+        """
         await self._save_room_name(ctx, autoroom_source, "game")
+
+    @name.command(name="custom")
+    async def name_custom(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+        *,
+        format_string: str,
+    ):
+        """A custom channel name.
+
+        Template variables supported:
+        - `{username}` - AutoRoom Owner's username
+        - `{game}    ` - AutoRoom Owner's game
+
+        If any of the template variables you use fail to be formatted
+        (e.g. `{game}` when the user isn't playing a game), the room
+        name will be the same as the default `username` format.
+        """
+        await self._save_room_name(ctx, autoroom_source, "custom", format_string)
 
     async def _save_room_name(
         self,
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
         room_type: str,
+        room_format: str = None,
     ):
         """Save the room name type."""
         if await self.get_autoroom_source_config(autoroom_source):
             await self.config.custom(
                 "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
             ).channel_name_type.set(room_type)
+            if room_format:
+                await self.config.custom(
+                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                ).channel_name_format.set(room_format)
+            else:
+                await self.config.custom(
+                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                ).channel_name_format.clear()
+            message = (
+                f"New AutoRooms created by **{autoroom_source.mention}** "
+                f"will use the **{room_type.capitalize()}** format"
+            )
+            if room_format:
+                message += f":\n`{room_format}`."
+            else:
+                message += "."
+            await ctx.send(checkmark(message))
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @modify.group()
+    async def increment(self, ctx: commands.Context):
+        """Set the default increment format of an AutoRoom.
+
+        When there would be a duplicate AutoRoom name,
+        an incrementing number is appended to the name
+        to make it unique.
+        """
+
+    @increment.command()
+    async def custom(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+        format_string: str,
+    ):
+        """Set a custom increment format of an AutoRoom.
+
+        Your `format_string` must include `{number}`, which will
+        be replaced with the incrementing number when generating
+        an AutoRoom name.
+
+        For reference, the `default` format is ` ({number})`
+        (which looks like "Room Name (2)")
+        """
+        if "{number}" not in format_string:
+            await ctx.send(
+                error(
+                    "`format_string` must contain `{number}` in it for incrementing to work properly."
+                )
+            )
+            return
+        format_string_clean = f" {format_string.strip()}"
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).increment_format.set(format_string_clean)
             await ctx.send(
                 checkmark(
-                    f"New AutoRooms created by **{autoroom_source.mention}** "
-                    f"will use the **{room_type.capitalize()}** format."
+                    f"Channel name increment format for **{autoroom_source.mention}** is now `{format_string_clean}`."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @increment.command()
+    async def default(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ):
+        """Reset the increment format back to default.
+
+        The default format, for those curious, is ` ({number})`
+        (which looks like "Room Name (2)")
+        """
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).increment_format.clear()
+            await ctx.send(
+                checkmark(
+                    f"Channel name increment format for **{autoroom_source.mention}** has been reset to default."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @increment.command()
+    async def always(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ):
+        """Toggle whether or not we always append the increment number.
+
+        Normally the first AutoRoom is the original name, and subsequent
+        ones get the increment added to it (example with custom room name):
+
+        `Table`
+        `Table (2)`
+        `Table (3)`
+
+        Enabling this appends the increment to the first AutoRoom as well:
+
+        `Table (1)`
+        `Table (2)`
+        `Table (3)`
+        """
+        if await self.get_autoroom_source_config(autoroom_source):
+            increment_always = await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).increment_always()
+            if increment_always:
+                await self.config.custom(
+                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                ).increment_always.clear()
+            else:
+                await self.config.custom(
+                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                ).increment_always.set(True)
+            await ctx.send(
+                checkmark(
+                    f"{'All' if not increment_always else 'Only duplicate named'} "
+                    f"new AutoRooms created by **{autoroom_source.mention}** will "
+                    f"have an incrementing number added to them."
                 )
             )
         else:
@@ -487,9 +652,14 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             text_channel = await self.config.custom(
                 "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
             ).text_channel()
-            await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).text_channel.set(not text_channel)
+            if text_channel:
+                await self.config.custom(
+                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                ).text_channel.clear()
+            else:
+                await self.config.custom(
+                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                ).text_channel.set(True)
             await ctx.send(
                 checkmark(
                     f"New AutoRooms created by **{autoroom_source.mention}** will "
