@@ -7,10 +7,16 @@ PhasecoreX's Cogs for [Red-DiscordBot](https://github.com/Cog-Creators/Red-Disco
 [![BuyMeACoffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-orange)](https://buymeacoff.ee/phasecorex)
 [![PayPal](https://img.shields.io/badge/paypal-donate-blue)](https://paypal.me/pcx)
 
-To add these wonderful cogs to your instance, run this command:
+To add these wonderful cogs to your instance, run this command first (`[p]` is your bot prefix):
 
 ```
-[p]repo add PCXCogs https://github.com/PhasecoreX/PCXCogs
+[p]repo add pcxcogs https://github.com/PhasecoreX/PCXCogs
+```
+
+Then install your cog(s) of choice:
+
+```
+[p]cog install pcxcogs <cog_name>
 ```
 
 If you don't have an instance, consider using my nice [docker image](https://hub.docker.com/r/phasecorex/red-discordbot)!
