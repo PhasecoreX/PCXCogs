@@ -363,7 +363,10 @@ class ReactChannel(commands.Cog):
             return
         channels = await self.config.guild(guild).channels()
         channel_type = channels.get(str(payload.channel_id))
-        message = await channel.fetch_message(payload.message_id)
+        try:
+            message = await channel.fetch_message(payload.message_id)
+        except discord.NotFound:
+            return
         if not message:
             return
         # Checklist
@@ -418,7 +421,10 @@ class ReactChannel(commands.Cog):
             return
         # channels = await self.config.guild(guild).channels()
         # channel_type = channels.get(str(payload.channel_id))
-        message = await channel.fetch_message(payload.message_id)
+        try:
+            message = await channel.fetch_message(payload.message_id)
+        except discord.NotFound:
+            return
         if not message:
             return
         upvote = await self._get_emoji(guild, "upvote")
