@@ -10,7 +10,10 @@ from redbot.core.utils.predicates import MessagePredicate
 from ..abc import CompositeMetaClass, MixinMeta
 from ..pcx_lib import SettingDisplay, checkmark
 
-channel_name_template = {"username": "{username}'s Room", "game": "{game}"}
+channel_name_template = {
+    "username": "{{username}}'s Room{% if dupenum > 1 %} ({{dupenum}}){% endif %}",
+    "game": "{{game}}{% if not game %}{{username}}'s Room{% endif %}{% if dupenum > 1 %} ({{dupenum}}){% endif %}",
+}
 
 
 class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
@@ -454,7 +457,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     ):
         """Default format: PhasecoreX's Room.
 
-        Custom format example: `{username}'s Room`
+        Custom format example:
+        `{{username}}'s Room{% if dupenum > 1 %} ({{dupenum}}){% endif %}`
         """
         await self._save_room_name(ctx, autoroom_source, "username")
 
@@ -462,7 +466,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     async def game(self, ctx: commands.Context, autoroom_source: discord.VoiceChannel):
         """The users current playing game, otherwise the username format.
 
-        Custom format example: `{game}`
+        Custom format example:
+        `{{game}}{% if not game %}{{username}}'s Room{% endif %}{% if dupenum > 1 %} ({{dupenum}}){% endif %}`
         """
         await self._save_room_name(ctx, autoroom_source, "game")
 
@@ -472,48 +477,79 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
         *,
-        format_string: str,
+        template: str,
     ):
         """A custom channel name.
 
-        Template variables supported:
-        - `{username}` - AutoRoom Owner's username
-        - `{game}    ` - AutoRoom Owner's game
+        Use `{{ expressions }}` to print variables and `{% statements %}` to do basic evaluations on variables.
 
-        If any of the template variables you use fail to be formatted
-        (e.g. `{game}` when the user isn't playing a game), the room
-        name will be the same as the default `username` format.
+        Variables supported:
+        - `username` - AutoRoom Owner's username
+        - `game    ` - AutoRoom Owner's game
+        - `dupenum ` - An incrementing number that starts at 1, useful for un-duplicating channel names
+
+        Statements supported:
+        - `if/elif/else/endif`
+        - Example: `{% if dupenum > 1 %}DupeNum is {{dupenum}}, which is greater than 1{% endif %}`
+        - Another example: `{% if not game %}User isn't playing a game!{% endif %}`
+
+        It's kinda like Jinja2, but way simpler. Check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md) for more info.
         """
-        await self._save_room_name(ctx, autoroom_source, "custom", format_string)
+        await self._save_room_name(ctx, autoroom_source, "custom", template)
 
     async def _save_room_name(
         self,
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
         room_type: str,
-        room_format: str = None,
+        template: str = None,
     ):
         """Save the room name type."""
         if await self.get_autoroom_source_config(autoroom_source):
-            await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).channel_name_type.set(room_type)
-            if room_format:
+            data = self.get_template_data(ctx.author)
+            if template:
+                try:
+                    # Validate template
+                    self.format_template_room_name(template, data)
+                except RuntimeError as rte:
+                    await ctx.send(
+                        error(
+                            "Hmm... that doesn't seem to be a valid template:"
+                            "\n\n"
+                            f"`{str(rte)}`"
+                            "\n\n"
+                            "If you need some help, take a look at "
+                            "[the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)."
+                        )
+                    )
+                    return
                 await self.config.custom(
                     "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-                ).channel_name_format.set(room_format)
+                ).channel_name_format.set(template)
             else:
                 await self.config.custom(
                     "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
                 ).channel_name_format.clear()
+            await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).channel_name_type.set(room_type)
             message = (
                 f"New AutoRooms created by **{autoroom_source.mention}** "
                 f"will use the **{room_type.capitalize()}** format"
             )
-            if room_format:
-                message += f":\n`{room_format}`."
+            if template:
+                message += f":\n`{template}`"
             else:
+                # Load preset template for display purposes
+                template = channel_name_template[room_type]
                 message += "."
+            if "game" not in data:
+                data["game"] = "Example Game"
+            message += "\n\nExample room names:"
+            for room_num in range(1, 4):
+                message += (
+                    f"\n{self.format_template_room_name(template, data, room_num)}"
+                )
             await ctx.send(checkmark(message))
         else:
             await ctx.send(
@@ -523,147 +559,129 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
 
     @modify.group()
-    async def increment(self, ctx: commands.Context):
-        """Set the default increment format of an AutoRoom.
-
-        When there would be a duplicate AutoRoom name,
-        an incrementing number is appended to the name
-        to make it unique.
-        """
-
-    @increment.command()
-    async def custom(
-        self,
-        ctx: commands.Context,
-        autoroom_source: discord.VoiceChannel,
-        format_string: str,
-    ):
-        """Set a custom increment format of an AutoRoom.
-
-        Your `format_string` must include `{number}`, which will
-        be replaced with the incrementing number when generating
-        an AutoRoom name.
-
-        For reference, the `default` format is ` ({number})`
-        (which looks like "Room Name (2)")
-        """
-        if "{number}" not in format_string:
-            await ctx.send(
-                error(
-                    "`format_string` must contain `{number}` in it for incrementing to work properly."
-                )
-            )
-            return
-        format_string_clean = f" {format_string.strip()}"
-        if await self.get_autoroom_source_config(autoroom_source):
-            await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).increment_format.set(format_string_clean)
-            await ctx.send(
-                checkmark(
-                    f"Channel name increment format for **{autoroom_source.mention}** is now `{format_string_clean}`."
-                )
-            )
-        else:
-            await ctx.send(
-                error(
-                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                )
-            )
-
-    @increment.command()
-    async def default(
-        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
-    ):
-        """Reset the increment format back to default.
-
-        The default format, for those curious, is ` ({number})`
-        (which looks like "Room Name (2)")
-        """
-        if await self.get_autoroom_source_config(autoroom_source):
-            await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).increment_format.clear()
-            await ctx.send(
-                checkmark(
-                    f"Channel name increment format for **{autoroom_source.mention}** has been reset to default."
-                )
-            )
-        else:
-            await ctx.send(
-                error(
-                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                )
-            )
-
-    @increment.command()
-    async def always(
-        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
-    ):
-        """Toggle whether or not we always append the increment number.
-
-        Normally the first AutoRoom is the original name, and subsequent
-        ones get the increment added to it (example with custom room name):
-
-        `Table`
-        `Table (2)`
-        `Table (3)`
-
-        Enabling this appends the increment to the first AutoRoom as well:
-
-        `Table (1)`
-        `Table (2)`
-        `Table (3)`
-        """
-        if await self.get_autoroom_source_config(autoroom_source):
-            increment_always = await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).increment_always()
-            if increment_always:
-                await self.config.custom(
-                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-                ).increment_always.clear()
-            else:
-                await self.config.custom(
-                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-                ).increment_always.set(True)
-            await ctx.send(
-                checkmark(
-                    f"{'All' if not increment_always else 'Only duplicate named'} "
-                    f"new AutoRooms created by **{autoroom_source.mention}** will "
-                    f"have an incrementing number added to them."
-                )
-            )
-        else:
-            await ctx.send(
-                error(
-                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                )
-            )
-
-    @modify.command()
     async def text(
         self,
         ctx: commands.Context,
+    ):
+        """Manage if a text channel should be created as well."""
+
+    @text.command(name="enable")
+    async def text_enable(
+        self,
+        ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
     ):
-        """Toggle if a text channel should be created as well."""
+        """Enable creating a text channel with the AutoRoom."""
         if await self.get_autoroom_source_config(autoroom_source):
-            text_channel = await self.config.custom(
+            await self.config.custom(
                 "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).text_channel()
-            if text_channel:
-                await self.config.custom(
-                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-                ).text_channel.clear()
-            else:
-                await self.config.custom(
-                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-                ).text_channel.set(True)
+            ).text_channel.set(True)
             await ctx.send(
                 checkmark(
-                    f"New AutoRooms created by **{autoroom_source.mention}** will "
-                    f"{'now' if not text_channel else 'no longer'} get their own text channel."
+                    f"New AutoRooms created by **{autoroom_source.mention}** will now get their own text channel."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @text.command(name="disable")
+    async def text_disable(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+    ):
+        """Disable creating a text channel with the AutoRoom."""
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).text_channel.clear()
+            await ctx.send(
+                checkmark(
+                    f"New AutoRooms created by **{autoroom_source.mention}** will no longer get their own text channel."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @text.group(name="hint")
+    async def text_hint(
+        self,
+        ctx: commands.Context,
+    ):
+        """Configure sending an introductory message to the text channel."""
+
+    @text_hint.command(name="set")
+    async def text_hint_set(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+        *,
+        hint_text: str,
+    ):
+        """Send a message to the newly generated text channel.
+
+        This can have template variables and statements, which you can learn more
+        about by looking at `[p]autoroomset modify name custom`, or by looking at
+        [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md).
+        """
+        if await self.get_autoroom_source_config(autoroom_source):
+            data = self.get_template_data(ctx.author)
+            try:
+                # Validate template
+                hint_text_formatted = self.template.render(hint_text, data)
+            except RuntimeError as rte:
+                await ctx.send(
+                    error(
+                        "Hmm... that doesn't seem to be a valid template:"
+                        "\n\n"
+                        f"`{str(rte)}`"
+                        "\n\n"
+                        "If you need some help, take a look at "
+                        "[the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)."
+                    )
+                )
+                return
+
+            await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).text_channel_hint.set(hint_text)
+
+            await ctx.send(
+                checkmark(
+                    f"New AutoRooms created by **{autoroom_source.mention}** will have the following message sent to their text channel:"
+                    "\n\n"
+                    f"{hint_text_formatted}"
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @text_hint.command(name="disable")
+    async def text_hint_disable(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+    ):
+        """Disable sending a message to the newly generated text channel."""
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).text_channel_hint.clear()
+            await ctx.send(
+                checkmark(
+                    f"New AutoRooms created by **{autoroom_source.mention}** will no longer have a message sent to their text channel."
                 )
             )
         else:

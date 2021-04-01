@@ -8,6 +8,7 @@ from redbot.core import Config, commands
 from .abc import CompositeMetaClass
 from .commands import Commands
 from .commands.autoroomset import channel_name_template
+from .pcx_template import Template
 
 __author__ = "PhasecoreX"
 
@@ -33,11 +34,10 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         "dest_category_id": None,
         "room_type": "public",
         "text_channel": False,
+        "text_channel_hint": None,
         "channel_name_type": "username",
         "channel_name_format": "",
         "member_roles": [],
-        "increment_format": None,
-        "increment_always": False,
     }
     default_channel_settings = {
         "owner": None,
@@ -60,6 +60,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         )
         self.config.register_channel(**self.default_channel_settings)
         self.autoroom_create_lock: asyncio.Lock = asyncio.Lock()
+        self.template = Template()
 
     async def initialize(self):
         """Perform setup actions before loading cog."""
@@ -135,6 +136,62 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                     "auto_voice_channels"
                 )
             await self.config.schema_version.set(4)
+
+        if schema_version < 5:
+            # Upgrade room templates
+            all_autoroom_sources = await self.config.custom("AUTOROOM_SOURCE").all()
+            for guild_id, guild_autoroom_sources in all_autoroom_sources.items():
+                for (
+                    avc_id,
+                    autoroom_source_config,
+                ) in guild_autoroom_sources.items():
+                    if (
+                        "channel_name_format" in autoroom_source_config
+                        and autoroom_source_config["channel_name_format"]
+                    ):
+                        # Change username and game template variables
+                        new_template = (
+                            autoroom_source_config["channel_name_format"]
+                            .replace("{username}", "{{username}}")
+                            .replace("{game}", "{{game}}")
+                        )
+                        if (
+                            "increment_always" in autoroom_source_config
+                            and autoroom_source_config["increment_always"]
+                        ):
+                            if "increment_format" in autoroom_source_config:
+                                # Always show number, custom format
+                                new_template += autoroom_source_config[
+                                    "increment_format"
+                                ].replace("{number}", "{{dupenum}}")
+                            else:
+                                # Always show number, default format
+                                new_template += " ({{dupenum}})"
+                        else:
+                            # Show numbers > 1, custom format
+                            if "increment_format" in autoroom_source_config:
+                                new_template += (
+                                    "{% if dupenum > 1 %}"
+                                    + autoroom_source_config[
+                                        "increment_format"
+                                    ].replace("{number}", "{{dupenum}}")
+                                    + "{% endif %}"
+                                )
+                            else:
+                                # Show numbers > 1, default format
+                                new_template += (
+                                    "{% if dupenum > 1 %} ({{dupenum}}){% endif %}"
+                                )
+                        await self.config.custom(
+                            "AUTOROOM_SOURCE", guild_id, avc_id
+                        ).channel_name_format.set(new_template)
+                        await self.config.custom(
+                            "AUTOROOM_SOURCE", guild_id, avc_id
+                        ).clear_raw("increment_always")
+                        await self.config.custom(
+                            "AUTOROOM_SOURCE", guild_id, avc_id
+                        ).clear_raw("increment_format")
+            await self.config.schema_version.set(5)
 
     async def _cleanup_autorooms(self):
         """Remove non-existent AutoRooms from the config."""
@@ -336,10 +393,16 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                     await self.config.channel(
                         new_voice_channel
                     ).associated_text_channel.set(new_text_channel.id)
-                    await new_text_channel.send(
-                        f"{member.display_name}, "
-                        "this is your own text channel that anyone in your AutoRoom can use."
-                    )
+                    if autoroom_source_config["text_channel_hint"]:
+                        try:
+                            hint = self.template.render(
+                                autoroom_source_config["text_channel_hint"],
+                                self.get_template_data(member),
+                            )
+                            if hint:
+                                await new_text_channel.send(hint)
+                        except RuntimeError:
+                            pass  # User manually screwed with the template
 
                 await asyncio.sleep(2)
 
@@ -402,55 +465,56 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         taken_channel_names: list,
     ):
         """Return a channel name with an incrementing number appended to it, based on a formatting string."""
-        new_channel_name = ""
+        template = None
         if autoroom_source_config["channel_name_type"] in channel_name_template:
-            new_channel_name = channel_name_template[
+            template = channel_name_template[
                 autoroom_source_config["channel_name_type"]
             ]
         elif autoroom_source_config["channel_name_type"] == "custom":
-            new_channel_name = autoroom_source_config["channel_name_format"]
+            template = autoroom_source_config["channel_name_format"]
+        template = template or channel_name_template["username"]
 
-        if "{game}" in new_channel_name:
-            success = False
-            for activity in member.activities:
-                if activity.type.value == 0:
-                    new_channel_name = new_channel_name.replace("{game}", activity.name)
-                    success = True
-                    break
-            if not success:
-                new_channel_name = None
+        data = self.get_template_data(member)
+        new_channel_name = None
+        attempt = 1
+        try:
+            new_channel_name = self.format_template_room_name(template, data, attempt)
+        except RuntimeError:
+            pass
 
         if not new_channel_name:
-            # If any of the above formatting failed, default to this template
-            new_channel_name = channel_name_template["username"]
-        new_channel_name = new_channel_name.replace("{username}", member.display_name)
-        new_channel_name = new_channel_name[:100]
+            # Either the user screwed with the template, or the template returned nothing. Use a default one instead.
+            template = channel_name_template["username"]
+            new_channel_name = self.format_template_room_name(template, data, attempt)
 
         # Check for duplicate names
-        new_channel_name_deduped = new_channel_name
-        dedupe_counter = 1
-        if autoroom_source_config["increment_always"]:
-            new_channel_name_deduped = self._generate_incremented_channel_name(
-                new_channel_name, autoroom_source_config["increment_format"], 1
-            )
-        while new_channel_name_deduped in taken_channel_names:
-            dedupe_counter += 1
-            new_channel_name_deduped = self._generate_incremented_channel_name(
-                new_channel_name,
-                autoroom_source_config["increment_format"],
-                dedupe_counter,
-            )
-        return new_channel_name_deduped
+        attempted_channel_names = []
+        while (
+            new_channel_name in taken_channel_names
+            and new_channel_name not in attempted_channel_names
+        ):
+            attempt += 1
+            attempted_channel_names.append(new_channel_name)
+            new_channel_name = self.format_template_room_name(template, data, attempt)
+        return new_channel_name
 
     @staticmethod
-    def _generate_incremented_channel_name(
-        channel_name: str, increment_format: str, number: int
-    ):
-        """Return an incremented channel name, taking into account the 100 character channel name limit."""
-        if not increment_format or "{number}" not in increment_format:
-            increment_format = " ({number})"
-        suffix = increment_format.replace("{number}", str(number))
-        return f"{channel_name[: 100 - len(suffix)]}{suffix}"
+    def get_template_data(member: discord.Member):
+        """Return a dict of template data based on a member."""
+        data = {"username": member.display_name}
+        for activity in member.activities:
+            if activity.type.value == 0:
+                data["game"] = activity.name
+                break
+        return data
+
+    def format_template_room_name(self, template: str, data: dict, num: int = 1):
+        """Return a formatted channel name, taking into account the 100 character channel name limit."""
+        nums = {"dupenum": num}
+        return self.template.render(
+            template=template,
+            data={**nums, **data},
+        )[:100].strip()
 
     async def get_member_roles_for_source(
         self, autoroom_source: discord.VoiceChannel

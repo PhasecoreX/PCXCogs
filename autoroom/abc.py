@@ -5,6 +5,8 @@ import discord
 from redbot.core import Config, commands
 from redbot.core.bot import Red
 
+from autoroom.pcx_template import Template
+
 
 class CompositeMetaClass(type(commands.Cog), type(ABC)):
     """This allows the metaclass used for proper type detection to coexist with discord.py's metaclass."""
@@ -18,6 +20,17 @@ class MixinMeta(ABC):
 
     bot: Red
     config: Config
+    template: Template
+
+    @staticmethod
+    @abstractmethod
+    def get_template_data(member: discord.Member):
+        raise NotImplementedError()
+
+    @staticmethod
+    @abstractmethod
+    def format_template_room_name(template: str, data: dict, num: int = 0):
+        raise NotImplementedError()
 
     @abstractmethod
     async def get_member_roles_for_source(
