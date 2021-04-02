@@ -508,6 +508,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         if await self.get_autoroom_source_config(autoroom_source):
             data = self.get_template_data(ctx.author)
             if template:
+                template = template.replace("\n", " ")
                 try:
                     # Validate template
                     self.format_template_room_name(template, data)
