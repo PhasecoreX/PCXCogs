@@ -30,6 +30,7 @@ class ReactChannel(commands.Cog):
     }
     default_react_channel_settings = {
         "channel_type": None,
+        "ignore_bots": True,
     }
     default_member_settings = {"karma": 0, "created_at": 0}
 
@@ -88,7 +89,10 @@ class ReactChannel(commands.Cog):
                 )
                 for channel_id, channel_type in channels.items():
                     await self.config.custom("REACT_CHANNEL", guild_id, channel_id).set(
-                        {"channel_type": channel_type}
+                        {
+                            "channel_type": channel_type,
+                            "ignore_bots": True if channel_type == "vote" else False,
+                        }
                     )
                 await self.config.guild_from_id(guild_id).clear_raw("channels")
             await self.config.schema_version.set(2)
@@ -226,6 +230,33 @@ class ReactChannel(commands.Cog):
             )
         )
 
+    @reactchannelset.command()
+    async def ignore(
+        self, ctx: commands.Context, channel: Optional[discord.TextChannel]
+    ):
+        """Toggle ignoring bot messages for a ReactChannel."""
+        if channel is None:
+            channel = ctx.message.channel
+        channel_type = await self.config.custom(
+            "REACT_CHANNEL", channel.guild.id, channel.id
+        ).channel_type()
+        if not channel_type:
+            await ctx.send(error(f"{channel.mention} is not a ReactChannel."))
+        elif channel_type == "vote":
+            await ctx.send(warning("Bots are always ignored on vote ReactChannels."))
+        else:
+            ignore_bots = await self.config.custom(
+                "REACT_CHANNEL", channel.guild.id, channel.id
+            ).ignore_bots()
+            await self.config.custom(
+                "REACT_CHANNEL", channel.guild.id, channel.id
+            ).ignore_bots.set(not ignore_bots)
+            await ctx.send(
+                checkmark(
+                    f"{channel.mention} ReactChannel will {'now' if ignore_bots else 'no longer'} automatically react to bots."
+                )
+            )
+
     @reactchannelset.group()
     async def emoji(self, ctx: commands.Context):
         """Manage emojis used for ReactChannels."""
@@ -345,6 +376,13 @@ class ReactChannel(commands.Cog):
         if await self.bot.cog_disabled_in_guild(self, message.guild):
             return
         if not message.channel.permissions_for(message.guild.me).add_reactions:
+            return
+        if (
+            message.author.bot
+            and await self.config.custom(
+                "REACT_CHANNEL", message.guild.id, message.channel.id
+            ).ignore_bots()
+        ):
             return
         channel_type = await self.config.custom(
             "REACT_CHANNEL", message.guild.id, message.channel.id
