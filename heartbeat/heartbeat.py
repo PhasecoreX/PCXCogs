@@ -4,9 +4,7 @@ import logging
 from datetime import timedelta
 
 import aiohttp
-from redbot.core import Config
-from redbot.core import __version__ as redbot_version
-from redbot.core import checks, commands
+from redbot.core import Config, __version__ as redbot_version, checks, commands
 from redbot.core.utils.chat_formatting import humanize_timedelta
 
 from .pcx_lib import SettingDisplay, checkmark, delete
@@ -130,7 +128,7 @@ class Heartbeat(commands.Cog):
         """Background loop."""
         await self.bot.wait_until_ready()
         frequency = await self.config.frequency()
-        if not frequency:
+        if frequency < 60:
             frequency = 60.0
         while True:
             await self.send_heartbeat()
