@@ -589,7 +589,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
 
     async def get_all_autoroom_source_configs(self, guild: discord.guild):
         """Return a dict of all autoroom source configs, cleaning up any invalid ones."""
-        sorted_list_of_configs = []
+        unsorted_list_of_configs = []
         configs = await self.config.custom(
             "AUTOROOM_SOURCE", guild.id
         ).all()  # Does NOT return default values
@@ -597,13 +597,15 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             channel = guild.get_channel(int(channel_id))
             config = await self.get_autoroom_source_config(channel)
             if config:
-                sorted_list_of_configs.insert(channel.position, (channel_id, config))
+                unsorted_list_of_configs.append((channel.position, channel_id, config))
             else:
                 await self.config.custom(
                     "AUTOROOM_SOURCE", guild.id, channel_id
                 ).clear()
         result = {}
-        for channel_id, config in sorted_list_of_configs:
+        for _, channel_id, config in sorted(
+            unsorted_list_of_configs, key=lambda source_config: source_config[0]
+        ):
             result[int(channel_id)] = config
         return result
 
