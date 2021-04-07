@@ -318,8 +318,8 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 if member_role not in common_overwrites:
                     common_overwrites[member_role] = discord.PermissionOverwrite()
                 common_overwrites[member_role].update(
-                    view_channel=autoroom_source_config["room_type"] == "public",
-                    connect=autoroom_source_config["room_type"] == "public",
+                    view_channel=autoroom_source_config["room_type"] != "private",
+                    connect=autoroom_source_config["room_type"] != "private",
                 )
             if member_roles:
                 # We have a member role, deny @everyone
@@ -338,13 +338,17 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
 
             for member in autoroom_source.members:
                 # Generate overwrites
-                overwrites = {
-                    member: discord.PermissionOverwrite(
-                        view_channel=True,
-                        connect=True,
-                        manage_channels=True,
+                overwrites = {}
+                if autoroom_source_config["room_type"] != "server":
+                    overwrites.update(
+                        {
+                            member: discord.PermissionOverwrite(
+                                view_channel=True,
+                                connect=True,
+                                manage_channels=True,
+                            )
+                        }
                     )
-                }
                 overwrites.update(common_overwrites)
                 # Create channel name
                 new_channel_name = self._generate_channel_name(
@@ -359,7 +363,11 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                     overwrites=overwrites,
                     **options,
                 )
-                await self.config.channel(new_voice_channel).owner.set(member.id)
+                await self.config.channel(new_voice_channel).owner.set(
+                    member.id
+                    if autoroom_source_config["room_type"] != "server"
+                    else guild.me.id
+                )
                 if member_roles:
                     await self.config.channel(new_voice_channel).member_roles.set(
                         [member_role.id for member_role in member_roles]
@@ -380,8 +388,12 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                         ),
                         member: discord.PermissionOverwrite(
                             read_messages=True,
-                            manage_channels=True,
-                            manage_messages=True,
+                            manage_channels=True
+                            if autoroom_source_config["room_type"] != "server"
+                            else None,
+                            manage_messages=True
+                            if autoroom_source_config["room_type"] != "server"
+                            else None,
                         ),
                     }
                     new_text_channel = await guild.create_text_channel(

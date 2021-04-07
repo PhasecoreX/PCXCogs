@@ -156,9 +156,12 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await delete(hint, delay=5)
             return False
         if ctx.message.author != autoroom_info["owner"]:
+            reason_server = ""
+            if autoroom_info["owner"] == ctx.guild.me:
+                reason_server = " (it is a server AutoRoom)"
             hint = await ctx.send(
                 error(
-                    f"{ctx.message.author.mention}, you are not the owner of this AutoRoom."
+                    f"{ctx.message.author.mention}, you are not the owner of this AutoRoom{reason_server}."
                 )
             )
             await delete(ctx.message, delay=5)

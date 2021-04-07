@@ -162,8 +162,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     async def access(self, ctx: commands.Context):
         """Control access to all AutoRooms."""
 
-    @access.command()
-    async def admin(self, ctx: commands.Context):
+    @access.command(name="admin")
+    async def access_admin(self, ctx: commands.Context):
         """Allow Admins to join private channels."""
         admin_access = not await self.config.guild(ctx.guild).admin_access()
         await self.config.guild(ctx.guild).admin_access.set(admin_access)
@@ -173,8 +173,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
         )
 
-    @access.command()
-    async def mod(self, ctx: commands.Context):
+    @access.command(name="mod")
+    async def access_mod(self, ctx: commands.Context):
         """Allow Moderators to join private channels."""
         mod_access = not await self.config.guild(ctx.guild).mod_access()
         await self.config.guild(ctx.guild).mod_access.set(mod_access)
@@ -208,8 +208,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             return
         new_source = {"dest_category_id": dest_category.id}
 
-        # Public or private
-        options = ["public", "private"]
+        # Room type
+        options = ["public", "private", "server"]
         pred = MessagePredicate.lower_contained_in(options, ctx)
         await ctx.send(
             "**Welcome to the setup wizard for creating an AutoRoom Source!**"
@@ -217,13 +217,18 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             f"Users joining the {source_voice_channel.mention} AutoRoom Source will have an AutoRoom "
             f"created in the {dest_category.mention} category and be moved into it."
             "\n\n"
-            "**Public/Private**"
+            "**AutoRoom Type**"
             "\n"
-            "AutoRooms can either be public or private. Public AutoRooms are visible to other users, "
-            "where the AutoRoom Owner can kick/ban users out of them. Private AutoRooms are only visible to the "
-            "AutoRoom Owner, where they can allow users into their room."
+            "AutoRooms can be one of the following types when created:"
+            "\n"
+            "`public ` - Visible to other users, and the AutoRoom Owner can kick/ban users out of them."
+            "\n"
+            "`private` - Only visible to the AutoRoom Owner, who can allow users into their room."
+            "\n"
+            "`server ` - Same as a public AutoRoom, but with no AutoRoom Owner. "
+            "No modifications can be made to the generated AutoRoom."
             "\n\n"
-            "Would you like these created AutoRooms to be public or private to other users by default? (`public`/`private`)"
+            "What would you like these created AutoRooms to be by default? (`public`/`private`/`server`)"
         )
         try:
             await ctx.bot.wait_for("message", check=pred, timeout=60)
@@ -327,23 +332,34 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
         )
 
-    @autoroomset.group(aliased=["edit"])
+    @autoroomset.group(aliases=["edit"])
     async def modify(self, ctx: commands.Context):
         """Modify an existing AutoRoom Source."""
 
-    @modify.command(name="public")
-    async def modify_public(
+    @modify.group(name="type")
+    async def modify_type(self, ctx: commands.Context):
+        """Choose what type of AutoRoom is created."""
+
+    @modify_type.command(name="public")
+    async def modify_type_public(
         self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
     ):
-        """Set an AutoRoom Source to create public AutoRooms by default."""
+        """Rooms will be open to all. AutoRoom Owner has control over room."""
         await self._save_public_private(ctx, autoroom_source, "public")
 
-    @modify.command(name="private")
-    async def modify_private(
+    @modify_type.command(name="private")
+    async def modify_type_private(
         self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
     ):
-        """Set an AutoRoom Source to create private AutoRooms by default."""
+        """Rooms will be hidden. AutoRoom Owner can allow users in."""
         await self._save_public_private(ctx, autoroom_source, "private")
+
+    @modify_type.command(name="server")
+    async def modify_type_server(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ):
+        """Rooms will be open to all, but the server owns the AutoRoom (so they can't be modified)."""
+        await self._save_public_private(ctx, autoroom_source, "server")
 
     async def _save_public_private(
         self,
@@ -358,7 +374,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             ).room_type.set(room_type)
             await ctx.send(
                 checkmark(
-                    f"New AutoRooms created by **{autoroom_source.mention}** will be {room_type}."
+                    f"**{autoroom_source.mention}** will now create `{room_type}` AutoRooms."
                 )
             )
         else:
@@ -368,15 +384,15 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
             )
 
-    @modify.group()
-    async def memberrole(self, ctx: commands.Context):
+    @modify.group(name="memberrole")
+    async def modify_memberrole(self, ctx: commands.Context):
         """Limit AutoRoom visibility to certain member roles.
 
         When set, only users with the specified role(s) can see AutoRooms.
         """
 
-    @memberrole.command(name="add")
-    async def add_memberrole(
+    @modify_memberrole.command(name="add")
+    async def modify_memberrole_add(
         self,
         ctx: commands.Context,
         role: discord.Role,
@@ -400,8 +416,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
             )
 
-    @memberrole.command(name="remove")
-    async def remove_memberrole(
+    @modify_memberrole.command(name="remove")
+    async def modify_memberrole_remove(
         self,
         ctx: commands.Context,
         role: discord.Role,
@@ -447,12 +463,12 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
             )
 
-    @modify.group()
-    async def name(self, ctx: commands.Context):
+    @modify.group(name="name")
+    async def modify_name(self, ctx: commands.Context):
         """Set the default name format of an AutoRoom."""
 
-    @name.command()
-    async def username(
+    @modify_name.command(name="username")
+    async def modify_name_username(
         self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
     ):
         """Default format: PhasecoreX's Room.
@@ -462,8 +478,10 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         """
         await self._save_room_name(ctx, autoroom_source, "username")
 
-    @name.command()
-    async def game(self, ctx: commands.Context, autoroom_source: discord.VoiceChannel):
+    @modify_name.command(name="game")
+    async def modify_name_game(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ):
         """The users current playing game, otherwise the username format.
 
         Custom format example:
@@ -471,8 +489,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         """
         await self._save_room_name(ctx, autoroom_source, "game")
 
-    @name.command(name="custom")
-    async def name_custom(
+    @modify_name.command(name="custom")
+    async def modify_name_custom(
         self,
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
@@ -559,15 +577,15 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
             )
 
-    @modify.group()
-    async def text(
+    @modify.group(name="text")
+    async def modify_text(
         self,
         ctx: commands.Context,
     ):
         """Manage if a text channel should be created as well."""
 
-    @text.command(name="enable")
-    async def text_enable(
+    @modify_text.command(name="enable")
+    async def modify_text_enable(
         self,
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
@@ -589,8 +607,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
             )
 
-    @text.command(name="disable")
-    async def text_disable(
+    @modify_text.command(name="disable")
+    async def modify_text_disable(
         self,
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
@@ -612,15 +630,15 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
             )
 
-    @text.group(name="hint")
-    async def text_hint(
+    @modify_text.group(name="hint")
+    async def modify_text_hint(
         self,
         ctx: commands.Context,
     ):
         """Configure sending an introductory message to the text channel."""
 
-    @text_hint.command(name="set")
-    async def text_hint_set(
+    @modify_text_hint.command(name="set")
+    async def modify_text_hint_set(
         self,
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
@@ -669,8 +687,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
             )
 
-    @text_hint.command(name="disable")
-    async def text_hint_disable(
+    @modify_text_hint.command(name="disable")
+    async def modify_text_hint_disable(
         self,
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
@@ -692,8 +710,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
             )
 
-    @modify.command()
-    async def perms(self, ctx: commands.Context):
+    @modify.command(name="perms")
+    async def modify_perms(self, ctx: commands.Context):
         """Learn how to modify default permissions."""
         await ctx.send(
             info(
@@ -711,8 +729,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
         )
 
-    @modify.command(aliases=["bitrate", "users"])
-    async def other(self, ctx: commands.Context):
+    @modify.command(name="other", aliases=["bitrate", "users"])
+    async def modify_other(self, ctx: commands.Context):
         """Learn how to modify default bitrate and user limits."""
         await ctx.send(
             info(
