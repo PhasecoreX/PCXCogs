@@ -47,8 +47,15 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def check_required_perms(
-        self, guild: discord.guild, also_check_autorooms: bool = False
+    async def check_all_perms(self, guild: discord.Guild, detailed=False):
+        raise NotImplementedError()
+
+    @staticmethod
+    @abstractmethod
+    async def check_perms_source_dest(
+        autoroom_source: discord.VoiceChannel,
+        category_dest: discord.CategoryChannel,
+        detailed=False,
     ):
         raise NotImplementedError()
 

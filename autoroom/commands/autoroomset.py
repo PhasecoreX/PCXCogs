@@ -84,79 +84,38 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             autoroom_section.add("Room name format", room_name_format)
             autoroom_sections.append(autoroom_section)
 
-        await ctx.send(server_section.display(*autoroom_sections))
-
-        if not await self.check_required_perms(ctx.guild, also_check_autorooms=True):
-            await ctx.send(
-                error(
-                    "It looks like I am missing one or more required server permissions. "
-                    "Until I have them, the AutoRoom cog may not function properly. "
-                    "Check `[p]autoroomset permissions` for more information."
-                )
+        message = server_section.display(*autoroom_sections)
+        if not await self.check_all_perms(ctx.guild):
+            message += "\n" + error(
+                "It looks like I am missing one or more required permissions. "
+                "Until I have them, the AutoRoom cog may not function properly "
+                "for all AutoRoom Sources. "
+                "Check `[p]autoroomset permissions` for more information."
             )
-            return
+        await ctx.send(message)
 
     @autoroomset.command(aliases=["perms"])
     async def permissions(self, ctx: commands.Context):
         """Check that the bot has all needed permissions."""
-        has_all_perms = await self.check_required_perms(ctx.guild)
-
-        permission_section = SettingDisplay("Permission Check")
-        permission_section.add(
-            "View channels", ctx.guild.me.guild_permissions.view_channel
-        )
-        permission_section.add(
-            "Manage channels", ctx.guild.me.guild_permissions.manage_channels
-        )
-        permission_section.add(
-            "Manage roles", ctx.guild.me.guild_permissions.manage_roles
-        )
-        permission_section.add("Connect", ctx.guild.me.guild_permissions.connect)
-        permission_section.add(
-            "Move members", ctx.guild.me.guild_permissions.move_members
-        )
-
-        autoroom_sections = []
-        avcs = await self.get_all_autoroom_source_configs(ctx.guild)
-        for avc_id in avcs.keys():
-            source_channel = ctx.guild.get_channel(avc_id)
-            if not source_channel:
-                continue
-            autoroom_section = SettingDisplay(f"AutoRoom - {source_channel.name}")
-            overwritten_perms = False
-            if (
-                source_channel.overwrites
-                and ctx.guild.default_role in source_channel.overwrites
-            ):
-                for testing_overwrite in source_channel.overwrites[
-                    ctx.guild.default_role
-                ]:
-                    if testing_overwrite[1] is not None:
-                        perm = getattr(
-                            ctx.guild.me.guild_permissions, testing_overwrite[0]
-                        )
-                        has_all_perms = has_all_perms and perm
-                        autoroom_section.add(
-                            testing_overwrite[0],
-                            perm,
-                        )
-                        overwritten_perms = True
-                if overwritten_perms:
-                    autoroom_sections.append(autoroom_section)
-
-        await ctx.send(permission_section.display(*autoroom_sections))
-
+        has_all_perms, details = await self.check_all_perms(ctx.guild, detailed=True)
         if not has_all_perms:
-            await ctx.send(
-                error(
-                    "It looks like I am missing one or more required server permissions. "
-                    "Until I have them, the AutoRoom cog may not function properly.\n\n"
-                    "In the case of missing AutoRoom Source specific permissions, only those channels "
-                    "will not work. This can be fixed by either removing `@everyone` permission overrides "
-                    "in the AutoRoom Source, or by giving me those permissions server-wide."
-                )
+            details += "\n" + error(
+                "It looks like I am missing one or more required permissions. "
+                "Until I have them, the AutoRoom Source(s) in question may not function properly."
+                "\n\n"
+                "The easiest way of doing this is just giving me these permissions as part of my server role, "
+                "otherwise you will need to give me these permissions on the source channel and destination category."
+                "\n\n"
+                "In the case of optional everyone permissions, if the default everyone permission on "
+                "an AutoRoom Source is explicitly allowed or denied a permission, I need to have "
+                "that permission allowed in the destination category. Otherwise, I can't copy that "
+                "permission down to the created AutoRoom. You can either just give me the permission on my "
+                "server role, add them for me on the destination category, or remove the permissions from the "
+                "AutoRoom Source."
             )
-            return
+        else:
+            details += "\n" + checkmark("Everything looks good here!")
+        await ctx.send(details)
 
     @autoroomset.group()
     async def access(self, ctx: commands.Context):
@@ -197,12 +156,28 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         voice channel (AutoRoom) created in the destination category,
         and then be moved into it.
         """
-        if not await self.check_required_perms(ctx.guild):
+        good_permissions, details = await self.check_perms_source_dest(
+            source_voice_channel, dest_category, detailed=True
+        )
+        if not good_permissions:
             await ctx.send(
                 error(
                     "I am missing a permission that the AutoRoom cog requires me to have. "
-                    "Check `[p]autoroomset permissions` for more details. "
+                    "Check below for the permissions I require in both the AutoRoom Source "
+                    "and the destination category. "
                     "Try creating the AutoRoom Source again once I have these permissions."
+                    "\n\n"
+                    f"{details}"
+                    "\n"
+                    "The easiest way of doing this is just giving me these permissions as part of my server role, "
+                    "otherwise you will need to give me these permissions on the source channel and destination category."
+                    "\n\n"
+                    "In the case of optional everyone permissions, if the default everyone permission on "
+                    "an AutoRoom Source is explicitly allowed or denied a permission, I need to have "
+                    "that permission allowed in the destination category. Otherwise, I can't copy that "
+                    "permission down to the created AutoRoom. You can either just give me the permission on my "
+                    "server role, add them for me on the destination category, or remove the permissions from the "
+                    "AutoRoom Source."
                 )
             )
             return
@@ -395,8 +370,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     async def modify_memberrole_add(
         self,
         ctx: commands.Context,
-        role: discord.Role,
         autoroom_source: discord.VoiceChannel,
+        role: discord.Role,
     ):
         """Add a role to the list of member roles allowed to see these AutoRooms."""
         if await self.get_autoroom_source_config(autoroom_source):
@@ -420,8 +395,8 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     async def modify_memberrole_remove(
         self,
         ctx: commands.Context,
-        role: discord.Role,
         autoroom_source: discord.VoiceChannel,
+        role: discord.Role,
     ):
         """Remove a role from the list of member roles allowed to see these AutoRooms."""
         if await self.get_autoroom_source_config(autoroom_source):
