@@ -156,9 +156,17 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         voice channel (AutoRoom) created in the destination category,
         and then be moved into it.
         """
-        good_permissions, details = await self.check_perms_source_dest(
+        good_permissions, details = await self.check_perms_guild(
+            source_voice_channel.guild, detailed=True
+        )
+        (
+            good_permissions_src_dest,
+            details_src_dest,
+        ) = await self.check_perms_source_dest(
             source_voice_channel, dest_category, detailed=True
         )
+        good_permissions = good_permissions and good_permissions_src_dest
+        details += details_src_dest
         if not good_permissions:
             await ctx.send(
                 error(

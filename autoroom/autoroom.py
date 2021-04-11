@@ -264,6 +264,8 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
     async def _process_autoroom_create(self, autoroom_source, autoroom_source_config):
         """Create a voice channel for each member in an AutoRoom Source channel."""
         guild = autoroom_source.guild
+        if not await self.check_perms_guild(guild):
+            return
         additional_allowed_roles = []
         if await self.config.guild(guild).mod_access():
             # Add mod roles to be allowed
@@ -568,8 +570,9 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
     async def check_all_perms(self, guild: discord.Guild, detailed=False):
         """Check all permissions for all AutoRooms in a guild."""
         avcs = await self.get_all_autoroom_source_configs(guild)
-        result = True
-        result_str = ""
+        result, result_str = await self.check_perms_guild(guild, detailed=True)
+        if not detailed and not result:
+            return False
         for avc_id, avc_settings in avcs.items():
             autoroom_source = guild.get_channel(avc_id)
             category_dest = guild.get_channel(avc_settings["dest_category_id"])
@@ -589,8 +592,8 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         else:
             return True
 
-    @staticmethod
     async def check_perms_source_dest(
+        self,
         autoroom_source: discord.VoiceChannel,
         category_dest: discord.CategoryChannel,
         detailed=False,
@@ -605,7 +608,6 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             and source.connect
             and dest.view_channel
             and dest.manage_channels
-            and dest.manage_roles
             and dest.manage_messages
             and dest.connect
             and dest.move_members
@@ -647,7 +649,6 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         dest_section = SettingDisplay(f"Required on Destination: {category_dest.name}")
         dest_section.add("View channels", dest.view_channel)
         dest_section.add("Manage channels", dest.manage_channels)
-        dest_section.add("Manage roles", dest.manage_roles)
         dest_section.add("Manage messages", dest.manage_messages)
         dest_section.add("Connect", dest.connect)
         dest_section.add("Move members", dest.move_members)
@@ -656,6 +657,19 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         if override_section:
             autoroom_sections.append(override_section)
         return result, source_section.display(*autoroom_sections)
+
+    @staticmethod
+    async def check_perms_guild(
+        guild: discord.Guild,
+        detailed=False,
+    ):
+        """Check if the permissions for the guild are sufficient."""
+        result = guild.me.guild_permissions.manage_roles
+        if not detailed:
+            return result
+        guild_section = SettingDisplay(f"Required in Guild")
+        guild_section.add("Manage roles", result)
+        return result, guild_section.display()
 
     async def get_all_autoroom_source_configs(self, guild: discord.guild):
         """Return a dict of all autoroom source configs, cleaning up any invalid ones."""
