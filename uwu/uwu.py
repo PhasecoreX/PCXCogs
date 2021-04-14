@@ -13,16 +13,16 @@ class UwU(commands.Cog):
     """UwU."""
 
     KAOMOJI_JOY = [
-        " (* ^ ω ^)",
+        " (\\* ^ ω ^)",
         " (o^▽^o)",
         " (≧◡≦)",
-        ' ☆⌒ヽ(*"､^*)chu',
+        ' ☆⌒ヽ(\\*"､^\\*)chu',
         " ( ˘⌣˘)♡(˘⌣˘ )",
         " xD",
     ]
     KAOMOJI_EMBARRASSED = [
         " (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)..",
-        " (*^.^*)..,",
+        " (\\*^.^\\*)..,",
         "..,",
         ",,,",
         "... ",
@@ -31,7 +31,7 @@ class UwU(commands.Cog):
         "O.o",
     ]
     KAOMOJI_CONFUSE = [" (o_O)?", " (°ロ°) !?", " (ーー;)?", " owo?"]
-    KAOMOJI_SPARKLES = [" *:･ﾟ✧*:･ﾟ✧ ", " ☆*:・ﾟ ", "〜☆ ", " uguu.., ", "-.-"]
+    KAOMOJI_SPARKLES = [" \\*:･ﾟ✧\\*:･ﾟ✧ ", " ☆\\*:・ﾟ ", "〜☆ ", " uguu.., ", "-.-"]
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete."""
@@ -39,11 +39,19 @@ class UwU(commands.Cog):
 
     @commands.command(aliases=["owo"])
     async def uwu(self, ctx: commands.Context, *, text: str = None):
-        """Uwuize the pwevious message, ow youw own text."""
+        """Uwuize the replied to message, previous message, or your own text."""
         if not text:
-            text = (await ctx.channel.history(limit=2).flatten())[
-                1
-            ].content or "I can't translate that!"
+            if hasattr(ctx.message, "reference") and ctx.message.reference:
+                try:
+                    text = (
+                        await ctx.fetch_message(ctx.message.reference.message_id)
+                    ).content
+                except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+                    pass
+            if not text:
+                text = (await ctx.channel.history(limit=2).flatten())[
+                    1
+                ].content or "I can't translate that!"
         await type_message(
             ctx.channel,
             self.uwuize_string(text),
@@ -53,7 +61,7 @@ class UwU(commands.Cog):
         )
 
     def uwuize_string(self, string: str):
-        """Uwuize and wetuwn a stwing."""
+        """Uwuize and return a string."""
         converted = ""
         current_word = ""
         for letter in string:
@@ -69,7 +77,7 @@ class UwU(commands.Cog):
         return converted
 
     def uwuize_word(self, word: str):
-        """Uwuize and wetuwn a wowd.
+        """Uwuize and return a word.
 
         Thank you to the following for inspiration:
         https://github.com/senguyen1011/UwUinator
@@ -92,38 +100,57 @@ class UwU(commands.Cog):
         if final_punctuation and not random.randint(0, 4):
             final_punctuation = random.choice(self.KAOMOJI_SPARKLES)
 
-        # L -> W and R -> W
-        protected = ""
-        if (
-            uwu.endswith("le")
-            or uwu.endswith("ll")
-            or uwu.endswith("er")
-            or uwu.endswith("re")
-        ):
-            protected = uwu[-2:]
-            uwu = uwu[:-2]
-        elif (
-            uwu.endswith("les")
-            or uwu.endswith("lls")
-            or uwu.endswith("ers")
-            or uwu.endswith("res")
-        ):
-            protected = uwu[-3:]
-            uwu = uwu[:-3]
-        uwu = uwu.replace("l", "w").replace("r", "w") + protected
-
-        # Full words
-        uwu = uwu.replace("you're", "ur")
-        uwu = uwu.replace("youre", "ur")
-        uwu = uwu.replace("fuck", "fwickk")
-        uwu = uwu.replace("shit", "poopoo")
-        uwu = uwu.replace("bitch", "meanie")
-        uwu = uwu.replace("asshole", "b-butthole")
-        uwu = uwu.replace("dick", "peenie")
-        uwu = uwu.replace("penis", "peenie")
-        uwu = "cummies" if uwu in ("cum", "semen") else uwu
-        uwu = "boi pussy" if uwu == "ass" else uwu
-        uwu = "daddy" if uwu in ("dad", "father") else uwu
+        # Full word exceptions
+        if uwu in ("you're", "youre"):
+            uwu = "ur"
+        elif uwu == "fuck":
+            uwu = "fwickk"
+        elif uwu == "shit":
+            uwu = "poopoo"
+        elif uwu == "bitch":
+            uwu = "meanie"
+        elif uwu == "asshole":
+            uwu = "b-butthole"
+        elif uwu in ("dick", "penis"):
+            uwu = "peenie"
+        elif uwu in ("cum", "semen"):
+            uwu = "cummies"
+        elif uwu == "ass":
+            uwu = "boi pussy"
+        elif uwu in ("dad", "father"):
+            uwu = "daddy"
+        # Normal word conversion
+        else:
+            # Protect specific word endings from changes
+            protected = ""
+            if (
+                uwu.endswith("le")
+                or uwu.endswith("ll")
+                or uwu.endswith("er")
+                or uwu.endswith("re")
+            ):
+                protected = uwu[-2:]
+                uwu = uwu[:-2]
+            elif (
+                uwu.endswith("les")
+                or uwu.endswith("lls")
+                or uwu.endswith("ers")
+                or uwu.endswith("res")
+            ):
+                protected = uwu[-3:]
+                uwu = uwu[:-3]
+            # l -> w, r -> w, n<vowel> -> ny<vowel>, ove -> uv
+            uwu = (
+                uwu.replace("l", "w")
+                .replace("r", "w")
+                .replace("na", "nya")
+                .replace("ne", "nye")
+                .replace("ni", "nyi")
+                .replace("no", "nyo")
+                .replace("nu", "nyu")
+                .replace("ove", "uv")
+                + protected
+            )
 
         # Add back punctuations
         uwu += extra_punctuation + final_punctuation
