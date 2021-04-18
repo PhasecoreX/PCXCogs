@@ -12,7 +12,7 @@ from redbot.core.utils.chat_formatting import humanize_timedelta
 from redbot.core.utils.predicates import MessagePredicate
 
 from ..abc import CompositeMetaClass, MixinMeta
-from ..pcx_lib import delete, embed_splitter
+from ..pcx_lib import delete, embed_splitter, reply
 
 
 class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
@@ -68,14 +68,14 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         elif sort == "id":
             to_send.sort(key=lambda reminder_info: reminder_info["USER_REMINDER_ID"])
         else:
-            await self._send_message(
+            await reply(
                 ctx,
                 "That is not a valid sorting option. Choose from `time` (default), `added`, or `id`.",
             )
             return
 
         if not to_send:
-            await self._send_message(ctx, "You don't have any upcoming reminders.")
+            await reply(ctx, "You don't have any upcoming reminders.")
             return
 
         embed = discord.Embed(
@@ -111,7 +111,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             if ctx.guild:
                 await ctx.tick()
         except discord.Forbidden:
-            await self._send_message(ctx, "I can't DM you...")
+            await reply(ctx, "I can't DM you...")
 
     @reminder.command(aliases=["add"])
     async def create(self, ctx: commands.Context, *, time_and_optional_text: str = ""):
@@ -140,7 +140,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 await ctx.send_help()
                 return
         except commands.BadArgument as ba:
-            await self._send_message(ctx, str(ba))
+            await reply(ctx, str(ba))
             return
         future = int(current_time.time() + time_delta.total_seconds())
         future_text = humanize_timedelta(timedelta=time_delta)
@@ -157,7 +157,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             message += f", repeating every {humanize_timedelta(seconds=new_reminder['REPEAT'])} thereafter."
         else:
             message += "."
-        await self._send_message(ctx, message)
+        await reply(ctx, message)
 
     @modify.command()
     async def repeat(self, ctx: commands.Context, reminder_id: int, *, time: str):
@@ -173,7 +173,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             async with self.config.reminders() as current_reminders:
                 current_reminders.remove(old_reminder)
                 current_reminders.append(new_reminder)
-            await self._send_message(
+            await reply(
                 ctx,
                 f"Reminder with ID# **{reminder_id}** will not repeat anymore. The final reminder will be sent "
                 f"in {humanize_timedelta(seconds=int(new_reminder['FUTURE'] - current_time.time()))}.",
@@ -187,14 +187,14 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     await ctx.send_help()
                     return
             except commands.BadArgument as ba:
-                await self._send_message(ctx, str(ba))
+                await reply(ctx, str(ba))
                 return
             new_reminder = old_reminder.copy()
             new_reminder.update(REPEAT=int(time_delta.total_seconds()))
             async with self.config.reminders() as current_reminders:
                 current_reminders.remove(old_reminder)
                 current_reminders.append(new_reminder)
-            await self._send_message(
+            await reply(
                 ctx,
                 f"Reminder with ID# **{reminder_id}** will now remind you "
                 f"every {humanize_timedelta(timedelta=time_delta)}, with the first reminder being sent "
@@ -210,8 +210,8 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await self._send_non_existent_msg(ctx, reminder_id)
             return
         text = text.strip()
-        if len(text) > 1000:
-            await self._send_message(ctx, "Your reminder text is too long.")
+        if len(text) > 900:
+            await reply(ctx, "Your reminder text is too long.")
             return
 
         new_reminder = old_reminder.copy()
@@ -219,7 +219,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         async with self.config.reminders() as current_reminders:
             current_reminders.remove(old_reminder)
             current_reminders.append(new_reminder)
-        await self._send_message(
+        await reply(
             ctx,
             f"Reminder with ID# **{reminder_id}** has been edited successfully.",
         )
@@ -276,7 +276,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         users_reminders = await self.get_user_reminders(author.id)
         if len(users_reminders) > maximum - 1:
             plural = "reminder" if maximum == 1 else "reminders"
-            await self._send_message(
+            await reply(
                 ctx,
                 "You have too many reminders! "
                 f"I can only keep track of {maximum} {plural} for you at a time.",
@@ -290,10 +290,13 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 reminder_text,
             ) = self._process_reminder_text(time_and_optional_text.strip())
         except commands.BadArgument as ba:
-            await self._send_message(ctx, str(ba))
+            await reply(ctx, str(ba))
             return
         if not reminder_time:
             await ctx.send_help()
+            return
+        if len(reminder_text) > 900:
+            await reply(ctx, "Your reminder text is too long.")
             return
 
         next_reminder_id = self.get_next_user_reminder_id(users_reminders)
@@ -323,7 +326,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             message += f", with the first reminder in {future_text}."
         else:
             message += "."
-        await self._send_message(ctx, message)
+        await reply(ctx, message)
 
         if (
             ctx.guild
@@ -439,13 +442,13 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         users_reminders = await self.get_user_reminders(author.id)
 
         if not users_reminders:
-            await self._send_message(ctx, "You don't have any upcoming reminders.")
+            await reply(ctx, "You don't have any upcoming reminders.")
             return
 
         if index == "all":
             # Ask if the user really wants to do this
             pred = MessagePredicate.yes_or_no(ctx)
-            await self._send_message(
+            await reply(
                 ctx,
                 "Are you **sure** you want to remove all of your reminders? (yes/no)",
             )
@@ -456,16 +459,16 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             if pred.result:
                 pass
             else:
-                await self._send_message(ctx, "I have left your reminders alone.")
+                await reply(ctx, "I have left your reminders alone.")
                 return
             await self._do_reminder_delete(users_reminders)
-            await self._send_message(ctx, "All of your reminders have been removed.")
+            await reply(ctx, "All of your reminders have been removed.")
             return
 
         if index == "last":
             reminder_to_delete = users_reminders[len(users_reminders) - 1]
             await self._do_reminder_delete(reminder_to_delete)
-            await self._send_message(
+            await reply(
                 ctx,
                 "Your most recently created reminder (ID# **{}**) has been removed.".format(
                     reminder_to_delete["USER_REMINDER_ID"]
@@ -482,9 +485,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         reminder_to_delete = self._get_reminder(users_reminders, int_index)
         if reminder_to_delete:
             await self._do_reminder_delete(reminder_to_delete)
-            await self._send_message(
-                ctx, f"Reminder with ID# **{int_index}** has been removed."
-            )
+            await reply(ctx, f"Reminder with ID# **{int_index}** has been removed.")
         else:
             await self._send_non_existent_msg(ctx, int_index)
 
@@ -498,9 +499,10 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             for reminder in reminders:
                 current_reminders.remove(reminder)
 
-    async def _send_non_existent_msg(self, ctx: commands.Context, reminder_id: int):
+    @staticmethod
+    async def _send_non_existent_msg(ctx: commands.Context, reminder_id: int):
         """Send a message telling the user the reminder ID does not exist."""
-        await self._send_message(
+        await reply(
             ctx,
             f"Reminder with ID# **{reminder_id}** does not exist! "
             "Check the reminder list and verify you typed the correct ID#.",
@@ -513,17 +515,3 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             if reminder["USER_REMINDER_ID"] == reminder_id:
                 return reminder
         return None
-
-    @staticmethod
-    async def _send_message(ctx: commands.Context, message: str):
-        """Send a message.
-
-        This will append the users name if we are sending to a channel,
-        or leave it as-is if we are in a DM
-        """
-        if ctx.guild is not None:
-            if message[:2].lower() != "i " and message[:2].lower() != "i'":
-                message = message[0].lower() + message[1:]
-            message = ctx.message.author.mention + ", " + message
-
-        await ctx.send(message)

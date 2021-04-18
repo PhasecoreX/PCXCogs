@@ -219,6 +219,8 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 if "REPEAT" in reminder and reminder["REPEAT"]:
                     embed_name = f"Repeating reminder every {humanize_timedelta(seconds=max(reminder['REPEAT'], 86400))}:"
                 reminder_text = reminder["REMINDER"]
+                if len(reminder_text) > 900:
+                    reminder_text = reminder_text[:897] + "..."
                 if "JUMP_LINK" in reminder:
                     reminder_text += f"\n\n[original message]({reminder['JUMP_LINK']})"
                 embed.add_field(
