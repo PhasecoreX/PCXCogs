@@ -1,9 +1,9 @@
 """Shared code across multiple cogs."""
 import asyncio
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 import discord
-from redbot.core import __version__ as redbot_version
+from redbot.core import __version__ as redbot_version, commands
 from redbot.core.utils import common_filters
 from redbot.core.utils.chat_formatting import box
 
@@ -29,6 +29,24 @@ async def delete(message: discord.Message, *, delay=None) -> bool:
     return True
 
 
+async def reply(ctx: commands.Context, content: Any = None, **kwargs: Any):
+    """Safely reply to a command message.
+
+    If the command is in a guild, will reply, otherwise will send a message like normal.
+    Pre discord.py 1.6, replies are just messages sent with the users mention prepended.
+    """
+    if ctx.guild:
+        if (
+            hasattr(ctx, "reply")
+            and ctx.channel.permissions_for(ctx.guild.me).read_message_history
+        ):
+            await ctx.reply(content=content, **kwargs)
+        else:
+            await ctx.send(content=f"{ctx.message.author.mention} {content}", **kwargs)
+    else:
+        await ctx.send(content=content, **kwargs)
+
+
 async def type_message(
     destination: discord.abc.Messageable, content: str, **kwargs
 ) -> discord.Message:
@@ -40,7 +58,7 @@ async def type_message(
     content = common_filters.filter_urls(content)
     try:
         async with destination.typing():
-            await asyncio.sleep(len(content) * 0.01)
+            await asyncio.sleep(max(0.25, min(2.5, len(content) * 0.01)))
             return await destination.send(content=content, **kwargs)
     except discord.HTTPException:
         pass  # Not allowed to send messages to this destination (or, sending the message failed)
@@ -51,9 +69,22 @@ async def embed_splitter(
 ) -> List[discord.Embed]:
     """Take an embed and split it so that each embed has at most 20 fields and a length of 5900.
 
+    Each field value will also be checked to have a length no greater than 1024.
+
     If supplied with a destination, will also send those embeds to the destination.
     """
     embed_dict = embed.to_dict()
+
+    # Check and fix field value lengths
+    modified = False
+    if "fields" in embed_dict:
+        for field in embed_dict["fields"]:
+            if len(field["value"]) > 1024:
+                field["value"] = field["value"][:1021] + "..."
+                modified = True
+    if modified:
+        embed = discord.Embed.from_dict(embed_dict)
+
     # Short circuit
     if len(embed) < 5901 and (
         "fields" not in embed_dict or len(embed_dict["fields"]) < 21
