@@ -72,7 +72,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             if retry_after:
                 hint_text = error(
                     f"{ctx.message.author.mention}, you can only modify an AutoRoom name twice every 10 minutes with "
-                    f"this command. You can try again in {humanize_timedelta(seconds=retry_after)}."
+                    f"this command. You can try again in {humanize_timedelta(seconds=max(retry_after, 1))}."
                     "\n\n"
                     "Alternatively, you can modify the channel yourself by either right clicking the channel on "
                     "desktop or by long pressing it on mobile."
