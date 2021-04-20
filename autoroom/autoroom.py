@@ -62,6 +62,9 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         self.config.register_channel(**self.default_channel_settings)
         self.autoroom_create_lock: asyncio.Lock = asyncio.Lock()
         self.template = Template()
+        self.bucket_autoroom_name = commands.CooldownMapping.from_cooldown(
+            2, 605, lambda channel: channel
+        )
 
     async def initialize(self):
         """Perform setup actions before loading cog."""

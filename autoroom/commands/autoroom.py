@@ -5,7 +5,7 @@ from typing import Union
 
 import discord
 from redbot.core import commands
-from redbot.core.utils.chat_formatting import error, humanize_timedelta, info
+from redbot.core.utils.chat_formatting import error, humanize_timedelta
 
 from ..abc import CompositeMetaClass, MixinMeta
 from ..pcx_lib import SettingDisplay, delete
@@ -26,14 +26,8 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     @autoroom.command(name="settings", aliases=["info"])
     async def autoroom_settings(self, ctx: commands.Context):
         """Display current settings."""
-        member_channel = self._get_current_voice_channel(ctx.message.author)
-        autoroom_info = await self._get_autoroom_info(member_channel)
+        autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
         if not autoroom_info:
-            hint = await ctx.send(
-                error(f"{ctx.message.author.mention}, you are not in an AutoRoom.")
-            )
-            await delete(ctx.message, delay=5)
-            await delete(hint, delay=5)
             return
 
         room_settings = SettingDisplay("Room Settings")
@@ -44,52 +38,83 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
 
         mode = "???"
         for member_role in autoroom_info["member_roles"]:
-            if member_role in member_channel.overwrites:
+            if member_role in autoroom_channel.overwrites:
                 mode = (
                     "Public"
-                    if member_channel.overwrites[member_role].connect
+                    if autoroom_channel.overwrites[member_role].connect
                     else "Private"
                 )
                 break
         room_settings.add("Mode", mode)
 
-        room_settings.add("Bitrate", f"{member_channel.bitrate // 1000}kbps")
+        room_settings.add("Bitrate", f"{autoroom_channel.bitrate // 1000}kbps")
         room_settings.add(
             "Channel Age",
             humanize_timedelta(
-                timedelta=datetime.datetime.utcnow() - member_channel.created_at
+                timedelta=datetime.datetime.utcnow() - autoroom_channel.created_at
             ),
         )
 
         await ctx.send(str(room_settings))
 
     @autoroom.command(name="name")
-    async def autoroom_name(self, ctx: commands.Context):
-        """Learn how to change the name of your AutoRoom."""
-        await self._notify_edit_channel(ctx)
+    async def autoroom_name(self, ctx: commands.Context, *, name: str):
+        """Change the name of your AutoRoom."""
+        autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
+        if not autoroom_info:
+            return
 
-    @autoroom.command()
-    async def bitrate(self, ctx: commands.Context):
-        """Learn how to change the bitrate of your AutoRoom."""
-        await self._notify_edit_channel(ctx)
+        if len(name) > 100:
+            name = name[:100]
+        if name != autoroom_channel.name:
+            bucket = self.bucket_autoroom_name.get_bucket(autoroom_channel)
+            retry_after = bucket.update_rate_limit()
+            if retry_after:
+                hint_text = error(
+                    f"{ctx.message.author.mention}, you can only modify an AutoRoom name twice every 10 minutes with "
+                    f"this command. You can try again in {humanize_timedelta(seconds=retry_after)}."
+                    "\n\n"
+                    "Alternatively, you can modify the channel yourself by either right clicking the channel on "
+                    "desktop or by long pressing it on mobile."
+                )
+                if ctx.guild.mfa_level:
+                    hint_text += (
+                        " Do note that since this server has 2FA enabled, you will need it enabled "
+                        "on your account to modify the channel in this way."
+                    )
+                hint = await ctx.send(hint_text)
+                await delete(ctx.message, delay=30)
+                await delete(hint, delay=30)
+                return
+            await autoroom_channel.edit(name=name)
+        await ctx.tick()
+        await delete(ctx.message, delay=5)
 
-    @autoroom.command()
-    async def users(self, ctx: commands.Context):
-        """Learn how to change the user limit of your AutoRoom."""
-        await self._notify_edit_channel(ctx)
+    @autoroom.command(name="bitrate", aliases=["kbps"])
+    async def autoroom_bitrate(self, ctx: commands.Context, kbps: int):
+        """Change the bitrate of your AutoRoom."""
+        autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
+        if not autoroom_info:
+            return
 
-    @staticmethod
-    async def _notify_edit_channel(ctx: commands.Context):
-        """Tell the user how to modify name/bitrate/user limit."""
-        hint = await ctx.send(
-            info(
-                f"{ctx.message.author.mention}, if you want to modify your AutoRooms name, bitrate, or user limit, "
-                "you can do this by editing the channel directly, either by right clicking the channel on desktop, "
-                "or long pressing it on mobile."
-            )
-        )
-        await delete(ctx.message, delay=15)
-        await delete(hint, delay=15)
+        bps = max(8000, min(ctx.guild.bitrate_limit, kbps * 1000))
+        if bps != autoroom_channel.bitrate:
+            await autoroom_channel.edit(bitrate=bps)
+        await ctx.tick()
+        await delete(ctx.message, delay=5)
+
+    @autoroom.command(name="users", aliases=["userlimit"])
+    async def autoroom_users(self, ctx: commands.Context, user_limit: int):
+        """Change the user limit of your AutoRoom."""
+        autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
+        if not autoroom_info:
+            return
+
+        limit = max(0, min(99, user_limit))
+        if limit != autoroom_channel.user_limit:
+            await autoroom_channel.edit(user_limit=limit)
+        await ctx.tick()
+        await delete(ctx.message, delay=5)
 
     @autoroom.command()
     async def public(self, ctx: commands.Context):
@@ -136,16 +161,11 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         member_or_role: Union[discord.Role, discord.Member] = None,
     ) -> bool:
         """Actually do channel edit for allow/deny."""
-        channel = self._get_current_voice_channel(ctx.message.author)
-        autoroom_info = await self._get_autoroom_info(channel)
+        autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
         if not autoroom_info:
-            hint = await ctx.send(
-                error(f"{ctx.message.author.mention}, you are not in an AutoRoom.")
-            )
-            await delete(ctx.message, delay=5)
-            await delete(hint, delay=5)
             return False
-        if not channel.permissions_for(channel.guild.me).manage_roles:
+
+        if not autoroom_channel.permissions_for(autoroom_channel.guild.me).manage_roles:
             hint = await ctx.send(
                 error(
                     f"{ctx.message.author.mention}, I do not have the required permissions to do this. "
@@ -155,6 +175,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await delete(ctx.message, delay=10)
             await delete(hint, delay=10)
             return False
+
         if ctx.message.author != autoroom_info["owner"]:
             reason_server = ""
             if autoroom_info["owner"] == ctx.guild.me:
@@ -164,8 +185,8 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     f"{ctx.message.author.mention}, you are not the owner of this AutoRoom{reason_server}."
                 )
             )
-            await delete(ctx.message, delay=5)
-            await delete(hint, delay=5)
+            await delete(ctx.message, delay=10)
+            await delete(hint, delay=10)
             return False
 
         denied_message = ""
@@ -207,7 +228,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await delete(hint, delay=10)
             return False
 
-        overwrites = dict(channel.overwrites)
+        overwrites = dict(autoroom_channel.overwrites)
         do_edit = False
         if not isinstance(member_or_role, list):
             member_or_role = [member_or_role]
@@ -225,7 +246,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
                 do_edit = True
         if do_edit:
-            await channel.edit(
+            await autoroom_channel.edit(
                 overwrites=overwrites,
                 reason="AutoRoom: Permission change",
             )
@@ -259,3 +280,15 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             "owner": owner,
             "member_roles": member_roles,
         }
+
+    async def _get_autoroom_channel_and_info(self, ctx: commands.Context):
+        autoroom_channel = self._get_current_voice_channel(ctx.message.author)
+        autoroom_info = await self._get_autoroom_info(autoroom_channel)
+        if not autoroom_info:
+            hint = await ctx.send(
+                error(f"{ctx.message.author.mention}, you are not in an AutoRoom.")
+            )
+            await delete(ctx.message, delay=5)
+            await delete(hint, delay=5)
+            return None, None
+        return autoroom_channel, autoroom_info

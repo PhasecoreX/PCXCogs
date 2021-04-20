@@ -15,6 +15,6 @@
         "room",
         "voice"
     ],
-    "min_bot_version": "3.4.0",
+    "min_bot_version": "3.4.8",
     "end_user_data_statement": "This cog does not persistently store data or metadata about users."
 }

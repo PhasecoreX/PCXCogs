@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Union
 
 import discord
+from discord.ext.commands import CooldownMapping
 from redbot.core import Config, commands
 from redbot.core.bot import Red
 
@@ -21,6 +22,7 @@ class MixinMeta(ABC):
     bot: Red
     config: Config
     template: Template
+    bucket_autoroom_name: CooldownMapping
 
     @staticmethod
     @abstractmethod
