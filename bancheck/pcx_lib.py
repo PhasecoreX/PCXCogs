@@ -40,8 +40,15 @@ async def reply(ctx: commands.Context, content: Any = None, **kwargs: Any):
             hasattr(ctx, "reply")
             and ctx.channel.permissions_for(ctx.guild.me).read_message_history
         ):
+            mention_author = kwargs.pop("mention_author", False)
+            kwargs.update(mention_author=mention_author)
             await ctx.reply(content=content, **kwargs)
         else:
+            allowed_mentions = kwargs.pop(
+                "allowed_mentions",
+                discord.AllowedMentions(users=False),
+            )
+            kwargs.update(allowed_mentions=allowed_mentions)
             await ctx.send(content=f"{ctx.message.author.mention} {content}", **kwargs)
     else:
         await ctx.send(content=content, **kwargs)
