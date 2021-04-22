@@ -86,7 +86,9 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 await delete(ctx.message, delay=30)
                 await delete(hint, delay=30)
                 return
-            await autoroom_channel.edit(name=name)
+            await autoroom_channel.edit(
+                name=name, reason="AutoRoom: User edit room info"
+            )
         await ctx.tick()
         await delete(ctx.message, delay=5)
 
@@ -99,7 +101,9 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
 
         bps = max(8000, min(ctx.guild.bitrate_limit, kbps * 1000))
         if bps != autoroom_channel.bitrate:
-            await autoroom_channel.edit(bitrate=bps)
+            await autoroom_channel.edit(
+                bitrate=bps, reason="AutoRoom: User edit room info"
+            )
         await ctx.tick()
         await delete(ctx.message, delay=5)
 
@@ -112,7 +116,9 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
 
         limit = max(0, min(99, user_limit))
         if limit != autoroom_channel.user_limit:
-            await autoroom_channel.edit(user_limit=limit)
+            await autoroom_channel.edit(
+                user_limit=limit, reason="AutoRoom: User edit room info"
+            )
         await ctx.tick()
         await delete(ctx.message, delay=5)
 
