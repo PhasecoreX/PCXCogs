@@ -66,7 +66,7 @@ async def type_message(
     try:
         async with destination.typing():
             await asyncio.sleep(max(0.25, min(2.5, len(content) * 0.01)))
-            return await destination.send(content=content, **kwargs)
+        return await destination.send(content=content, **kwargs)
     except discord.HTTPException:
         pass  # Not allowed to send messages to this destination (or, sending the message failed)
 

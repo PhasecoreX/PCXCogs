@@ -165,7 +165,7 @@ class UpdateNotify(commands.Cog):
         """Perform a manual update check."""
         async with ctx.typing():
             message = await self.update_check(manual=True)
-            await ctx.send(message)
+        await ctx.send(message)
 
     @updatenotify.command(name="toggle")
     async def redbot_toggle(self, ctx: commands.Context):

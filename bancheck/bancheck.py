@@ -759,7 +759,8 @@ class BanCheck(commands.Cog):
         if not member:
             member = ctx.message.author
         async with ctx.channel.typing():
-            await self._user_lookup(ctx.channel, member, False)
+            embed = await self._user_lookup(ctx.guild, member)
+        await self.send_embed(ctx, embed)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -777,7 +778,8 @@ class BanCheck(commands.Cog):
                     member.id not in self.member_join_cache
                     or self.member_join_cache[member.id] < past_time
                 ):
-                    await self._user_lookup(channel, member, True)
+                    embed = await self._user_lookup(member.guild, member, do_ban=True)
+                    await self.send_embed(channel, embed)
                 self.member_join_cache[member.id] = current_time
                 # Clear old entries out of the cache
                 cache_clear = []
@@ -789,12 +791,12 @@ class BanCheck(commands.Cog):
 
     async def _user_lookup(
         self,
-        channel: discord.TextChannel,
+        guild: discord.Guild,
         member: Union[discord.Member, int],
-        on_member_join: bool,
+        do_ban: bool = False,
     ):
-        """Perform user lookup, and send results to a specific channel."""
-        config_services = await self.config.guild(channel.guild).services()
+        """Perform user lookup and return results embed. Optionally ban user too."""
+        config_services = await self.config.guild(guild).services()
         banned_services: Dict[str, str] = {}
         auto_banned = False
         is_error = False
@@ -828,7 +830,7 @@ class BanCheck(commands.Cog):
 
             if response.result == "ban":
                 banned_services[response.service] = response.reason
-                if on_member_join and autoban:
+                if do_ban and autoban:
                     auto_banned = True
 
                 proof = " (No proof provided)"
@@ -861,7 +863,7 @@ class BanCheck(commands.Cog):
             if (
                 auto_banned
                 and isinstance(member, discord.Member)
-                and channel.guild.me.guild_permissions.ban_members
+                and guild.me.guild_permissions.ban_members
             ):
                 try:
                     await member.send(
@@ -879,59 +881,45 @@ class BanCheck(commands.Cog):
                     reasons = []
                     for name, reason in banned_services.items():
                         reasons.append(f"{name} ({reason})")
-                    await channel.guild.ban(
+                    await guild.ban(
                         member,
                         reason=f"BanCheck auto ban: {', '.join(reasons)}",
                         delete_message_days=1,
                     )
                     # Update guild ban totals
-                    total_bans = await self.config.guild(channel.guild).total_bans()
-                    await self.config.guild(channel.guild).total_bans.set(
-                        total_bans + 1
-                    )
+                    total_bans = await self.config.guild(guild).total_bans()
+                    await self.config.guild(guild).total_bans.set(total_bans + 1)
                     # Update global ban totals
                     global_total_bans = await self.config.total_bans()
                     await self.config.total_bans.set(global_total_bans + 1)
                     title += " - Auto Banned"
                 except (discord.Forbidden, discord.HTTPException):
                     title += " - Not allowed to Auto Ban"
-            await self.send_embed(
-                channel,
-                self.embed_maker(
-                    title, discord.Colour.red(), description, member_avatar_url
-                ),
+            return self.embed_maker(
+                title, discord.Colour.red(), description, member_avatar_url
             )
         elif is_error:
-            await self.send_embed(
-                channel,
-                self.embed_maker(
-                    "Error (but no ban found otherwise)",
-                    discord.Colour.gold(),
-                    description,
-                    member_avatar_url,
-                ),
+            return self.embed_maker(
+                "Error (but no ban found otherwise)",
+                discord.Colour.gold(),
+                description,
+                member_avatar_url,
             )
-        elif not checked and on_member_join:
+        elif not checked and do_ban:
             pass  # No services have been enabled when auto checking
         elif not checked:
-            await self.send_embed(
-                channel,
-                self.embed_maker(
-                    "Error",
-                    discord.Colour.gold(),
-                    "No services have been set up. Please check `[p]bancheckset` for more details.",
-                    member_avatar_url,
-                ),
+            return self.embed_maker(
+                "Error",
+                discord.Colour.gold(),
+                "No services have been set up. Please check `[p]bancheckset` for more details.",
+                member_avatar_url,
             )
         else:
-            await self.send_embed(
-                channel,
-                self.embed_maker(
-                    f"No ban found for **{member}**",
-                    discord.Colour.green(),
-                    f"Checked: {', '.join(checked)}",
-                    member_avatar_url,
-                ),
+            return self.embed_maker(
+                f"No ban found for **{member}**",
+                discord.Colour.green(),
+                f"Checked: {', '.join(checked)}",
+                member_avatar_url,
             )
 
     async def format_service_name_url(self, service_name, show_help=False):
@@ -987,14 +975,13 @@ class BanCheck(commands.Cog):
     @staticmethod
     async def send_embed(ctx, embed):
         """Send an embed. If the bot can't send it, complains about permissions."""
-        try:
-            await ctx.send(embed=embed)
-            return True
-        except discord.HTTPException:
+        if not ctx.channel.permissions_for(ctx.me).embed_links:
             await ctx.send(
                 error("I need the `Embed links` permission to function properly")
             )
             return False
+        await ctx.send(embed=embed)
+        return True
 
     @staticmethod
     def embed_maker(title, color, description, avatar=None):
