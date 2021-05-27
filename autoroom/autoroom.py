@@ -3,6 +3,7 @@ from typing import List, Union
 
 import discord
 from redbot.core import Config, commands
+from redbot.core.utils.chat_formatting import humanize_timedelta
 
 from .abc import CompositeMetaClass
 from .commands import Commands
@@ -44,6 +45,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         "member_roles": [],
         "associated_text_channel": None,
     }
+    extra_channel_name_change_delay = 4
 
     def __init__(self, bot):
         """Set up the cog."""
@@ -63,8 +65,11 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         self.bucket_autoroom_create = commands.CooldownMapping.from_cooldown(
             2, 60, lambda member: member
         )
+        self.bucket_autoroom_create_warn = commands.CooldownMapping.from_cooldown(
+            1, 3600, lambda member: member
+        )
         self.bucket_autoroom_name = commands.CooldownMapping.from_cooldown(
-            2, 605, lambda channel: channel
+            2, 600 + self.extra_channel_name_change_delay, lambda channel: channel
         )
 
     async def initialize(self):
@@ -285,6 +290,19 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         bucket = self.bucket_autoroom_create.get_bucket(member)
         retry_after = bucket.update_rate_limit()
         if retry_after:
+            warn_bucket = self.bucket_autoroom_create_warn.get_bucket(member)
+            if not warn_bucket.update_rate_limit():
+                try:
+                    await member.send(
+                        "Hello there! It looks like you're trying to make an AutoRoom."
+                        "\n"
+                        f"Please note that you are only allowed to make **{bucket.rate}** AutoRooms "
+                        f"every **{humanize_timedelta(seconds=bucket.per)}**."
+                        "\n"
+                        f"You can try again in **{humanize_timedelta(seconds=max(retry_after, 1))}**."
+                    )
+                except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+                    pass
             return
 
         # Generate channel name

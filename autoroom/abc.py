@@ -23,6 +23,7 @@ class MixinMeta(ABC):
     config: Config
     template: Template
     bucket_autoroom_name: CooldownMapping
+    extra_channel_name_change_delay: int
 
     @staticmethod
     @abstractmethod

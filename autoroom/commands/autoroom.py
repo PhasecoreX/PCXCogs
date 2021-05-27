@@ -72,9 +72,11 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             bucket = self.bucket_autoroom_name.get_bucket(autoroom_channel)
             retry_after = bucket.update_rate_limit()
             if retry_after:
+                per_display = bucket.per - self.extra_channel_name_change_delay
                 hint_text = error(
-                    f"{ctx.message.author.mention}, you can only modify an AutoRoom name twice every 10 minutes with "
-                    f"this command. You can try again in {humanize_timedelta(seconds=max(retry_after, 1))}."
+                    f"{ctx.message.author.mention}, you can only modify an AutoRoom name **{bucket.rate}** times "
+                    f"every **{humanize_timedelta(seconds=per_display)}** with this command. "
+                    f"You can try again in **{humanize_timedelta(seconds=max(1, min(per_display, retry_after)))}**."
                     "\n\n"
                     "Alternatively, you can modify the channel yourself by either right clicking the channel on "
                     "desktop or by long pressing it on mobile."
