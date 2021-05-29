@@ -658,7 +658,7 @@ class BanCheck(commands.Cog):
         # Send error if there are no services to send to
         if not report_services:
             await self.send_embed(
-                ctx.channel,
+                ctx,
                 self.embed_maker(
                     "Error",
                     discord.Colour.red(),
@@ -730,7 +730,7 @@ class BanCheck(commands.Cog):
         # Generate results
         if is_error:
             await self.send_embed(
-                ctx.channel,
+                ctx,
                 self.embed_maker(
                     f"Errors occurred while sending reports for **{member}**",
                     discord.Colour.red(),
@@ -740,7 +740,7 @@ class BanCheck(commands.Cog):
             )
         else:
             await self.send_embed(
-                ctx.channel,
+                ctx,
                 self.embed_maker(
                     f"Reports sent for **{member}**",
                     discord.Colour.green(),
@@ -973,14 +973,21 @@ class BanCheck(commands.Cog):
         return f"`{service}`"
 
     @staticmethod
-    async def send_embed(ctx, embed):
+    async def send_embed(channel_or_ctx, embed):
         """Send an embed. If the bot can't send it, complains about permissions."""
-        if not ctx.channel.permissions_for(ctx.me).embed_links:
-            await ctx.send(
+        if isinstance(channel_or_ctx, commands.Context):
+            destination = channel_or_ctx.channel
+        else:
+            destination = channel_or_ctx
+        if (
+            hasattr(destination, "guild")
+            and not destination.permissions_for(destination.guild.me).embed_links
+        ):
+            await destination.send(
                 error("I need the `Embed links` permission to function properly")
             )
             return False
-        await ctx.send(embed=embed)
+        await destination.send(embed=embed)
         return True
 
     @staticmethod
