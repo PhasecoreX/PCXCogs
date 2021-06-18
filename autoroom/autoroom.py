@@ -8,7 +8,7 @@ from redbot.core.utils.chat_formatting import humanize_timedelta
 from .abc import CompositeMetaClass
 from .commands import Commands
 from .commands.autoroomset import channel_name_template
-from .pcx_lib import SettingDisplay
+from .pcx_lib import Perms, SettingDisplay
 from .pcx_template import Template
 
 __author__ = "PhasecoreX"
@@ -356,26 +356,19 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 if not getattr(dest_perms, perm_name):
                     return
             # Generate overwrites
-            overwrites = {
-                guild.default_role: discord.PermissionOverwrite(read_messages=False),
-                guild.me: discord.PermissionOverwrite(
-                    **dict.fromkeys(self.perms_bot_dest_text, True)
-                ),
-            }
+            perms = Perms()
+            perms.update(guild.me, self.perms_bot_dest_text, True)
+            perms.update(guild.default_role, self.perms_view_text, False)
             if autoroom_source_config["room_type"] != "server":
-                overwrites[member] = discord.PermissionOverwrite(
-                    **dict.fromkeys(self.perms_autoroom_owner_text, True)
-                )
+                perms.update(member, self.perms_autoroom_owner_text, True)
             else:
-                overwrites[member] = discord.PermissionOverwrite(
-                    **dict.fromkeys(self.perms_view_text, True)
-                )
+                perms.update(member, self.perms_view_text, True)
             # Create text channel
             new_text_channel = await guild.create_text_channel(
                 name=new_channel_name.replace("'s ", " "),
                 category=dest_category,
                 reason="AutoRoom: New text channel needed.",
-                overwrites=overwrites,
+                overwrites=perms.overwrites,
             )
             await self.config.channel(new_voice_channel).associated_text_channel.set(
                 new_text_channel.id
@@ -421,34 +414,25 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 permissions.update(**failed_checks)
             if not permissions.is_empty():
                 overwrites[target] = permissions
+        perms = Perms(overwrites)
 
         # Bot overwrites
-        if guild.me not in overwrites:
-            overwrites[guild.me] = discord.PermissionOverwrite()
-        overwrites[guild.me].update(**dict.fromkeys(self.perms_bot_dest, True))
+        perms.update(guild.me, self.perms_bot_dest, True)
 
         # AutoRoom Owner overwrites
         if autoroom_source_config["room_type"] != "server":
-            if member not in overwrites:
-                overwrites[member] = discord.PermissionOverwrite()
-            overwrites[member].update(**dict.fromkeys(self.perms_autoroom_owner, True))
+            perms.update(member, self.perms_autoroom_owner, True)
 
         # Base @everyone/member roles access overwrites
         for member_role in member_roles or [guild.default_role]:
-            if member_role not in overwrites:
-                overwrites[member_role] = discord.PermissionOverwrite()
-            overwrites[member_role].update(
-                **dict.fromkeys(
-                    self.perms_view, autoroom_source_config["room_type"] != "private"
-                )
+            perms.update(
+                member_role,
+                self.perms_view,
+                autoroom_source_config["room_type"] != "private",
             )
         if member_roles:
             # We have a member role, deny @everyone
-            if guild.default_role not in overwrites:
-                overwrites[guild.default_role] = discord.PermissionOverwrite()
-            overwrites[guild.default_role].update(
-                **dict.fromkeys(self.perms_view, False)
-            )
+            perms.update(guild.default_role, self.perms_view, False)
 
         # Admin/moderator overwrites
         additional_allowed_roles = []
@@ -460,11 +444,9 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             additional_allowed_roles += await self.bot.get_admin_roles(guild)
         for role in additional_allowed_roles:
             # Add all the mod/admin roles, if required
-            if role not in overwrites:
-                overwrites[role] = discord.PermissionOverwrite()
-            overwrites[role].update(**dict.fromkeys(self.perms_view, True))
+            perms.update(role, self.perms_view, True)
 
-        return overwrites
+        return perms.overwrites
 
     async def _process_autoroom_delete(self, voice_channel: discord.VoiceChannel):
         """Delete AutoRoom if empty."""
@@ -486,37 +468,28 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         text_channel = (
             autoroom.guild.get_channel(text_channel_id) if text_channel_id else None
         )
-        if text_channel:
-            do_edit = False
-            overwrites = dict(text_channel.overwrites)
-            to_delete = []
-            # Remove read perms for users not in autoroom
-            for member in overwrites:
-                if (
-                    isinstance(member, discord.Member)
-                    and member not in autoroom.members
-                    and member != autoroom.guild.me
-                ):
-                    overwrites[member].update(read_messages=None)
-                    if overwrites[member].is_empty():
-                        to_delete.append(member)
-                    do_edit = True
-            for member in to_delete:
-                del overwrites[member]
-            # Add read perms for users in autoroom
-            for member in autoroom.members:
-                if member in overwrites:
-                    if not overwrites[member].read_messages:
-                        overwrites[member].update(read_messages=True)
-                        do_edit = True
-                else:
-                    overwrites[member] = discord.PermissionOverwrite(read_messages=True)
-                    do_edit = True
-            if do_edit:
-                await text_channel.edit(
-                    overwrites=overwrites,
-                    reason="AutoRoom: Permission change",
-                )
+        if not text_channel:
+            return
+
+        overwrites = dict(text_channel.overwrites)
+        perms = Perms(overwrites)
+        # Remove read perms for users not in autoroom
+        for member in overwrites:
+            if (
+                isinstance(member, discord.Member)
+                and member not in autoroom.members
+                and member != autoroom.guild.me
+            ):
+                perms.update(member, self.perms_view_text, None)
+        # Add read perms for users in autoroom
+        for member in autoroom.members:
+            perms.update(member, self.perms_view_text, True)
+        # Edit channel if overwrites were modified
+        if perms.modified:
+            await text_channel.edit(
+                overwrites=perms.overwrites,
+                reason="AutoRoom: Permission change",
+            )
 
     def _generate_channel_name(
         self,

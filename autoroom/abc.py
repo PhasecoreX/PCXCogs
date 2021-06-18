@@ -25,6 +25,8 @@ class MixinMeta(ABC):
     bucket_autoroom_name: CooldownMapping
     extra_channel_name_change_delay: int
 
+    perms_view: List[str]
+
     @staticmethod
     @abstractmethod
     def get_template_data(member: discord.Member):

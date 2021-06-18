@@ -8,7 +8,7 @@ from redbot.core import commands
 from redbot.core.utils.chat_formatting import error, humanize_timedelta
 
 from ..abc import CompositeMetaClass, MixinMeta
-from ..pcx_lib import SettingDisplay, delete
+from ..pcx_lib import Perms, SettingDisplay, delete
 
 
 class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
@@ -143,7 +143,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         """Allow a user (or role) into your AutoRoom."""
         await self._process_allow_deny(ctx, True, member_or_role=member_or_role)
 
-    @autoroom.command(aliases=["ban"])
+    @autoroom.command(aliases=["ban", "block"])
     async def deny(
         self, ctx: commands.Context, member_or_role: Union[discord.Role, discord.Member]
     ):
@@ -225,26 +225,14 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await delete(hint, delay=10)
             return False
 
-        overwrites = dict(autoroom_channel.overwrites)
-        do_edit = False
+        perms = Perms(dict(autoroom_channel.overwrites))
         if not isinstance(member_or_role, list):
             member_or_role = [member_or_role]
         for target in member_or_role:
-            if target in overwrites:
-                if overwrites[target].view_channel != allow:
-                    overwrites[target].update(view_channel=allow)
-                    do_edit = True
-                if overwrites[target].connect != allow:
-                    overwrites[target].update(connect=allow)
-                    do_edit = True
-            else:
-                overwrites[target] = discord.PermissionOverwrite(
-                    view_channel=allow, connect=allow
-                )
-                do_edit = True
-        if do_edit:
+            perms.update(target, self.perms_view, allow)
+        if perms.modified:
             await autoroom_channel.edit(
-                overwrites=overwrites,
+                overwrites=perms.overwrites,
                 reason="AutoRoom: Permission change",
             )
         await ctx.tick()
