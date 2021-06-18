@@ -47,6 +47,15 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
     }
     extra_channel_name_change_delay = 4
 
+    perms_view = ["connect", "view_channel"]
+    perms_autoroom_owner = perms_view + ["manage_channels"]
+    perms_bot_source = perms_view + ["move_members"]
+    perms_bot_dest = perms_autoroom_owner + ["move_members"]
+
+    perms_view_text = ["read_messages"]
+    perms_autoroom_owner_text = perms_view_text + ["manage_channels", "manage_messages"]
+    perms_bot_dest_text = perms_autoroom_owner_text
+
     def __init__(self, bot):
         """Set up the cog."""
         super().__init__()
@@ -278,12 +287,10 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         """Create a voice channel for a member in an AutoRoom Source channel."""
         # Check perms for guild, source, and dest
         guild = autoroom_source.guild
-        if not await self.check_perms_guild(guild):
-            return
         dest_category = guild.get_channel(autoroom_source_config["dest_category_id"])
         if not dest_category:
             return
-        if not await self.check_perms_source_dest(autoroom_source, dest_category):
+        if not self.check_perms_source_dest_required(autoroom_source, dest_category):
             return
 
         # Check that user isn't spamming
@@ -314,8 +321,9 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         )
 
         # Generate overwrites
-        overwrites, member_roles = await self._generate_overwrites(
-            autoroom_source, autoroom_source_config, member
+        member_roles = await self.get_member_roles_for_source(autoroom_source)
+        overwrites = await self._generate_overwrites(
+            autoroom_source, autoroom_source_config, dest_category, member, member_roles
         )
 
         # Create new AutoRoom
@@ -342,23 +350,27 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
 
         # Create optional text channel
         if autoroom_source_config["text_channel"]:
+            # Sanity check on required permissions
+            dest_perms = dest_category.permissions_for(dest_category.guild.me)
+            for perm_name in self.perms_bot_dest_text:
+                if not getattr(dest_perms, perm_name):
+                    return
+            # Generate overwrites
             overwrites = {
                 guild.default_role: discord.PermissionOverwrite(read_messages=False),
                 guild.me: discord.PermissionOverwrite(
-                    read_messages=True,
-                    manage_channels=True,
-                    manage_messages=True,
-                ),
-                member: discord.PermissionOverwrite(
-                    read_messages=True,
-                    manage_channels=True
-                    if autoroom_source_config["room_type"] != "server"
-                    else None,
-                    manage_messages=True
-                    if autoroom_source_config["room_type"] != "server"
-                    else None,
+                    **dict.fromkeys(self.perms_bot_dest_text, True)
                 ),
             }
+            if autoroom_source_config["room_type"] != "server":
+                overwrites[member] = discord.PermissionOverwrite(
+                    **dict.fromkeys(self.perms_autoroom_owner_text, True)
+                )
+            else:
+                overwrites[member] = discord.PermissionOverwrite(
+                    **dict.fromkeys(self.perms_view_text, True)
+                )
+            # Create text channel
             new_text_channel = await guild.create_text_channel(
                 name=new_channel_name.replace("'s ", " "),
                 category=dest_category,
@@ -383,57 +395,60 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         self,
         autoroom_source,
         autoroom_source_config,
+        dest_category,
         member,
+        member_roles,
     ):
         guild = autoroom_source.guild
+        dest_perms = dest_category.permissions_for(dest_category.guild.me)
+        overwrites = {}
+        source_overwrites = (
+            autoroom_source.overwrites if autoroom_source.overwrites else {}
+        )
+        for target, permissions in source_overwrites.items():
+            # We can't put manage_roles in overwrites, so just get rid of it
+            # Also get rid of view_channel and connect, as we will be controlling those
+            permissions.update(connect=None, manage_roles=None, view_channel=None)
+            # Check each permission for each overwrite target to make sure the bot has it allowed in the dest category
+            failed_checks = {}
+            for name, value in permissions:
+                if value is not None:
+                    permission_check_result = getattr(dest_perms, name)
+                    if not permission_check_result:
+                        # If the bot doesn't have the permission allowed in the dest category, just ignore it. Too bad!
+                        failed_checks[name] = None
+            if failed_checks:
+                permissions.update(**failed_checks)
+            if not permissions.is_empty():
+                overwrites[target] = permissions
 
         # Bot overwrites
-        overwrites = {
-            guild.me: discord.PermissionOverwrite(
-                view_channel=True,
-                connect=True,
-                manage_channels=True,
-                move_members=True,
-            )
-        }
+        if guild.me not in overwrites:
+            overwrites[guild.me] = discord.PermissionOverwrite()
+        overwrites[guild.me].update(**dict.fromkeys(self.perms_bot_dest, True))
 
         # AutoRoom Owner overwrites
         if autoroom_source_config["room_type"] != "server":
-            overwrites.update(
-                {
-                    member: discord.PermissionOverwrite(
-                        view_channel=True,
-                        connect=True,
-                        manage_channels=True,
-                    )
-                }
-            )
-
-        # @everyone optional overwrites from autoroom_source
-        if (
-            autoroom_source.overwrites
-            and guild.default_role in autoroom_source.overwrites
-        ):
-            overwrites[guild.default_role] = autoroom_source.overwrites[
-                guild.default_role
-            ]
-            # We can't put manage_roles in overwrites, so just get rid of it
-            overwrites[guild.default_role].update(manage_roles=None)
+            if member not in overwrites:
+                overwrites[member] = discord.PermissionOverwrite()
+            overwrites[member].update(**dict.fromkeys(self.perms_autoroom_owner, True))
 
         # Base @everyone/member roles access overwrites
-        member_roles = await self.get_member_roles_for_source(autoroom_source)
         for member_role in member_roles or [guild.default_role]:
             if member_role not in overwrites:
                 overwrites[member_role] = discord.PermissionOverwrite()
             overwrites[member_role].update(
-                view_channel=autoroom_source_config["room_type"] != "private",
-                connect=autoroom_source_config["room_type"] != "private",
+                **dict.fromkeys(
+                    self.perms_view, autoroom_source_config["room_type"] != "private"
+                )
             )
         if member_roles:
             # We have a member role, deny @everyone
             if guild.default_role not in overwrites:
                 overwrites[guild.default_role] = discord.PermissionOverwrite()
-            overwrites[guild.default_role].update(view_channel=False, connect=False)
+            overwrites[guild.default_role].update(
+                **dict.fromkeys(self.perms_view, False)
+            )
 
         # Admin/moderator overwrites
         additional_allowed_roles = []
@@ -445,11 +460,11 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             additional_allowed_roles += await self.bot.get_admin_roles(guild)
         for role in additional_allowed_roles:
             # Add all the mod/admin roles, if required
-            overwrites[role] = discord.PermissionOverwrite(
-                view_channel=True, connect=True
-            )
+            if role not in overwrites:
+                overwrites[role] = discord.PermissionOverwrite()
+            overwrites[role].update(**dict.fromkeys(self.perms_view, True))
 
-        return overwrites, member_roles
+        return overwrites
 
     async def _process_autoroom_delete(self, voice_channel: discord.VoiceChannel):
         """Delete AutoRoom if empty."""
@@ -604,109 +619,79 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 return await self.bot.is_mod(who)
         return False
 
-    async def check_all_perms(self, guild: discord.Guild, detailed=False):
-        """Check all permissions for all AutoRooms in a guild."""
-        avcs = await self.get_all_autoroom_source_configs(guild)
-        result, result_str = await self.check_perms_guild(guild, detailed=True)
-        if not detailed and not result:
-            return False
-        for avc_id, avc_settings in avcs.items():
-            autoroom_source = guild.get_channel(avc_id)
-            category_dest = guild.get_channel(avc_settings["dest_category_id"])
-            if autoroom_source and category_dest:
-                if detailed:
-                    check, detail = await self.check_perms_source_dest(
-                        autoroom_source, category_dest, detailed=True
-                    )
-                    result_str += detail
-                    result = result and check
-                elif not await self.check_perms_source_dest(
-                    autoroom_source, category_dest
-                ):
-                    return False
-        if detailed:
-            return result, result_str
-        else:
-            return True
-
-    async def check_perms_source_dest(
+    def check_perms_source_dest_required(
         self,
         autoroom_source: discord.VoiceChannel,
         category_dest: discord.CategoryChannel,
+        with_manage_roles_guild=False,
+        with_text_channel=False,
         detailed=False,
     ):
         """Check if the permissions in an AutoRoom Source and a destination category are sufficient."""
         source = autoroom_source.permissions_for(autoroom_source.guild.me)
         dest = category_dest.permissions_for(category_dest.guild.me)
-        # Check the basics
-        result = (
-            source.move_members
-            and source.view_channel
-            and source.connect
-            and dest.view_channel
-            and dest.manage_channels
-            and dest.manage_messages
-            and dest.connect
-            and dest.move_members
-        )
-        if not detailed and not result:
-            return False
-        # Check the @everyone overwrites if they exist
-        override_section = None
-        if (
-            autoroom_source.overwrites
-            and autoroom_source.guild.default_role in autoroom_source.overwrites
-        ):
-            overwrites = autoroom_source.overwrites[autoroom_source.guild.default_role]
-            # Skip permissions we can't give (manage_roles) or are required to be True (view_channel/connect)
-            overwrites.update(view_channel=None, manage_roles=None, connect=None)
-            for overwrite in overwrites:
-                if overwrite[1] is not None:
-                    check_result = getattr(dest, overwrite[0])
-                    if detailed:
-                        result = result and check_result
-                        if not override_section:
-                            override_section = SettingDisplay(
-                                f"Optional @everyone Permissions"
-                            )
-                        override_section.add(
-                            overwrite[0].capitalize().replace("_", " "), check_result
-                        )
-                    elif not check_result:
-                        return False
-
-        if not detailed:
-            return True
-
-        source_section = SettingDisplay(f"Required on Source: {autoroom_source.name}")
-        source_section.add("Move members", source.move_members)
-        source_section.add("View channels", source.view_channel)
-        source_section.add("Connect", source.connect)
-
-        dest_section = SettingDisplay(f"Required on Destination: {category_dest.name}")
-        dest_section.add("View channels", dest.view_channel)
-        dest_section.add("Manage channels", dest.manage_channels)
-        dest_section.add("Manage messages", dest.manage_messages)
-        dest_section.add("Connect", dest.connect)
-        dest_section.add("Move members", dest.move_members)
-
-        autoroom_sections = [dest_section]
-        if override_section:
-            autoroom_sections.append(override_section)
-        return result, source_section.display(*autoroom_sections)
-
-    @staticmethod
-    async def check_perms_guild(
-        guild: discord.Guild,
-        detailed=False,
-    ):
-        """Check if the permissions for the guild are sufficient."""
-        result = guild.me.guild_permissions.manage_roles
+        result_required = True
+        result_optional = True
+        # Required
+        for perm_name in self.perms_bot_source:
+            result_required = result_required and getattr(source, perm_name)
+        for perm_name in self.perms_bot_dest:
+            result_required = result_required and getattr(dest, perm_name)
+        if with_manage_roles_guild:
+            result_required = (
+                result_required
+                and category_dest.guild.me.guild_permissions.manage_roles
+            )
+        # Optional
+        if with_text_channel:
+            for perm_name in self.perms_bot_dest_text:
+                result_optional = result_optional and getattr(dest, perm_name)
+        result = result_required and result_optional
         if not detailed:
             return result
-        guild_section = SettingDisplay(f"Required in Guild")
-        guild_section.add("Manage roles", result)
-        return result, guild_section.display()
+
+        source_section = SettingDisplay(f"Required on Source Voice Channel")
+        for perm_name in self.perms_bot_source:
+            source_section.add(
+                perm_name.capitalize().replace("_", " "), getattr(source, perm_name)
+            )
+
+        dest_section = SettingDisplay(f"Required on Destination Category")
+        for perm_name in self.perms_bot_dest:
+            dest_section.add(
+                perm_name.capitalize().replace("_", " "), getattr(dest, perm_name)
+            )
+        autoroom_sections = [dest_section]
+
+        if with_manage_roles_guild:
+            guild_section = SettingDisplay(f"Required in Guild")
+            guild_section.add(
+                "Manage roles", category_dest.guild.me.guild_permissions.manage_roles
+            )
+            autoroom_sections.append(guild_section)
+
+        if with_text_channel:
+            text_section = SettingDisplay(
+                f"Optional on Destination Category (for text channel)"
+            )
+            for perm_name in self.perms_bot_dest_text:
+                text_section.add(
+                    perm_name.capitalize().replace("_", " "), getattr(dest, perm_name)
+                )
+            autoroom_sections.append(text_section)
+
+        status_emoji = "\N{NO ENTRY SIGN}"
+        if result:
+            status_emoji = "\N{WHITE HEAVY CHECK MARK}"
+        elif result_required:
+            status_emoji = "\N{WARNING SIGN}\N{VARIATION SELECTOR-16}"
+        result_str = (
+            f"\n{status_emoji} Source VC: {autoroom_source.mention} -> Dest Category: {category_dest.mention}"
+            "\n"
+            f"{source_section.display(*autoroom_sections)}"
+        )
+
+        return result, result_str
 
     async def get_all_autoroom_source_configs(self, guild: discord.guild):
         """Return a dict of all autoroom source configs, cleaning up any invalid ones."""
