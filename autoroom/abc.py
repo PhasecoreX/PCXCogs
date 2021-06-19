@@ -52,12 +52,14 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def check_perms_source_dest_required(
+    def check_perms_source_dest(
         self,
         autoroom_source: discord.VoiceChannel,
         category_dest: discord.CategoryChannel,
         with_manage_roles_guild=False,
         with_text_channel=False,
+        with_optional_clone_perms=False,
+        split_required_optional_check=False,
         detailed=False,
     ):
         raise NotImplementedError()

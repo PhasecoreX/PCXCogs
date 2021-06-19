@@ -86,11 +86,19 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             autoroom_sections.append(autoroom_section)
 
         message = server_section.display(*autoroom_sections)
-        if not await self._check_all_perms(ctx.guild):
+        required_check, optional_check = await self._check_all_perms(ctx.guild)
+        if not required_check:
             message += "\n" + error(
-                "It looks like I am missing one or more permissions. "
+                "It looks like I am missing one or more required permissions. "
                 "Until I have them, the AutoRoom cog may not function properly "
                 "for all AutoRoom Sources. "
+                "Check `[p]autoroomset permissions` for more information."
+            )
+        elif not optional_check:
+            message += "\n" + warning(
+                "It looks like I am missing one or more optional permissions. "
+                "All AutoRooms will work, however some features (text channels and "
+                "cloned source permissions) may not work. "
                 "Check `[p]autoroomset permissions` for more information."
             )
         await ctx.send(message)
@@ -98,7 +106,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     @autoroomset.command(aliases=["perms"])
     async def permissions(self, ctx: commands.Context):
         """Check that the bot has all needed permissions."""
-        has_all_perms, details_list = await self._check_all_perms(
+        required_check, optional_check, details_list = await self._check_all_perms(
             ctx.guild, detailed=True
         )
         if len(details_list) > 1:
@@ -110,15 +118,27 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     )
                 )
                 return
-        if not has_all_perms:
+        if not required_check:
             await ctx.send(
                 error(
-                    "It looks like I am missing one or more permissions. "
-                    "Until I have them, the AutoRoom Source(s) in question may not function properly."
+                    "It looks like I am missing one or more required permissions. "
+                    "Until I have them, the AutoRoom Source(s) in question will not function properly."
                     "\n\n"
-                    "The easiest way of doing this is just giving me these permissions as part of my server role, "
+                    "The easiest way of fixing this is just giving me these permissions as part of my server role, "
                     "otherwise you will need to give me these permissions on the AutoRoom Source and destination "
                     "category, as specified below."
+                )
+            )
+        elif not optional_check:
+            await ctx.send(
+                warning(
+                    "It looks like I am missing one or more optional permissions. "
+                    "All AutoRooms will work, however some features (text channels and cloned source permissions) "
+                    "may not work. "
+                    "\n\n"
+                    "The easiest way of fixing this is just giving me these permissions as part of my server role, "
+                    "otherwise you will need to give me these permissions on the destination category, "
+                    "as specified below."
                     "\n\n"
                     "In the case of optional permissions, any permission on the AutoRoom Source will be copied to "
                     "the created AutoRoom, as if we were cloning the AutoRoom Source. In order for this to work, "
@@ -172,7 +192,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         voice channel (AutoRoom) created in the destination category,
         and then be moved into it.
         """
-        good_permissions, details = self.check_perms_source_dest_required(
+        good_permissions, details = self.check_perms_source_dest(
             source_voice_channel, dest_category, detailed=True
         )
         if not good_permissions:
@@ -223,7 +243,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         new_source["room_type"] = options[pred.result]
 
         # Check perms room type
-        good_permissions, details = self.check_perms_source_dest_required(
+        good_permissions, details = self.check_perms_source_dest(
             source_voice_channel,
             dest_category,
             with_manage_roles_guild=new_source["room_type"] != "server",
@@ -259,7 +279,7 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         new_source["text_channel"] = pred.result
 
         # Check perms text channel
-        good_permissions, details = self.check_perms_source_dest_required(
+        good_permissions, details = self.check_perms_source_dest(
             source_voice_channel,
             dest_category,
             with_manage_roles_guild=new_source["room_type"] != "server",
@@ -764,11 +784,10 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
         )
 
-    async def _check_all_perms(
-        self, guild: discord.Guild, detailed=False, with_optional=False
-    ):
+    async def _check_all_perms(self, guild: discord.Guild, detailed=False):
         """Check all permissions for all AutoRooms in a guild."""
-        result = True
+        result_required = True
+        result_optional = True
         result_list = []
         avcs = await self.get_all_autoroom_source_configs(guild)
         for avc_id, avc_settings in avcs.items():
@@ -776,23 +795,36 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             category_dest = guild.get_channel(avc_settings["dest_category_id"])
             if autoroom_source and category_dest:
                 if detailed:
-                    check, detail = self.check_perms_source_dest_required(
+                    (
+                        required_check,
+                        optional_check,
+                        detail,
+                    ) = self.check_perms_source_dest(
                         autoroom_source,
                         category_dest,
                         with_manage_roles_guild=avc_settings["room_type"] != "server",
                         with_text_channel=avc_settings["text_channel"],
+                        with_optional_clone_perms=True,
+                        split_required_optional_check=True,
                         detailed=True,
                     )
                     result_list.append(detail)
-                    result = result and check
-                elif not self.check_perms_source_dest_required(
-                    autoroom_source,
-                    category_dest,
-                    with_manage_roles_guild=avc_settings["room_type"] != "server",
-                    with_text_channel=avc_settings["text_channel"],
-                ):
-                    return False
+                    result_required = result_required and required_check
+                    result_optional = result_optional and optional_check
+                else:
+                    required_check, optional_check = self.check_perms_source_dest(
+                        autoroom_source,
+                        category_dest,
+                        with_manage_roles_guild=avc_settings["room_type"] != "server",
+                        with_text_channel=avc_settings["text_channel"],
+                        with_optional_clone_perms=True,
+                        split_required_optional_check=True,
+                    )
+                    result_required = result_required and required_check
+                    result_optional = result_optional and optional_check
+                    if not result_required and not result_optional:
+                        return result_required, result_optional
         if detailed:
-            return result, result_list
+            return result_required, result_optional, result_list
         else:
-            return True
+            return result_required, result_optional

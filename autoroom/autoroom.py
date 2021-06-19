@@ -290,7 +290,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         dest_category = guild.get_channel(autoroom_source_config["dest_category_id"])
         if not dest_category:
             return
-        if not self.check_perms_source_dest_required(autoroom_source, dest_category):
+        if not self.check_perms_source_dest(autoroom_source, dest_category):
             return
 
         # Check that user isn't spamming
@@ -592,12 +592,14 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 return await self.bot.is_mod(who)
         return False
 
-    def check_perms_source_dest_required(
+    def check_perms_source_dest(
         self,
         autoroom_source: discord.VoiceChannel,
         category_dest: discord.CategoryChannel,
         with_manage_roles_guild=False,
         with_text_channel=False,
+        with_optional_clone_perms=False,
+        split_required_optional_check=False,
         detailed=False,
     ):
         """Check if the permissions in an AutoRoom Source and a destination category are sufficient."""
@@ -619,9 +621,23 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         if with_text_channel:
             for perm_name in self.perms_bot_dest_text:
                 result_optional = result_optional and getattr(dest, perm_name)
+        clone_section = None
+        if with_optional_clone_perms:
+            if detailed:
+                clone_result, clone_section = self._check_perms_source_dest_optional(
+                    autoroom_source, dest, detailed=True
+                )
+            else:
+                clone_result = self._check_perms_source_dest_optional(
+                    autoroom_source, dest
+                )
+            result_optional = result_optional and clone_result
         result = result_required and result_optional
         if not detailed:
-            return result
+            if split_required_optional_check:
+                return result_required, result_optional
+            else:
+                return result
 
         source_section = SettingDisplay(f"Required on Source Voice Channel")
         for perm_name in self.perms_bot_source:
@@ -653,6 +669,9 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 )
             autoroom_sections.append(text_section)
 
+        if clone_section:
+            autoroom_sections.append(clone_section)
+
         status_emoji = "\N{NO ENTRY SIGN}"
         if result:
             status_emoji = "\N{WHITE HEAVY CHECK MARK}"
@@ -663,8 +682,45 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             "\n"
             f"{source_section.display(*autoroom_sections)}"
         )
+        if split_required_optional_check:
+            return result_required, result_optional, result_str
+        else:
+            return result, result_str
 
-        return result, result_str
+    @staticmethod
+    def _check_perms_source_dest_optional(
+        autoroom_source: discord.VoiceChannel,
+        dest_perms: discord.Permissions,
+        detailed=False,
+    ):
+        result = True
+        checked_perms = {}
+        source_overwrites = (
+            autoroom_source.overwrites if autoroom_source.overwrites else {}
+        )
+        for target, permissions in source_overwrites.items():
+            # We can't put manage_roles in overwrites, so just get rid of it
+            # Also get rid of view_channel and connect, as we will be controlling those
+            permissions.update(connect=None, manage_roles=None, view_channel=None)
+            # Check each permission for each overwrite target to make sure the bot has it allowed in the dest category
+            failed_checks = {}
+            for name, value in permissions:
+                if value is not None and name not in checked_perms:
+                    check_result = getattr(dest_perms, name)
+                    if not detailed and not check_result:
+                        return False
+                    checked_perms[name] = check_result
+                    result = result and check_result
+        if not detailed:
+            return True
+        clone_section = SettingDisplay(
+            f"Optional on Destination Category (for source clone)"
+        )
+        if checked_perms:
+            for name, value in checked_perms.items():
+                clone_section.add(name.capitalize().replace("_", " "), value)
+            return result, clone_section
+        return result, None
 
     async def get_all_autoroom_source_configs(self, guild: discord.guild):
         """Return a dict of all autoroom source configs, cleaning up any invalid ones."""
