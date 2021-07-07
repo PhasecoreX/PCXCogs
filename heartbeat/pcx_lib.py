@@ -1,6 +1,6 @@
 """Shared code across multiple cogs."""
 import asyncio
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 import discord
 from redbot.core import __version__ as redbot_version, commands
@@ -162,3 +162,57 @@ class SettingDisplay:
     def __str__(self) -> str:
         """Generate a ready-to-send formatted box of settings."""
         return self.display()
+
+
+class Perms:
+    """Helper class for dealing with a dictionary of discord.PermissionOverwrite."""
+
+    def __init__(
+        self,
+        overwrites: Dict[
+            Union[discord.Role, discord.Member], discord.PermissionOverwrite
+        ] = None,
+    ):
+        """Init."""
+        self.__overwrites = {}
+        self.__original = {}
+        if overwrites:
+            for key, value in overwrites.items():
+                pair = value.pair()
+                self.__overwrites[key] = discord.PermissionOverwrite().from_pair(*pair)
+                self.__original[key] = discord.PermissionOverwrite().from_pair(*pair)
+
+    def set(
+        self,
+        target: Union[discord.Role, discord.Member],
+        permission_overwrite: discord.PermissionOverwrite,
+    ):
+        """Set the permissions for a target."""
+        self.__overwrites[target] = discord.PermissionOverwrite().from_pair(
+            *permission_overwrite.pair()
+        )
+
+    def update(
+        self,
+        target: Union[discord.Role, discord.Member],
+        perm: Union[str, List[str]],
+        value: Union[bool, None],
+    ):
+        """Update the permissions for a target."""
+        if target not in self.__overwrites:
+            self.__overwrites[target] = discord.PermissionOverwrite()
+        if isinstance(perm, str):
+            perm = [perm]
+        self.__overwrites[target].update(**dict.fromkeys(perm, value))
+        if self.__overwrites[target].is_empty():
+            del self.__overwrites[target]
+
+    @property
+    def modified(self):
+        """Check if current overwrites are different than when this object was first initialized."""
+        return self.__overwrites != self.__original
+
+    @property
+    def overwrites(self):
+        """Get current overwrites."""
+        return self.__overwrites

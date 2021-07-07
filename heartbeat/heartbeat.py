@@ -146,6 +146,9 @@ class Heartbeat(commands.Cog):
                         headers={"user-agent": user_agent},
                     )
                     break
-                except aiohttp.ClientConnectionError:
+                except (
+                    aiohttp.ClientConnectionError,
+                    asyncio.TimeoutError,
+                ):
                     pass
                 retries -= 1
