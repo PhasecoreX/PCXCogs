@@ -439,28 +439,11 @@ class ReactChannel(commands.Cog):
         upvote = await self._get_emoji(guild, "upvote")
         downvote = await self._get_emoji(guild, "downvote")
         karma = 0
-        opposite_emoji = None
         if upvote and str(payload.emoji) == upvote:
             karma = 1
-            opposite_emoji = downvote
         elif downvote and str(payload.emoji) == downvote:
             karma = -1
-            opposite_emoji = upvote
         if karma:
-            if opposite_emoji:
-                try:
-                    opposite_reactions = next(
-                        reaction
-                        for reaction in message.reactions
-                        if str(reaction.emoji) == opposite_emoji
-                    )
-                    try:
-                        await opposite_reactions.remove(user)
-                    except (discord.Forbidden, discord.NotFound, discord.HTTPException):
-                        pass
-                except StopIteration:
-                    pass  # This message doesn't have an opposite reaction on it
-
             if message.author.bot or user == message.author:
                 # Bots can't get karma, users can't upvote themselves
                 return
@@ -497,7 +480,7 @@ class ReactChannel(commands.Cog):
                 return
             await self._increment_karma(message.author, karma)
 
-    async def _get_emoji(self, guild, emoji_type: str, refresh=False):
+    async def _get_emoji(self, guild: discord.Guild, emoji_type: str, refresh=False):
         """Get an emoji, ready for sending/reacting."""
         if guild.id not in self.emoji_cache:
             self.emoji_cache[guild.id] = {}
