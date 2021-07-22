@@ -343,6 +343,10 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             if autoroom_source_config["room_type"] == "private":
                 perms.update(target, self.perms_view, False)
 
+        # Just in case there are no AutoRoom Source overwrites
+        if autoroom_source_config["room_type"] == "private":
+            perms.update(guild.default_role, self.perms_view, False)
+
         # Bot overwrites
         perms.update(guild.me, self.perms_bot_dest, True)
 
