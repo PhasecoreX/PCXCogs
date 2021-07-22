@@ -27,7 +27,12 @@ class Wikipedia(commands.Cog):
         """Get information from Wikipedia."""
         can_not_embed_links = not ctx.channel.permissions_for(ctx.me).embed_links
         can_not_add_reactions = not ctx.channel.permissions_for(ctx.me).add_reactions
-        only_first_result = can_not_embed_links or can_not_add_reactions
+        can_not_read_history = not ctx.channel.permissions_for(
+            ctx.me
+        ).read_message_history
+        only_first_result = (
+            can_not_embed_links or can_not_add_reactions or can_not_read_history
+        )
         async with ctx.typing():
             embeds, url = await self.perform_search(
                 query, only_first_result=only_first_result
@@ -46,6 +51,11 @@ class Wikipedia(commands.Cog):
         elif can_not_add_reactions:
             embeds[0].set_author(
                 name=f"Result 1 (I need add reactions permission to show more)"
+            )
+            await ctx.send(embed=embeds[0])
+        elif can_not_read_history:
+            embeds[0].set_author(
+                name=f"Result 1 (I need read message history permission to show more)"
             )
             await ctx.send(embed=embeds[0])
         elif len(embeds) == 1:
