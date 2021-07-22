@@ -23,7 +23,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)
         """
 
-    @autoroom.command(name="settings", aliases=["info"])
+    @autoroom.command(name="settings", aliases=["about", "info"])
     async def autoroom_settings(self, ctx: commands.Context):
         """Display current settings."""
         autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(
@@ -33,21 +33,40 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             return
 
         room_settings = SettingDisplay("Room Settings")
-        room_settings.add(
-            "Owner",
-            autoroom_info["owner"].display_name if autoroom_info["owner"] else "???",
-        )
+        owner = ctx.guild.get_member(autoroom_info["owner"])
+        if owner:
+            room_settings.add(
+                "Owner",
+                owner.display_name,
+            )
+        else:
+            room_settings.add(
+                "Mode",
+                "Server Managed",
+            )
 
-        mode = "???"
-        for member_role in autoroom_info["member_roles"]:
-            if member_role in autoroom_channel.overwrites:
-                mode = (
-                    "Public"
-                    if autoroom_channel.overwrites[member_role].connect
-                    else "Private"
+        source_channel = self.bot.get_channel(autoroom_info["source_channel"])
+        if source_channel:
+            member_roles = self.get_member_roles(source_channel)
+
+            is_public = True
+            if member_roles:
+                for role in member_roles:
+                    if not self.check_if_member_or_role_allowed(autoroom_channel, role):
+                        is_public = False
+                        break
+            else:
+                is_public = self.check_if_member_or_role_allowed(
+                    autoroom_channel, ctx.guild.default_role
                 )
-                break
-        room_settings.add("Mode", mode)
+            access_text = "Public" if is_public else "Private"
+            if member_roles:
+                access_text += ", only certain roles"
+            room_settings.add("Access", access_text)
+            if member_roles:
+                room_settings.add(
+                    "Member Roles", ", ".join(role.name for role in member_roles)
+                )
 
         room_settings.add("Bitrate", f"{autoroom_channel.bitrate // 1000}kbps")
         room_settings.add(
@@ -57,7 +76,47 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             ),
         )
 
-        await ctx.send(str(room_settings))
+        access_settings = SettingDisplay("Current Access Settings")
+        allowed_members = []
+        allowed_roles = []
+        denied_members = []
+        denied_roles = []
+        for member_or_role, overwrite in autoroom_channel.overwrites.items():
+            if isinstance(member_or_role, discord.Role):
+                if self.check_if_member_or_role_allowed(
+                    autoroom_channel, member_or_role
+                ):
+                    allowed_roles.append(member_or_role)
+                else:
+                    denied_roles.append(member_or_role)
+            elif isinstance(member_or_role, discord.Member):
+                if self.check_if_member_or_role_allowed(
+                    autoroom_channel, member_or_role
+                ):
+                    allowed_members.append(member_or_role)
+                else:
+                    denied_members.append(member_or_role)
+
+        if allowed_members:
+            access_settings.add(
+                "Allowed Members",
+                ", ".join(member.display_name for member in allowed_members),
+            )
+        if allowed_roles:
+            access_settings.add(
+                "Allowed Roles", ", ".join(role.name for role in allowed_roles)
+            )
+        if denied_members:
+            access_settings.add(
+                "Denied Members",
+                ", ".join(member.display_name for member in denied_members),
+            )
+        if denied_roles:
+            access_settings.add(
+                "Denied Roles", ", ".join(role.name for role in denied_roles)
+            )
+
+        await ctx.send(str(room_settings.display(access_settings)))
 
     @autoroom.command(name="name")
     async def autoroom_name(self, ctx: commands.Context, *, name: str):
@@ -186,20 +245,57 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await delete(hint, delay=10)
             return False
 
+        source_channel = self.bot.get_channel(autoroom_info["source_channel"])
+        if not source_channel:
+            hint = await ctx.send(
+                error(
+                    f"{ctx.message.author.mention}, it seems like the AutoRoom Source this AutoRoom was made from "
+                    "no longer exists. Because of that, I can no longer modify this AutoRoom."
+                )
+            )
+            await delete(ctx.message, delay=10)
+            await delete(hint, delay=10)
+            return False
+
+        # Gather member roles and determine lowest ranked member role
+        member_roles = self.get_member_roles(source_channel)
+        lowest_member_role = 999999999999
+        for role in member_roles:
+            lowest_member_role = min(lowest_member_role, role.position)
+
         denied_message = ""
+        to_modify = [member_or_role]
         if not member_or_role:
-            # public/private command
-            member_or_role = autoroom_info["member_roles"]
-        elif (
-            allow
-            and member_or_role == ctx.guild.default_role
-            and [member_or_role] != autoroom_info["member_roles"]
-        ):
-            denied_message = "this AutoRoom is using member roles, so the default role must remain denied."
-        elif member_or_role in autoroom_info["member_roles"]:
-            # allow/deny a member role -> modify all member roles
-            member_or_role = autoroom_info["member_roles"]
-        elif not allow:
+            # Public/private command
+            to_modify = member_roles or [source_channel.guild.default_role]
+        elif allow:
+            # Allow a specific user
+            # - check if they have connect perm in the source channel
+            # - works for both deny everyone with allowed roles/users, and allow everyone with denied roles/users
+            # Allow a specific role
+            # - Make sure that the role isn't denied on the source channel
+            # - Check that the role is equal to or above the lowest allowed (member) role on the source channel
+            if not self.check_if_member_or_role_allowed(source_channel, member_or_role):
+                user_role = "user"
+                them_it = "them"
+                if isinstance(member_or_role, discord.Role):
+                    user_role = "role"
+                    them_it = "it"
+                denied_message = (
+                    f"since that {user_role} is not allowed to connect to the AutoRoom Source "
+                    f"that this AutoRoom was made from, I can't allow {them_it} here either."
+                )
+            elif (
+                isinstance(member_or_role, discord.Role)
+                and member_roles
+                and member_or_role.position < lowest_member_role
+            ):
+                denied_message = "this AutoRoom is using member roles, so I can't allow a lower hierarchy role."
+        else:
+            # Deny a specific user
+            # - check that they aren't a mod/admin/owner/autoroom owner/bot itself, then deny user
+            # Deny a specific role
+            # - Check that it isn't a mod/admin role, then deny role
             if member_or_role == ctx.guild.me:
                 denied_message = "why would I deny myself from entering your AutoRoom?"
             elif member_or_role == ctx.message.author:
@@ -226,9 +322,7 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             return False
 
         perms = Perms(dict(autoroom_channel.overwrites))
-        if not isinstance(member_or_role, list):
-            member_or_role = [member_or_role]
-        for target in member_or_role:
+        for target in to_modify:
             perms.update(target, self.perms_view, allow)
         if perms.modified:
             await autoroom_channel.edit(
@@ -246,31 +340,11 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             return member.voice.channel
         return None
 
-    async def _get_autoroom_info(self, autoroom: discord.VoiceChannel):
-        """Get info for an AutoRoom, or None if the voice channel isn't an AutoRoom."""
-        if not autoroom:
-            return None
-        owner_id = await self.config.channel(autoroom).owner()
-        if not owner_id:
-            return None
-        owner = autoroom.guild.get_member(owner_id)
-        member_roles = []
-        for member_role_id in await self.config.channel(autoroom).member_roles():
-            member_role = autoroom.guild.get_role(member_role_id)
-            if member_role:
-                member_roles.append(member_role)
-        if not member_roles:
-            member_roles = [autoroom.guild.default_role]
-        return {
-            "owner": owner,
-            "member_roles": member_roles,
-        }
-
     async def _get_autoroom_channel_and_info(
         self, ctx: commands.Context, check_owner: bool = True
     ):
         autoroom_channel = self._get_current_voice_channel(ctx.message.author)
-        autoroom_info = await self._get_autoroom_info(autoroom_channel)
+        autoroom_info = await self.get_autoroom_info(autoroom_channel)
         if not autoroom_info:
             hint = await ctx.send(
                 error(f"{ctx.message.author.mention}, you are not in an AutoRoom.")
@@ -278,9 +352,9 @@ class AutoRoomCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await delete(ctx.message, delay=5)
             await delete(hint, delay=5)
             return None, None
-        if check_owner and ctx.message.author != autoroom_info["owner"]:
+        if check_owner and ctx.message.author.id != autoroom_info["owner"]:
             reason_server = ""
-            if autoroom_info["owner"] == ctx.guild.me:
+            if not autoroom_info["owner"]:
                 reason_server = " (it is a server AutoRoom)"
             hint = await ctx.send(
                 error(

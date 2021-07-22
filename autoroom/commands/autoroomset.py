@@ -64,15 +64,11 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                     "Text Channel",
                     "True",
                 )
-            member_roles = []
-            for member_role_id in avc_settings["member_roles"]:
-                member_role = ctx.guild.get_role(member_role_id)
-                if member_role:
-                    member_roles.append(member_role.name)
+            member_roles = self.get_member_roles(source_channel)
             if member_roles:
                 autoroom_section.add(
                     "Member Roles" if len(member_roles) > 1 else "Member Role",
-                    ", ".join(member_roles),
+                    ", ".join(role.name for role in member_roles),
                 )
             room_name_format = "Username"
             if avc_settings["channel_name_type"] in channel_name_template:
@@ -315,38 +311,6 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             return
         new_source["channel_name_type"] = options[pred.result]
 
-        # Member role ask
-        pred = MessagePredicate.yes_or_no(ctx)
-        await ctx.send(
-            "**Member Role**"
-            "\n"
-            "By default, Public AutoRooms are visible to the whole server. Some servers have member roles for limiting "
-            "what unverified members can see and do."
-            "\n\n"
-            "Would you like these created AutoRooms to only be visible to a certain member role? (`yes`/`no`)"
-        )
-        try:
-            await ctx.bot.wait_for("message", check=pred, timeout=60)
-        except asyncio.TimeoutError:
-            await ctx.send("No valid answer was received, canceling setup process.")
-            return
-        if pred.result:
-            # Member role get
-            pred = MessagePredicate.valid_role(ctx)
-            await ctx.send(
-                "What role is your member role? Only provide one; if you have multiple, you can add more after the "
-                "setup process."
-            )
-            try:
-                await ctx.bot.wait_for("message", check=pred, timeout=60)
-            except asyncio.TimeoutError:
-                pass
-            if pred.result:
-                new_source["member_roles"] = [pred.result.id]
-            else:
-                await ctx.send("No valid answer was received, canceling setup process.")
-                return
-
         # Save new source
         await self.config.custom(
             "AUTOROOM_SOURCE", ctx.guild.id, source_voice_channel.id
@@ -424,85 +388,6 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             await ctx.send(
                 error(
                     f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                )
-            )
-
-    @modify.group(name="memberrole")
-    async def modify_memberrole(self, ctx: commands.Context):
-        """Limit AutoRoom visibility to certain member roles.
-
-        When set, only users with the specified role(s) can see AutoRooms.
-        """
-
-    @modify_memberrole.command(name="add")
-    async def modify_memberrole_add(
-        self,
-        ctx: commands.Context,
-        autoroom_source: discord.VoiceChannel,
-        role: discord.Role,
-    ):
-        """Add a role to the list of member roles allowed to see these AutoRooms."""
-        if await self.get_autoroom_source_config(autoroom_source):
-            member_roles = await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).member_roles()
-            if role.id not in member_roles:
-                member_roles.append(role.id)
-                await self.config.custom(
-                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-                ).member_roles.set(member_roles)
-            await self._send_memberrole_message(ctx, autoroom_source, "Added!")
-        else:
-            await ctx.send(
-                error(
-                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                )
-            )
-
-    @modify_memberrole.command(name="remove")
-    async def modify_memberrole_remove(
-        self,
-        ctx: commands.Context,
-        autoroom_source: discord.VoiceChannel,
-        role: discord.Role,
-    ):
-        """Remove a role from the list of member roles allowed to see these AutoRooms."""
-        if await self.get_autoroom_source_config(autoroom_source):
-            member_roles = await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).member_roles()
-            if role.id in member_roles:
-                member_roles.remove(role.id)
-                await self.config.custom(
-                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-                ).member_roles.set(member_roles)
-            await self._send_memberrole_message(ctx, autoroom_source, "Removed!")
-        else:
-            await ctx.send(
-                error(
-                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                )
-            )
-
-    async def _send_memberrole_message(
-        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel, action: str
-    ):
-        """Send a message showing the current member roles."""
-        member_roles = await self.get_member_roles_for_source(autoroom_source)
-        if member_roles:
-            await ctx.send(
-                checkmark(
-                    f"{action}\n"
-                    f"New AutoRooms created by **{autoroom_source.mention}** will be visible by users "
-                    "with any of the following roles:\n"
-                    f"{', '.join([role.mention for role in member_roles])}"
-                )
-            )
-        else:
-            await ctx.send(
-                checkmark(
-                    f"{action}\n"
-                    f"New AutoRooms created by **{autoroom_source.mention}** will be visible by all users."
                 )
             )
 
@@ -753,34 +638,30 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 )
             )
 
-    @modify.command(name="perms")
-    async def modify_perms(self, ctx: commands.Context):
-        """Learn how to modify default permissions."""
+    @modify.command(
+        name="defaults", aliases=["bitrate", "memberrole", "other", "perms", "users"]
+    )
+    async def modify_defaults(self, ctx: commands.Context):
+        """Learn how AutoRoom defaults are set."""
         await ctx.send(
             info(
-                "Every permission overwrite on an AutoRoom Source will be copied to the resulting AutoRoom. "
-                "Regardless if a permission in the AutoRoom Source is allowed or denied, "
-                "the bot itself will need to have this permission allowed either in the destination category "
-                "or server-wide with the roles it has. If the bot does not have the permission, it will not "
-                "be copied over."
+                "**Bitrate/User Limit**"
+                "\n"
+                "Default bitrate and user limit settings are copied from the AutoRoom Source to the resulting AutoRoom."
                 "\n\n"
-                "The only two permissions that will be overwritten are **View Channel** "
-                "and **Connect**, which depend on the AutoRoom Sources public/private setting, as well as "
-                "any member roles enabled for it. Additionally, the **Manage Roles** permission will always be ignored."
+                "**Member Roles**"
+                "\n"
+                "Only members that can view and join an AutoRoom Source will be able to join its resulting AutoRooms. "
+                "If you would like to limit AutoRooms to only allow certain members, simply deny the everyone role "
+                "from viewing/connecting to the AutoRoom Source and allow your member roles to view/connect to it."
                 "\n\n"
-                "Do note that you don't need to set any permissions on the AutoRoom Source channel for this "
-                "cog to work correctly. This functionality is for the advanced user with a complex server "
-                "structure, or for users that want to selectively enable/disable certain functionality "
-                "(e.g. video, voice activity/PTT, invites) in AutoRooms."
-            )
-        )
-
-    @modify.command(name="other", aliases=["bitrate", "users"])
-    async def modify_other(self, ctx: commands.Context):
-        """Learn how to modify default bitrate and user limits."""
-        await ctx.send(
-            info(
-                "Default bitrate and user limit settings are now copied from the AutoRoom Source."
+                "**Permissions**"
+                "\n"
+                "All permission overwrites (except for Manage Roles) will be copied from the AutoRoom Source "
+                "to the resulting AutoRoom. Every permission overwrite you want copied over, regardless if it is "
+                "allowed or denied, must be allowed for the bot. It can either be allowed for the bot in the "
+                "destination category or server-wide with the roles it has. `[p]autoroomset permissions` will "
+                "show what permissions will be copied over."
             )
         )
 

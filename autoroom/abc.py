@@ -38,12 +38,6 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_member_roles_for_source(
-        self, autoroom_source: discord.VoiceChannel
-    ) -> List[discord.Role]:
-        raise NotImplementedError()
-
-    @abstractmethod
     async def is_admin_or_admin_role(self, who: Union[discord.Role, discord.Member]):
         raise NotImplementedError()
 
@@ -70,4 +64,20 @@ class MixinMeta(ABC):
 
     @abstractmethod
     async def get_autoroom_source_config(self, autoroom_source: discord.VoiceChannel):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def get_autoroom_info(self, autoroom_source: discord.VoiceChannel):
+        raise NotImplementedError()
+
+    @staticmethod
+    @abstractmethod
+    def check_if_member_or_role_allowed(
+        channel: discord.VoiceChannel,
+        member_or_role: Union[discord.Member, discord.Role],
+    ):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_member_roles(self, autoroom_source: discord.VoiceChannel):
         raise NotImplementedError()

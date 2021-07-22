@@ -182,6 +182,17 @@ class Perms:
                 self.__overwrites[key] = discord.PermissionOverwrite().from_pair(*pair)
                 self.__original[key] = discord.PermissionOverwrite().from_pair(*pair)
 
+    def set(
+        self,
+        target: Union[discord.Role, discord.Member],
+        permission_overwrite: discord.PermissionOverwrite,
+    ):
+        """Set the permissions for a target."""
+        if not permission_overwrite.is_empty():
+            self.__overwrites[target] = discord.PermissionOverwrite().from_pair(
+                *permission_overwrite.pair()
+            )
+
     def update(
         self,
         target: Union[discord.Role, discord.Member],
