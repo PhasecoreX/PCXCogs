@@ -145,7 +145,14 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         else:
             await ctx.send(checkmark("Everything looks good here!"))
         if len(details_list) > 1:
-            await menu(ctx, details_list, DEFAULT_CONTROLS, timeout=60.0)
+            if (
+                ctx.channel.permissions_for(ctx.me).add_reactions
+                and ctx.channel.permissions_for(ctx.me).read_message_history
+            ):
+                await menu(ctx, details_list, DEFAULT_CONTROLS, timeout=60.0)
+            else:
+                for details in details_list:
+                    await ctx.send(details)
         else:
             await ctx.send(details_list[0])
 

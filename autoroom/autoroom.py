@@ -51,7 +51,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
     perms_bot_source = perms_view + ["move_members"]
     perms_bot_dest = perms_autoroom_owner + ["move_members"]
 
-    perms_view_text = ["read_messages"]
+    perms_view_text = ["read_message_history", "read_messages"]
     perms_autoroom_owner_text = perms_view_text + ["manage_channels", "manage_messages"]
     perms_bot_dest_text = perms_autoroom_owner_text
 
