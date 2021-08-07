@@ -271,7 +271,7 @@ class UpdateNotify(commands.Cog):
     @staticmethod
     async def get_latest_github_actions_build():
         """Check GitHub for the latest update to phasecorex/red-discordbot."""
-        url = "https://api.github.com/repos/phasecorex/docker-red-discordbot/actions/runs?branch=master&status=success"
+        url = "https://api.github.com/repos/phasecorex/docker-red-discordbot/actions/runs?branch=master"
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.get(url) as resp:
@@ -282,6 +282,7 @@ class UpdateNotify(commands.Cog):
                         if (
                             run["event"] in ("push", "repository_dispatch")
                             and run["name"] == "build"
+                            and run["conclusion"] == "success"
                         ):
                             build_id = str(run["id"])
                             commit_sha = run["head_commit"]["id"]
