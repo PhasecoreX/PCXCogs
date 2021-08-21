@@ -5,13 +5,8 @@ import logging
 import os
 
 import aiohttp
-from redbot.core import (
-    Config,
-    VersionInfo,
-    checks,
-    commands,
-    version_info as redbot_version,
-)
+from redbot.core import Config, VersionInfo, checks, commands
+from redbot.core import version_info as redbot_version
 from redbot.core.utils.chat_formatting import box, humanize_timedelta
 
 from .pcx_lib import SettingDisplay, checkmark
@@ -148,7 +143,7 @@ class UpdateNotify(commands.Cog):
         frequency: commands.TimedeltaConverter(
             minimum=datetime.timedelta(minutes=5),
             maximum=datetime.timedelta(days=30),
-            default_unit="minutes",
+            default_unit="minutes",  # noqa: F821
         ),
     ):
         """Set the frequency that UpdateNotify should check for updates."""

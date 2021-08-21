@@ -3,8 +3,8 @@
 from pyparsing import (
     Keyword,
     Literal,
-    ParseResults,
     ParserElement,
+    ParseResults,
     SkipTo,
     Suppress,
     delimitedList,

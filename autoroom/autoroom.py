@@ -591,13 +591,13 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             else:
                 return result
 
-        source_section = SettingDisplay(f"Required on Source Voice Channel")
+        source_section = SettingDisplay("Required on Source Voice Channel")
         for perm_name in self.perms_bot_source:
             source_section.add(
                 perm_name.capitalize().replace("_", " "), getattr(source, perm_name)
             )
 
-        dest_section = SettingDisplay(f"Required on Destination Category")
+        dest_section = SettingDisplay("Required on Destination Category")
         for perm_name in self.perms_bot_dest:
             dest_section.add(
                 perm_name.capitalize().replace("_", " "), getattr(dest, perm_name)
@@ -605,7 +605,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         autoroom_sections = [dest_section]
 
         if with_manage_roles_guild:
-            guild_section = SettingDisplay(f"Required in Guild")
+            guild_section = SettingDisplay("Required in Guild")
             guild_section.add(
                 "Manage roles", category_dest.guild.me.guild_permissions.manage_roles
             )
@@ -613,7 +613,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
 
         if with_text_channel:
             text_section = SettingDisplay(
-                f"Optional on Destination Category (for text channel)"
+                "Optional on Destination Category (for text channel)"
             )
             for perm_name in self.perms_bot_dest_text:
                 text_section.add(
@@ -650,12 +650,11 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         source_overwrites = (
             autoroom_source.overwrites if autoroom_source.overwrites else {}
         )
-        for target, permissions in source_overwrites.items():
+        for permissions in source_overwrites.values():
             # We can't put manage_roles in overwrites, so just get rid of it
             # Also get rid of view_channel and connect, as we will be controlling those
             permissions.update(connect=None, manage_roles=None, view_channel=None)
             # Check each permission for each overwrite target to make sure the bot has it allowed in the dest category
-            failed_checks = {}
             for name, value in permissions:
                 if value is not None and name not in checked_perms:
                     check_result = getattr(dest_perms, name)
@@ -666,7 +665,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         if not detailed:
             return True
         clone_section = SettingDisplay(
-            f"Optional on Destination Category (for source clone)"
+            "Optional on Destination Category (for source clone)"
         )
         if checked_perms:
             for name, value in checked_perms.items():

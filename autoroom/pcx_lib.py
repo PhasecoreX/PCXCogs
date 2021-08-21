@@ -3,7 +3,8 @@ import asyncio
 from typing import Any, Dict, List, Tuple, Union
 
 import discord
-from redbot.core import __version__ as redbot_version, commands
+from redbot.core import __version__ as redbot_version
+from redbot.core import commands
 from redbot.core.utils import common_filters
 from redbot.core.utils.chat_formatting import box
 

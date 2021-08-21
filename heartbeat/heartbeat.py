@@ -4,7 +4,9 @@ import logging
 from datetime import timedelta
 
 import aiohttp
-from redbot.core import Config, __version__ as redbot_version, checks, commands
+from redbot.core import Config
+from redbot.core import __version__ as redbot_version
+from redbot.core import checks, commands
 from redbot.core.utils.chat_formatting import humanize_timedelta
 
 from .pcx_lib import SettingDisplay, checkmark, delete
@@ -112,7 +114,7 @@ class Heartbeat(commands.Cog):
         frequency: commands.TimedeltaConverter(
             minimum=timedelta(seconds=60),
             maximum=timedelta(days=30),
-            default_unit="seconds",
+            default_unit="seconds",  # noqa: F821
         ),
     ):
         """Set the frequency Heartbeat will send pings."""

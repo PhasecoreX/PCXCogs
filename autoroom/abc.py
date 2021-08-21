@@ -32,9 +32,8 @@ class MixinMeta(ABC):
     def get_template_data(member: discord.Member):
         raise NotImplementedError()
 
-    @staticmethod
     @abstractmethod
-    def format_template_room_name(template: str, data: dict, num: int = 0):
+    def format_template_room_name(self, template: str, data: dict, num: int = 1):
         raise NotImplementedError()
 
     @abstractmethod
@@ -67,7 +66,7 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_autoroom_info(self, autoroom_source: discord.VoiceChannel):
+    async def get_autoroom_info(self, autoroom: discord.VoiceChannel):
         raise NotImplementedError()
 
     @staticmethod

@@ -4,7 +4,8 @@ import re
 import aiohttp
 import discord
 from dateutil.parser import isoparse
-from redbot.core import __version__ as redbot_version, commands
+from redbot.core import __version__ as redbot_version
+from redbot.core import commands
 from redbot.core.utils.chat_formatting import error, warning
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 
@@ -50,12 +51,12 @@ class Wikipedia(commands.Cog):
             )
         elif can_not_add_reactions:
             embeds[0].set_author(
-                name=f"Result 1 (I need add reactions permission to show more)"
+                name="Result 1 (I need add reactions permission to show more)"
             )
             await ctx.send(embed=embeds[0])
         elif can_not_read_history:
             embeds[0].set_author(
-                name=f"Result 1 (I need read message history permission to show more)"
+                name="Result 1 (I need read message history permission to show more)"
             )
             await ctx.send(embed=embeds[0])
         elif len(embeds) == 1:
@@ -168,7 +169,7 @@ class Wikipedia(commands.Cog):
             embed.set_image(url=image)
         text = "Information provided by Wikimedia"
         if timestamp:
-            text += f"\nArticle last updated"
+            text += "\nArticle last updated"
         embed.set_footer(
             text=text,
             icon_url=(

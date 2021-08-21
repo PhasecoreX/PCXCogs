@@ -6,7 +6,9 @@
     "short": "Look up articles on Wikipedia.",
     "description": "Allows for looking up terms on Wikipedia, and having the results displayed in chat.",
     "install_msg": "Thanks for installing Wikipedia!",
-    "requirements": ["python-dateutil"],
+    "requirements": [
+        "python-dateutil"
+    ],
     "tags": [
         "utility",
         "wiki"

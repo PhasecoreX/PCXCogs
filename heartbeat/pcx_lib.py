@@ -3,7 +3,8 @@ import asyncio
 from typing import Any, Dict, List, Tuple, Union
 
 import discord
-from redbot.core import __version__ as redbot_version, commands
+from redbot.core import __version__ as redbot_version
+from redbot.core import commands
 from redbot.core.utils import common_filters
 from redbot.core.utils.chat_formatting import box
 
@@ -188,9 +189,10 @@ class Perms:
         permission_overwrite: discord.PermissionOverwrite,
     ):
         """Set the permissions for a target."""
-        self.__overwrites[target] = discord.PermissionOverwrite().from_pair(
-            *permission_overwrite.pair()
-        )
+        if not permission_overwrite.is_empty():
+            self.__overwrites[target] = discord.PermissionOverwrite().from_pair(
+                *permission_overwrite.pair()
+            )
 
     def update(
         self,
