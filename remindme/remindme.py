@@ -195,13 +195,14 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
     async def check_reminders(self):
         """Send reminders that have expired."""
         to_remove = []
+        force_remove = []
         for reminder in await self.config.reminders():
             current_time_seconds = int(current_time.time())
             if reminder["FUTURE"] <= current_time_seconds:
                 user = self.bot.get_user(reminder["USER_ID"])
                 if user is None:
                     # Can't see the user (no shared servers): delete reminder
-                    to_remove.append(reminder)
+                    force_remove.append(reminder)
                     continue
 
                 delay = current_time_seconds - reminder["FUTURE"]
@@ -232,7 +233,7 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
                     await user.send(embed=embed)
                 except (discord.Forbidden, discord.NotFound):
                     # Can't send DM's to user: delete reminder
-                    to_remove.append(reminder)
+                    force_remove.append(reminder)
                 except discord.HTTPException:
                     # Something weird happened: retry next time
                     pass
@@ -240,7 +241,7 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
                     total_sent = await self.config.total_sent()
                     await self.config.total_sent.set(total_sent + 1)
                     to_remove.append(reminder)
-        if to_remove:
+        if to_remove or force_remove:
             async with self.config.reminders() as current_reminders:
                 for reminder in to_remove:
                     try:
@@ -257,5 +258,10 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
                         current_reminders.remove(reminder)
                         if new_reminder:
                             current_reminders.append(new_reminder)
+                    except ValueError:
+                        pass
+                for reminder in force_remove:
+                    try:
+                        current_reminders.remove(reminder)
                     except ValueError:
                         pass
