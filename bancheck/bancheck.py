@@ -1,7 +1,6 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
 import asyncio
-import time
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Union
 
 import discord
 from redbot.core import Config, checks, commands
@@ -47,7 +46,9 @@ class BanCheck(commands.Cog):
         )
         self.config.register_global(**self.default_global_settings)
         self.config.register_guild(**self.default_guild_settings)
-        self.member_join_cache: Dict[int, int] = {}
+        self.bucket_member_join_cache = commands.CooldownMapping.from_cooldown(
+            1, 300, lambda member: member
+        )
 
     async def initialize(self):
         """Perform setup actions before loading cog."""
@@ -116,7 +117,6 @@ class BanCheck(commands.Cog):
         For a quick rundown on how to get started with this cog,
         check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/bancheck/README.md)
         """
-        pass
 
     @banchecksetglobal.command(name="settings")
     async def global_settings(self, ctx: commands.Context):
@@ -203,7 +203,6 @@ class BanCheck(commands.Cog):
         For a quick rundown on how to get started with this cog,
         check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/bancheck/README.md)
         """
-        pass
 
     @bancheckset.command()
     async def settings(self, ctx: commands.Context):
@@ -322,7 +321,6 @@ class BanCheck(commands.Cog):
     @bancheckset.group()
     async def service(self, ctx: commands.Context):
         """Manage the services BanCheck will use to lookup users."""
-        pass
 
     @service.command(name="settings")
     async def service_settings(self, ctx: commands.Context):
@@ -628,7 +626,7 @@ class BanCheck(commands.Cog):
     ):
         """Perform user report."""
         description = ""
-        sent = []
+        sent: List[str] = []
         is_error = False
         config_services = await self.config.guild(ctx.guild).services()
         if isinstance(member, discord.Member):
@@ -772,22 +770,11 @@ class BanCheck(commands.Cog):
             channel = self.bot.get_channel(channel_id)
             if channel:
                 # Only do auto lookup if the user isn't repeatedly leaving and joining the server
-                current_time = int(time.time())
-                past_time = current_time - 300  # 5 minutes ago
-                if (
-                    member.id not in self.member_join_cache
-                    or self.member_join_cache[member.id] < past_time
-                ):
+                bucket = self.bucket_member_join_cache.get_bucket(member)
+                repeatedly_joining = bucket.update_rate_limit()
+                if not repeatedly_joining:
                     embed = await self._user_lookup(member.guild, member, do_ban=True)
                     await self.send_embed(channel, embed)
-                self.member_join_cache[member.id] = current_time
-                # Clear old entries out of the cache
-                cache_clear = []
-                for user_id, join_time in self.member_join_cache.items():
-                    if join_time < past_time:
-                        cache_clear.append(user_id)
-                for user_id in cache_clear:
-                    del self.member_join_cache[user_id]
 
     async def _user_lookup(
         self,
