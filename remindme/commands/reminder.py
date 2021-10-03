@@ -83,20 +83,12 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             color=await ctx.embed_color(),
         )
         embed.set_thumbnail(url=author.avatar_url)
-        current_time_seconds = int(current_time.time())
         for reminder in to_send:
-            delta = reminder["FUTURE"] - current_time_seconds
-            reminder_title = "ID# {} — {}".format(
-                reminder["USER_REMINDER_ID"],
-                "In {}".format(humanize_timedelta(seconds=delta))
-                if delta > 0
-                else "Now!",
+            reminder_title = (
+                f"ID# {reminder['USER_REMINDER_ID']} — <t:{reminder['FUTURE']}:f>"
             )
             if "REPEAT" in reminder and reminder["REPEAT"]:
-                reminder_title = (
-                    f"{reminder_title.rstrip('!')}, "
-                    f"repeating every {humanize_timedelta(seconds=reminder['REPEAT'])}"
-                )
+                reminder_title += f", repeating every {humanize_timedelta(seconds=reminder['REPEAT'])}"
             reminder_text = reminder["REMINDER"]
             if "JUMP_LINK" in reminder:
                 reminder_text += f"\n([original message]({reminder['JUMP_LINK']}))"
@@ -150,9 +142,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         async with self.config.reminders() as current_reminders:
             current_reminders.remove(old_reminder)
             current_reminders.append(new_reminder)
-        message = (
-            f"Reminder with ID# **{reminder_id}** will now remind you in {future_text}"
-        )
+        message = f"Reminder with ID# **{reminder_id}** will remind you in {future_text} from now (<t:{future}:f>)"
         if "REPEAT" in new_reminder and new_reminder["REPEAT"]:
             message += f", repeating every {humanize_timedelta(seconds=new_reminder['REPEAT'])} thereafter."
         else:
@@ -175,8 +165,8 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 current_reminders.append(new_reminder)
             await reply(
                 ctx,
-                f"Reminder with ID# **{reminder_id}** will not repeat anymore. The final reminder will be sent "
-                f"in {humanize_timedelta(seconds=int(new_reminder['FUTURE'] - current_time.time()))}.",
+                f"Reminder with ID# **{reminder_id}** will not repeat anymore. "
+                f"The final reminder will be sent <t:{new_reminder['FUTURE']}:f>.",
             )
         else:
             try:
@@ -198,7 +188,7 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 ctx,
                 f"Reminder with ID# **{reminder_id}** will now remind you "
                 f"every {humanize_timedelta(timedelta=time_delta)}, with the first reminder being sent "
-                f"in {humanize_timedelta(seconds=int(new_reminder['FUTURE'] - current_time.time()))}.",
+                f"<t:{new_reminder['FUTURE']}:f>.",
             )
 
     @modify.command()
@@ -321,9 +311,9 @@ class ReminderCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         if repeat:
             message += f"every {humanize_timedelta(timedelta=reminder_time_repeat)}"
         else:
-            message += f"in {future_text}"
+            message += f"in {future_text} (<t:{future}:f>)"
         if repeat and reminder_time_repeat != reminder_time:
-            message += f", with the first reminder in {future_text}."
+            message += f", with the first reminder in {future_text} (<t:{future}:f>)."
         else:
             message += "."
         await reply(ctx, message)

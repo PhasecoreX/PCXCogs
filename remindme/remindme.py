@@ -140,13 +140,11 @@ class RemindMe(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 human_repeat = humanize_timedelta(seconds=reminder["REPEAT"])
                 message += f"those reminders every {human_repeat}"
                 if human_repeat != reminder["FUTURE_TEXT"]:
-                    message += (
-                        f", with the first reminder in {reminder['FUTURE_TEXT']}."
-                    )
+                    message += f", with the first reminder in {reminder['FUTURE_TEXT']} (<t:{reminder['FUTURE']}:f>)."
                 else:
                     message += "."
             else:
-                message += f"that reminder in {reminder['FUTURE_TEXT']}."
+                message += f"that reminder in {reminder['FUTURE_TEXT']} (<t:{reminder['FUTURE']}:f>)."
 
             await member.send(message)
         except KeyError:
