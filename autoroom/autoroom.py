@@ -29,7 +29,9 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {
         "admin_access": True,
+        "admin_access_text": False,
         "mod_access": False,
+        "mod_access_text": False,
     }
     default_autoroom_source_settings = {
         "dest_category_id": None,
@@ -398,6 +400,17 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                 perms.update(member, self.perms_autoroom_owner_text, True)
             else:
                 perms.update(member, self.perms_view_text, True)
+            # Admin/moderator overwrites
+            additional_allowed_roles_text = []
+            if await self.config.guild(guild).mod_access_text():
+                # Add mod roles to be allowed
+                additional_allowed_roles_text += await self.bot.get_mod_roles(guild)
+            if await self.config.guild(guild).admin_access_text():
+                # Add admin roles to be allowed
+                additional_allowed_roles_text += await self.bot.get_admin_roles(guild)
+            for role in additional_allowed_roles_text:
+                # Add all the mod/admin roles, if required
+                perms.update(role, self.perms_view_text, True)
             # Create text channel
             new_text_channel = await guild.create_text_channel(
                 name=new_channel_name.replace("'s ", " "),

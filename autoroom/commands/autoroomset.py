@@ -35,12 +35,20 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
         """Display current settings."""
         server_section = SettingDisplay("Server Settings")
         server_section.add(
-            "Admin private channel access",
+            "Admin private AutoRoom access",
             await self.config.guild(ctx.guild).admin_access(),
         )
         server_section.add(
-            "Moderator private channel access",
+            "Admin private AutoRoom Text Channel access",
+            await self.config.guild(ctx.guild).admin_access_text(),
+        )
+        server_section.add(
+            "Moderator private AutoRoom access",
             await self.config.guild(ctx.guild).mod_access(),
+        )
+        server_section.add(
+            "Moderator private AutoRoom Text Channel access",
+            await self.config.guild(ctx.guild).mod_access_text(),
         )
 
         autoroom_sections = []
@@ -160,9 +168,13 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
     async def access(self, ctx: commands.Context):
         """Control access to all AutoRooms."""
 
-    @access.command(name="admin")
+    @access.group(name="admin")
     async def access_admin(self, ctx: commands.Context):
-        """Allow Admins to join private channels."""
+        """Change Admin access to AutoRooms."""
+
+    @access_admin.command(name="room")
+    async def access_admin_room(self, ctx: commands.Context):
+        """Allow Admins to join private AutoRooms."""
         admin_access = not await self.config.guild(ctx.guild).admin_access()
         await self.config.guild(ctx.guild).admin_access.set(admin_access)
         await ctx.send(
@@ -171,14 +183,40 @@ class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
             )
         )
 
-    @access.command(name="mod")
+    @access_admin.command(name="text")
+    async def access_admin_text(self, ctx: commands.Context):
+        """Allow Admins to see private AutoRoom Text Channels."""
+        admin_access_text = not await self.config.guild(ctx.guild).admin_access_text()
+        await self.config.guild(ctx.guild).admin_access_text.set(admin_access_text)
+        await ctx.send(
+            checkmark(
+                f"Admins are {'now' if admin_access_text else 'no longer'} able to see (new) private AutoRoom Text Channels."
+            )
+        )
+
+    @access.group(name="mod")
     async def access_mod(self, ctx: commands.Context):
-        """Allow Moderators to join private channels."""
+        """Change Moderator access to AutoRooms."""
+
+    @access_mod.command(name="room")
+    async def access_mod_room(self, ctx: commands.Context):
+        """Allow Moderators to join private AutoRooms."""
         mod_access = not await self.config.guild(ctx.guild).mod_access()
         await self.config.guild(ctx.guild).mod_access.set(mod_access)
         await ctx.send(
             checkmark(
                 f"Moderators are {'now' if mod_access else 'no longer'} able to join (new) private AutoRooms."
+            )
+        )
+
+    @access_mod.command(name="text")
+    async def access_mod_text(self, ctx: commands.Context):
+        """Allow Moderators to see private AutoRoom Text Channels."""
+        mod_access_text = not await self.config.guild(ctx.guild).mod_access_text()
+        await self.config.guild(ctx.guild).mod_access_text.set(mod_access_text)
+        await ctx.send(
+            checkmark(
+                f"Moderators are {'now' if mod_access_text else 'no longer'} able to see (new) private AutoRoom Text Channels."
             )
         )
 
