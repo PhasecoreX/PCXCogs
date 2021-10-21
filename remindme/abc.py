@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
+from typing import Union
 
+import discord
+from dateutil.relativedelta import relativedelta
 from redbot.core import Config, commands
-from redbot.core.bot import Red
 
-
-class CompositeMetaClass(type(commands.Cog), type(ABC)):
-    """This allows the metaclass used for proper type detection to coexist with discord.py's metaclass."""
+from .reminder_parse import ReminderParser
 
 
 class MixinMeta(ABC):
@@ -14,16 +14,35 @@ class MixinMeta(ABC):
     Basically, to keep developers sane when not all attributes are defined in each mixin.
     """
 
-    bot: Red
-    config: Config
-    me_too_reminders: dict
-    reminder_emoji: str
+    def __init__(self, *_args):
+        self.config: Config
+        self.reminder_parser: ReminderParser
+        self.me_too_reminders: dict
+        self.clicked_me_too_reminder: dict
+        self.reminder_emoji: str
+
+    @staticmethod
+    @abstractmethod
+    def humanize_relativedelta(relative_delta: Union[relativedelta, dict]):
+        raise NotImplementedError()
 
     @abstractmethod
-    async def get_user_reminders(self, user_id: int):
+    async def insert_reminder(self, user_id: int, reminder: dict):
         raise NotImplementedError()
 
     @staticmethod
     @abstractmethod
-    def get_next_user_reminder_id(reminder_list):
+    def relativedelta_to_dict(relative_delta: relativedelta):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def send_too_many_message(
+        self, ctx_or_user: Union[commands.Context, discord.User], maximum: int = -1
+    ):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def update_bg_task(
+        self, user_id: int, user_reminder_id: int = None, partial_reminder: dict = None
+    ):
         raise NotImplementedError()

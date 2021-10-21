@@ -1,17 +1,17 @@
-from abc import ABC
-
+"""Commands for [p]remindmeset."""
 from redbot.core import checks, commands
 
-from ..abc import CompositeMetaClass, MixinMeta
-from ..pcx_lib import SettingDisplay, checkmark
+from .abc import MixinMeta
+from .pcx_lib import SettingDisplay, checkmark
 
 
-class RemindMeSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
+class RemindMeSetCommands(MixinMeta):
+    """Commands for [p]remindmeset."""
+
     @commands.group()
     @checks.admin_or_permissions(manage_guild=True)
     async def remindmeset(self, ctx: commands.Context):
         """Manage RemindMe settings."""
-        pass
 
     @remindmeset.command()
     async def settings(self, ctx: commands.Context):
@@ -31,18 +31,26 @@ class RemindMeSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
                 "Maximum reminders per user", await self.config.max_user_reminders()
             )
 
-            reminders = [
-                reminder["REPEAT"] if "REPEAT" in reminder else None
-                for reminder in await self.config.reminders()
-            ]
-            pending_reminders_message = f"{len(reminders)}"
-            if reminders:
-                repeating_reminders = [repeat for repeat in reminders if repeat]
-                if repeating_reminders:
-                    pending_reminders_message += (
-                        f" ({len(repeating_reminders)} "
-                        f"{'is' if len(repeating_reminders) == 1 else 'are'} repeating)"
-                    )
+            non_repeating_reminders = 0
+            repeating_reminders = 0
+            all_reminders = await self.config.custom(
+                "REMINDER"
+            ).all()  # Does NOT return default values
+            for users_reminders in all_reminders.values():
+                for reminder in users_reminders.values():
+                    if "repeat" in reminder and reminder["repeat"]:
+                        repeating_reminders += 1
+                    else:
+                        non_repeating_reminders += 1
+            pending_reminders_message = (
+                f"{non_repeating_reminders + repeating_reminders}"
+            )
+            if repeating_reminders:
+                pending_reminders_message += (
+                    f" ({repeating_reminders} "
+                    f"{'is' if repeating_reminders == 1 else 'are'} repeating)"
+                )
+
             stats_section = SettingDisplay("Stats")
             stats_section.add(
                 "Pending reminders",

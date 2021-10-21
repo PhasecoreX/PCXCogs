@@ -6,6 +6,10 @@
     "short": "Set reminders for yourself.",
     "description": "Allows for users to set reminders for themselves.",
     "install_msg": "Thanks for installing RemindMe!",
+    "requirements": [
+        "pyparsing",
+        "python-dateutil"
+    ],
     "tags": [
         "reminder",
         "schedule",
