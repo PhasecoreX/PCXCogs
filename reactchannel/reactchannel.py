@@ -138,6 +138,12 @@ class ReactChannel(commands.Cog):
             "REACT_CHANNEL", ctx.guild.id
         ).all()  # Does NOT return default values
         for channel_id, channel_settings in channels.items():
+            channel = self.bot.get_channel(int(channel_id))
+            if not channel:
+                await self.config.custom(
+                    "REACT_CHANNEL", ctx.guild.id, channel_id
+                ).clear()
+                continue
             channel_type = channel_settings["channel_type"]
             emojis = "???"
             if channel_type == "checklist":
@@ -157,7 +163,9 @@ class ReactChannel(commands.Cog):
             if isinstance(channel_type, list):
                 emojis = " ".join(channel_type)
                 channel_type = "custom"
-            message += f"\n  - <#{channel_id}>: {channel_type.capitalize()} - {emojis}"
+            message += (
+                f"\n  - {channel.mention}: {channel_type.capitalize()} - {emojis}"
+            )
         if not message:
             message = " None"
         message = "ReactChannels configured:" + message
@@ -505,6 +513,13 @@ class ReactChannel(commands.Cog):
                 # Bots can't get karma, users can't upvote themselves
                 return
             await self._increment_karma(message.author, karma)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, guild_channel: discord.abc.GuildChannel):
+        """Clean up config when a ReactChannel is deleted."""
+        await self.config.custom(
+            "REACT_CHANNEL", guild_channel.guild.id, guild_channel.id
+        ).clear()
 
     #
     # Private methods
