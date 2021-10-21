@@ -14,9 +14,27 @@ class NetSpeed(commands.Cog):
     not your internet speed.
     """
 
-    async def red_delete_data_for_user(self, **kwargs):
+    __author__ = "PhasecoreX"
+    __version__ = "1.0.0"
+
+    #
+    # Red methods
+    #
+
+    def format_help_for_context(self, ctx: commands.Context) -> str:
+        """Show version in help."""
+        pre_processed = super().format_help_for_context(ctx)
+        return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(
+        self, **kwargs
+    ):  # pylint: disable=unused-argument
         """Nothing to delete."""
         return
+
+    #
+    # Command methods: netspeed
+    #
 
     @commands.command(aliases=["speedtest"])
     @checks.is_owner()
@@ -28,15 +46,17 @@ class NetSpeed(commands.Cog):
         """
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         loop = asyncio.get_event_loop()
-        s = speedtest.Speedtest(secure=True)
-        the_embed = await ctx.send(embed=self.generate_embed(0, s.results.dict()))
-        await loop.run_in_executor(executor, s.get_servers)
-        await loop.run_in_executor(executor, s.get_best_server)
-        await the_embed.edit(embed=self.generate_embed(1, s.results.dict()))
-        await loop.run_in_executor(executor, s.download)
-        await the_embed.edit(embed=self.generate_embed(2, s.results.dict()))
-        await loop.run_in_executor(executor, s.upload)
-        await the_embed.edit(embed=self.generate_embed(3, s.results.dict()))
+        speed_test = speedtest.Speedtest(secure=True)
+        the_embed = await ctx.send(
+            embed=self.generate_embed(0, speed_test.results.dict())
+        )
+        await loop.run_in_executor(executor, speed_test.get_servers)
+        await loop.run_in_executor(executor, speed_test.get_best_server)
+        await the_embed.edit(embed=self.generate_embed(1, speed_test.results.dict()))
+        await loop.run_in_executor(executor, speed_test.download)
+        await the_embed.edit(embed=self.generate_embed(2, speed_test.results.dict()))
+        await loop.run_in_executor(executor, speed_test.upload)
+        await the_embed.edit(embed=self.generate_embed(3, speed_test.results.dict()))
 
     @staticmethod
     def generate_embed(step: int, results_dict):

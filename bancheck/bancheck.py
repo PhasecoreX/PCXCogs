@@ -13,8 +13,6 @@ from .services.globan import Globan
 from .services.imgur import Imgur
 from .services.ksoftsi import KSoftSi
 
-__author__ = "PhasecoreX"
-
 
 class BanCheck(commands.Cog):
     """Look up users on various ban lists.
@@ -26,6 +24,9 @@ class BanCheck(commands.Cog):
     For a quick rundown on how to get started with this cog,
     check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/bancheck/README.md)
     """
+
+    __author__ = "PhasecoreX"
+    __version__ = "2.2.0"
 
     default_global_settings = {"schema_version": 0, "total_bans": 0}
     default_guild_settings: Any = {
@@ -49,6 +50,25 @@ class BanCheck(commands.Cog):
         self.bucket_member_join_cache = commands.CooldownMapping.from_cooldown(
             1, 300, lambda member: member
         )
+
+    #
+    # Red methods
+    #
+
+    def format_help_for_context(self, ctx: commands.Context) -> str:
+        """Show version in help."""
+        pre_processed = super().format_help_for_context(ctx)
+        return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(
+        self, **kwargs
+    ):  # pylint: disable=unused-argument
+        """Nothing to delete."""
+        return
+
+    #
+    # Initialization methods
+    #
 
     async def initialize(self):
         """Perform setup actions before loading cog."""
@@ -105,9 +125,9 @@ class BanCheck(commands.Cog):
             await self.config.clear_raw("version")
             await self.config.schema_version.set(1)
 
-    async def red_delete_data_for_user(self, **kwargs):
-        """Nothing to delete."""
-        return
+    #
+    # Command methods: banchecksetglobal
+    #
 
     @commands.group()
     @checks.is_owner()
@@ -193,6 +213,10 @@ class BanCheck(commands.Cog):
             action = "removed"
         response = f"API key for the {self.get_nice_service_name(service)} BanCheck service has been {action}."
         await ctx.send(checkmark(response))
+
+    #
+    # Command methods: bancheckset
+    #
 
     @commands.group()
     @commands.guild_only()
@@ -760,6 +784,10 @@ class BanCheck(commands.Cog):
             embed = await self._user_lookup(ctx.guild, member)
         await self.send_embed(ctx, embed)
 
+    #
+    # Listener methods
+    #
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         """If enabled, will check users against ban lists when joining the guild."""
@@ -908,6 +936,10 @@ class BanCheck(commands.Cog):
                 f"Checked: {', '.join(checked)}",
                 member_avatar_url,
             )
+
+    #
+    # Public methods
+    #
 
     async def format_service_name_url(self, service_name, show_help=False):
         """Format BanCheck services."""

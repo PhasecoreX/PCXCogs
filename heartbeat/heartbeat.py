@@ -11,7 +11,6 @@ from redbot.core.utils.chat_formatting import humanize_timedelta
 
 from .pcx_lib import SettingDisplay, checkmark, delete
 
-__author__ = "PhasecoreX"
 user_agent = (
     f"Red-DiscordBot/{redbot_version} Heartbeat (https://github.com/PhasecoreX/PCXCogs)"
 )
@@ -27,6 +26,9 @@ class Heartbeat(commands.Cog):
     not connected to Discord).
     """
 
+    __author__ = "PhasecoreX"
+    __version__ = "1.1.0"
+
     default_global_settings = {"url": "", "frequency": 60}
 
     def __init__(self, bot):
@@ -40,9 +42,38 @@ class Heartbeat(commands.Cog):
         self.session = aiohttp.ClientSession()
         self.bg_loop_task = None
 
+    #
+    # Red methods
+    #
+
+    def cog_unload(self):
+        """Clean up when cog shuts down."""
+        if self.bg_loop_task:
+            self.bg_loop_task.cancel()
+        asyncio.create_task(self.session.close())
+
+    def format_help_for_context(self, ctx: commands.Context) -> str:
+        """Show version in help."""
+        pre_processed = super().format_help_for_context(ctx)
+        return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(
+        self, **kwargs
+    ):  # pylint: disable=unused-argument
+        """Nothing to delete."""
+        return
+
+    #
+    # Initialization methods
+    #
+
     async def initialize(self):
         """Perform setup actions before loading cog."""
         self.enable_bg_loop()
+
+    #
+    # Background loop methods
+    #
 
     def enable_bg_loop(self):
         """Set up the background loop task."""
@@ -52,7 +83,7 @@ class Heartbeat(commands.Cog):
                 fut.result()
             except asyncio.CancelledError:
                 pass
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-except
                 log.exception(
                     "Unexpected exception occurred in background loop of Heartbeat: ",
                     exc_info=exc,
@@ -70,21 +101,43 @@ class Heartbeat(commands.Cog):
         self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
         self.bg_loop_task.add_done_callback(error_handler)
 
-    def cog_unload(self):
-        """Clean up when cog shuts down."""
-        if self.bg_loop_task:
-            self.bg_loop_task.cancel()
-        asyncio.create_task(self.session.close())
+    async def bg_loop(self):
+        """Background loop."""
+        await self.bot.wait_until_ready()
+        frequency = await self.config.frequency()
+        if frequency < 60:
+            frequency = 60.0
+        while True:
+            await self.send_heartbeat()
+            await asyncio.sleep(frequency)
 
-    async def red_delete_data_for_user(self, **kwargs):
-        """Nothing to delete."""
-        return
+    async def send_heartbeat(self):
+        """Send a heartbeat ping."""
+        url = await self.config.url()
+        if url:
+            retries = 3
+            while retries > 0:
+                try:
+                    await self.session.get(
+                        url,
+                        headers={"user-agent": user_agent},
+                    )
+                    break
+                except (
+                    aiohttp.ClientConnectionError,
+                    asyncio.TimeoutError,
+                ):
+                    pass
+                retries -= 1
+
+    #
+    # Command methods: heartbeat
+    #
 
     @commands.group()
     @checks.is_owner()
     async def heartbeat(self, ctx: commands.Context):
         """Manage Heartbeat settings."""
-        pass
 
     @heartbeat.command()
     async def settings(self, ctx: commands.Context):
@@ -125,32 +178,3 @@ class Heartbeat(commands.Cog):
             )
         )
         self.enable_bg_loop()
-
-    async def bg_loop(self):
-        """Background loop."""
-        await self.bot.wait_until_ready()
-        frequency = await self.config.frequency()
-        if frequency < 60:
-            frequency = 60.0
-        while True:
-            await self.send_heartbeat()
-            await asyncio.sleep(frequency)
-
-    async def send_heartbeat(self):
-        """Send a heartbeat ping."""
-        url = await self.config.url()
-        if url:
-            retries = 3
-            while retries > 0:
-                try:
-                    await self.session.get(
-                        url,
-                        headers={"user-agent": user_agent},
-                    )
-                    break
-                except (
-                    aiohttp.ClientConnectionError,
-                    asyncio.TimeoutError,
-                ):
-                    pass
-                retries -= 1

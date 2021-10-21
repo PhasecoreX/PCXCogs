@@ -9,8 +9,6 @@ from redbot.core.utils.chat_formatting import box, error, warning
 
 from .pcx_lib import checkmark, delete
 
-__author__ = "PhasecoreX"
-
 
 class ReactChannel(commands.Cog):
     """Per-channel auto reaction tools.
@@ -23,6 +21,9 @@ class ReactChannel(commands.Cog):
     reacting to messages with these (in any channel) will increase or decrease the
     message owners total karma.
     """
+
+    __author__ = "PhasecoreX"
+    __version__ = "2.1.0"
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {
@@ -49,6 +50,28 @@ class ReactChannel(commands.Cog):
         )
         self.config.register_member(**self.default_member_settings)
         self.emoji_cache = {}
+
+    #
+    # Red methods
+    #
+
+    def format_help_for_context(self, ctx: commands.Context) -> str:
+        """Show version in help."""
+        pre_processed = super().format_help_for_context(ctx)
+        return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(
+        self, *, requester, user_id: int
+    ):  # pylint: disable=unused-argument
+        """Users can reset their karma back to zero I guess."""
+        all_members = await self.config.all_members()
+        async for guild_id, member_dict in AsyncIter(all_members.items(), steps=100):
+            if user_id in member_dict:
+                await self.config.member_from_ids(guild_id, user_id).clear()
+
+    #
+    # Initialization methods
+    #
 
     async def initialize(self):
         """Perform setup actions before loading cog."""
@@ -97,19 +120,15 @@ class ReactChannel(commands.Cog):
                 await self.config.guild_from_id(guild_id).clear_raw("channels")
             await self.config.schema_version.set(2)
 
-    async def red_delete_data_for_user(self, *, requester, user_id: int):
-        """Users can reset their karma back to zero I guess."""
-        all_members = await self.config.all_members()
-        async for guild_id, member_dict in AsyncIter(all_members.items(), steps=100):
-            if user_id in member_dict:
-                await self.config.member_from_ids(guild_id, user_id).clear()
+    #
+    # Command methods: reactchannelset
+    #
 
     @commands.group()
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
     async def reactchannelset(self, ctx: commands.Context):
         """Manage ReactChannel settings."""
-        pass
 
     @reactchannelset.command()
     async def settings(self, ctx: commands.Context):
@@ -147,7 +166,6 @@ class ReactChannel(commands.Cog):
     @reactchannelset.group()
     async def enable(self, ctx: commands.Context):
         """Enable ReactChannel functionality in a channel."""
-        pass
 
     @enable.command()
     async def checklist(
@@ -310,6 +328,10 @@ class ReactChannel(commands.Cog):
         except discord.HTTPException:
             await ctx.send(error("That is not a valid emoji I can use!"))
 
+    #
+    # Command methods
+    #
+
     @commands.command()
     @commands.guild_only()
     async def karma(self, ctx: commands.Context, member: discord.Member = None):
@@ -367,6 +389,10 @@ class ReactChannel(commands.Cog):
             )
         else:
             await ctx.send("This server does not have a downvote emoji set")
+
+    #
+    # Listener methods
+    #
 
     @commands.Cog.listener()
     async def on_message_without_command(self, message: discord.Message):
@@ -479,6 +505,10 @@ class ReactChannel(commands.Cog):
                 # Bots can't get karma, users can't upvote themselves
                 return
             await self._increment_karma(message.author, karma)
+
+    #
+    # Private methods
+    #
 
     async def _get_emoji(self, guild: discord.Guild, emoji_type: str, refresh=False):
         """Get an emoji, ready for sending/reacting."""

@@ -1,20 +1,27 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
+from abc import ABC
 from typing import Union
 
 import discord
 from redbot.core import Config, commands
 from redbot.core.utils.chat_formatting import humanize_timedelta
 
-from .abc import CompositeMetaClass
-from .commands import Commands
-from .commands.autoroomset import channel_name_template
+from .c_autoroom import AutoRoomCommands
+from .c_autoroomset import AutoRoomSetCommands, channel_name_template
 from .pcx_lib import Perms, SettingDisplay
 from .pcx_template import Template
 
-__author__ = "PhasecoreX"
+
+class CompositeMetaClass(type(commands.Cog), type(ABC)):
+    """This allows the metaclass used for proper type detection to coexist with discord.py's metaclass."""
 
 
-class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
+class AutoRoom(
+    AutoRoomCommands,
+    AutoRoomSetCommands,
+    commands.Cog,
+    metaclass=CompositeMetaClass,
+):
     """Automatic voice channel management.
 
     This cog facilitates automatic voice channel creation.
@@ -25,6 +32,9 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
     For a quick rundown on how to get started with this cog,
     check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)
     """
+
+    __author__ = "PhasecoreX"
+    __version__ = "3.1.0"
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {
@@ -81,6 +91,25 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         self.bucket_autoroom_name = commands.CooldownMapping.from_cooldown(
             2, 600 + self.extra_channel_name_change_delay, lambda channel: channel
         )
+
+    #
+    # Red methods
+    #
+
+    def format_help_for_context(self, ctx: commands.Context) -> str:
+        """Show version in help."""
+        pre_processed = super().format_help_for_context(ctx)
+        return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(
+        self, **kwargs
+    ):  # pylint: disable=unused-argument
+        """Nothing to delete."""
+        return
+
+    #
+    # Initialization methods
+    #
 
     async def initialize(self):
         """Perform setup actions before loading cog."""
@@ -236,6 +265,10 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
                     )
                 await self.config.channel_from_id(voice_channel_id).clear()
 
+    #
+    # Listener methods
+    #
+
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, guild_channel: discord.abc.GuildChannel):
         """Clean up config when an AutoRoom (or Source) is deleted (either by the bot or the user)."""
@@ -282,6 +315,10 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         # If user entered an AutoRoom, allow them into the associated text channel
         if await self.get_autoroom_info(joining.channel):
             await self._process_autoroom_text_perms(joining.channel)
+
+    #
+    # Private methods
+    #
 
     async def _process_autoroom_create(
         self, autoroom_source, autoroom_source_config, member
@@ -514,6 +551,10 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
             attempted_channel_names.append(new_channel_name)
             new_channel_name = self.format_template_room_name(template, data, attempt)
         return new_channel_name
+
+    #
+    # Public methods
+    #
 
     @staticmethod
     def get_template_data(member: discord.Member):
@@ -765,6 +806,7 @@ class AutoRoom(Commands, commands.Cog, metaclass=CompositeMetaClass):
         return False
 
     def get_member_roles(self, autoroom_source: discord.VoiceChannel):
+        """Get member roles set on an AutoRoom Source."""
         member_roles = []
         # Check if @everyone is allowed to connect to source channel
         if not self.check_if_member_or_role_allowed(

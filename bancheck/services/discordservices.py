@@ -17,7 +17,9 @@ class DiscordServices:
     SERVICE_URL = "https://discord.services"
 
     @staticmethod
-    async def lookup(user_id: int, api_key: str = None):
+    async def lookup(
+        user_id: int, api_key: str = None
+    ):  # pylint: disable=unused-argument
         """Perform user lookup on discord.services."""
         try:
             async with aiohttp.ClientSession() as session:

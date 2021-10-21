@@ -7,8 +7,6 @@ from redbot.core.utils.chat_formatting import info
 
 from .pcx_lib import SettingDisplay, checkmark, type_message
 
-__author__ = "PhasecoreX"
-
 
 class DecodeBinary(commands.Cog):
     """Decodes binary strings to human readable ones.
@@ -19,6 +17,9 @@ class DecodeBinary(commands.Cog):
 
     01011001011000010111100100100001
     """
+
+    __author__ = "PhasecoreX"
+    __version__ = "1.1.0"
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {"ignored_channels": []}
@@ -33,6 +34,25 @@ class DecodeBinary(commands.Cog):
         self.config.register_global(**self.default_global_settings)
         self.config.register_guild(**self.default_guild_settings)
 
+    #
+    # Red methods
+    #
+
+    def format_help_for_context(self, ctx: commands.Context) -> str:
+        """Show version in help."""
+        pre_processed = super().format_help_for_context(ctx)
+        return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(
+        self, **kwargs
+    ):  # pylint: disable=unused-argument
+        """Nothing to delete."""
+        return
+
+    #
+    # Initialization methods
+    #
+
     async def initialize(self):
         """Perform setup actions before loading cog."""
         await self._migrate_config()
@@ -46,16 +66,15 @@ class DecodeBinary(commands.Cog):
                 await self.config.guild_from_id(guild_id).clear_raw("ignore_guild")
             await self.config.schema_version.set(1)
 
-    async def red_delete_data_for_user(self, **kwargs):
-        """Nothing to delete."""
-        return
+    #
+    # Command methods: decodebinaryset
+    #
 
     @commands.group()
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
     async def decodebinaryset(self, ctx: commands.Context):
         """Change DecodeBinary settings."""
-        pass
 
     @decodebinaryset.command()
     async def settings(self, ctx: commands.Context):
@@ -71,7 +90,6 @@ class DecodeBinary(commands.Cog):
     @decodebinaryset.group()
     async def ignore(self, ctx: commands.Context):
         """Change DecodeBinary ignore settings."""
-        pass
 
     @ignore.command()
     async def server(self, ctx: commands.Context):
@@ -93,6 +111,10 @@ class DecodeBinary(commands.Cog):
                 ignored_channels.append(ctx.channel.id)
                 await ctx.send(checkmark("I will ignore this channel."))
 
+    #
+    # Listener methods
+    #
+
     @commands.Cog.listener()
     async def on_message_without_command(self, message: discord.Message):
         """Grab messages and see if we can decode them from binary."""
@@ -112,6 +134,10 @@ class DecodeBinary(commands.Cog):
         found = pattern.findall(message.content)
         if found:
             await self.do_translation(message, found)
+
+    #
+    # Public methods
+    #
 
     async def do_translation(self, orig_message: discord.Message, found):
         """Translate each found string and sends a message."""

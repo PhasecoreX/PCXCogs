@@ -6,11 +6,12 @@ from redbot.core import commands
 
 from .pcx_lib import type_message
 
-__author__ = "PhasecoreX"
-
 
 class UwU(commands.Cog):
     """UwU."""
+
+    __author__ = "PhasecoreX"
+    __version__ = "2.0.0"
 
     KAOMOJI_JOY = [
         " (\\* ^ ω ^)",
@@ -33,9 +34,24 @@ class UwU(commands.Cog):
     KAOMOJI_CONFUSE = [" (o_O)?", " (°ロ°) !?", " (ーー;)?", " owo?"]
     KAOMOJI_SPARKLES = [" \\*:･ﾟ✧\\*:･ﾟ✧ ", " ☆\\*:・ﾟ ", "〜☆ ", " uguu.., ", "-.-"]
 
-    async def red_delete_data_for_user(self, **kwargs):
+    #
+    # Red methods
+    #
+
+    def format_help_for_context(self, ctx: commands.Context) -> str:
+        """Show version in help."""
+        pre_processed = super().format_help_for_context(ctx)
+        return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(
+        self, **kwargs
+    ):  # pylint: disable=unused-argument
         """Nothing to delete."""
         return
+
+    #
+    # Command methods
+    #
 
     @commands.command(aliases=["owo"])
     async def uwu(self, ctx: commands.Context, *, text: str = None):
@@ -59,6 +75,10 @@ class UwU(commands.Cog):
                 everyone=False, users=False, roles=False
             ),
         )
+
+    #
+    # Public methods
+    #
 
     def uwuize_string(self, string: str):
         """Uwuize and return a string."""

@@ -95,7 +95,7 @@ class RemindMe(
         await self.config.custom("REMINDER", str(user_id)).clear()
 
     #
-    # Migration methods
+    # Initialization methods
     #
 
     async def initialize(self):

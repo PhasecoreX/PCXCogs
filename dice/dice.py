@@ -9,11 +9,12 @@ from redbot.core.utils.predicates import MessagePredicate
 
 from .pcx_lib import SettingDisplay, checkmark
 
-__author__ = "PhasecoreX"
-
 
 class Dice(commands.Cog):
     """Perform complex dice rolling."""
+
+    __author__ = "PhasecoreX"
+    __version__ = "2.0.0"
 
     default_global_settings = {"max_dice_rolls": 10000, "max_die_sides": 10000}
     DROPPED_EXPLODED_RE = re.compile(r"-\*(\d+)\*-")
@@ -29,15 +30,29 @@ class Dice(commands.Cog):
         )
         self.config.register_global(**self.default_global_settings)
 
-    async def red_delete_data_for_user(self, **kwargs):
+    #
+    # Red methods
+    #
+
+    def format_help_for_context(self, ctx: commands.Context) -> str:
+        """Show version in help."""
+        pre_processed = super().format_help_for_context(ctx)
+        return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(
+        self, **kwargs
+    ):  # pylint: disable=unused-argument
         """Nothing to delete."""
         return
+
+    #
+    # Command methods: diceset
+    #
 
     @commands.group()
     @checks.is_owner()
     async def diceset(self, ctx: commands.Context):
         """Manage Dice settings."""
-        pass
 
     @diceset.command()
     async def settings(self, ctx: commands.Context):
@@ -109,6 +124,10 @@ class Dice(commands.Cog):
             )
         )
 
+    #
+    # Command methods
+    #
+
     @commands.command()
     async def dice(self, ctx: commands.Context, *, roll: str):
         """Perform die roll based on a dice formula.
@@ -125,11 +144,11 @@ class Dice(commands.Cog):
         Modifier order does matter, and usually they allow for specifying a specific number or number ranges after them.
         """
         try:
-            dr = pyhedrals.DiceRoller(
+            dice_roller = pyhedrals.DiceRoller(
                 maxDice=await self.config.max_dice_rolls(),
                 maxSides=await self.config.max_die_sides(),
             )
-            result = dr.parse(roll)
+            result = dice_roller.parse(roll)
             roll_message = f"\N{GAME DIE} {ctx.message.author.mention} rolled {roll} and got **{result.result}**"
             if len(roll_message) > 2000:
                 raise ValueError("resulting roll message is too big to send in Discord")

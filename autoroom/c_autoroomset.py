@@ -1,6 +1,5 @@
 """The autoroomset command."""
 import asyncio
-from abc import ABC
 
 import discord
 from redbot.core import checks, commands
@@ -8,8 +7,8 @@ from redbot.core.utils.chat_formatting import error, info, warning
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.predicates import MessagePredicate
 
-from ..abc import CompositeMetaClass, MixinMeta
-from ..pcx_lib import SettingDisplay, checkmark
+from .abc import MixinMeta
+from .pcx_lib import SettingDisplay, checkmark
 
 channel_name_template = {
     "username": "{{username}}'s Room{% if dupenum > 1 %} ({{dupenum}}){% endif %}",
@@ -17,7 +16,7 @@ channel_name_template = {
 }
 
 
-class AutoRoomSetCommands(MixinMeta, ABC, metaclass=CompositeMetaClass):
+class AutoRoomSetCommands(MixinMeta):
     """The autoroomset command."""
 
     @commands.group()

@@ -11,7 +11,6 @@ from redbot.core.utils.chat_formatting import box, humanize_timedelta
 
 from .pcx_lib import SettingDisplay, checkmark
 
-__author__ = "PhasecoreX"
 log = logging.getLogger("red.pcxcogs.updatenotify")
 
 
@@ -21,6 +20,9 @@ class UpdateNotify(commands.Cog):
     This cog checks for updates to Red-DiscordBot. If you are also running the
     phasecorex/red-discordbot Docker image, it can also notify you of any image updates.
     """
+
+    __author__ = "PhasecoreX"
+    __version__ = "3.0.0"
 
     default_global_settings = {
         "schema_version": 0,
@@ -48,6 +50,30 @@ class UpdateNotify(commands.Cog):
         self.next_check = datetime.datetime.now()
         self.bg_loop_task = None
 
+    #
+    # Red methods
+    #
+
+    def cog_unload(self):
+        """Clean up when cog shuts down."""
+        if self.bg_loop_task:
+            self.bg_loop_task.cancel()
+
+    def format_help_for_context(self, ctx: commands.Context) -> str:
+        """Show version in help."""
+        pre_processed = super().format_help_for_context(ctx)
+        return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(
+        self, **kwargs
+    ):  # pylint: disable=unused-argument
+        """Nothing to delete."""
+        return
+
+    #
+    # Initialization methods
+    #
+
     async def initialize(self):
         """Perform setup actions before loading cog."""
         await self._migrate_config()
@@ -66,6 +92,10 @@ class UpdateNotify(commands.Cog):
             await self.config.clear_raw("version")
             await self.config.schema_version.set(1)
 
+    #
+    # Background loop methods
+    #
+
     def enable_bg_loop(self):
         """Set up the background loop task."""
 
@@ -74,7 +104,7 @@ class UpdateNotify(commands.Cog):
                 fut.result()
             except asyncio.CancelledError:
                 pass
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-except
                 log.exception(
                     "Unexpected exception occurred in background loop of UpdateNotify: ",
                     exc_info=exc,
@@ -92,20 +122,34 @@ class UpdateNotify(commands.Cog):
         self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
         self.bg_loop_task.add_done_callback(error_handler)
 
-    def cog_unload(self):
-        """Clean up when cog shuts down."""
-        if self.bg_loop_task:
-            self.bg_loop_task.cancel()
+    async def bg_loop(self):
+        """Background loop."""
+        await self.bot.wait_until_ready()
+        frequency = await self.config.frequency()
+        if not frequency or frequency < 300.0:
+            frequency = 300.0
+        while True:
+            await self.check_for_updates()
+            self.next_check = datetime.datetime.now() + datetime.timedelta(0, frequency)
+            await asyncio.sleep(frequency)
 
-    async def red_delete_data_for_user(self, **kwargs):
-        """Nothing to delete."""
-        return
+    async def check_for_updates(self):
+        """Check for updates and notify the bot owner."""
+        try:
+            message = await self.update_check()
+            if message:
+                await self.bot.send_to_owners(message)
+        except aiohttp.ClientConnectionError:
+            pass
+
+    #
+    # Command methods: updatenotify
+    #
 
     @commands.group()
     @checks.is_owner()
     async def updatenotify(self, ctx: commands.Context):
         """Manage UpdateNotify settings."""
-        pass
 
     @updatenotify.command()
     async def settings(self, ctx: commands.Context):
@@ -180,7 +224,6 @@ class UpdateNotify(commands.Cog):
     @updatenotify.group()
     async def docker(self, ctx: commands.Context):
         """Options for checking for phasecorex/red-discordbot Docker image updates."""
-        pass
 
     @docker.command(name="toggle")
     async def docker_toggle(self, ctx: commands.Context):
@@ -386,23 +429,3 @@ class UpdateNotify(commands.Cog):
         if message and not manual:
             message = "Hello! " + message
         return message.strip()
-
-    async def bg_loop(self):
-        """Background loop."""
-        await self.bot.wait_until_ready()
-        frequency = await self.config.frequency()
-        if not frequency or frequency < 300.0:
-            frequency = 300.0
-        while True:
-            await self.check_for_updates()
-            self.next_check = datetime.datetime.now() + datetime.timedelta(0, frequency)
-            await asyncio.sleep(frequency)
-
-    async def check_for_updates(self):
-        """Check for updates and notify the bot owner."""
-        try:
-            message = await self.update_check()
-            if message:
-                await self.bot.send_to_owners(message)
-        except aiohttp.ClientConnectionError:
-            pass

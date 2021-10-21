@@ -9,19 +9,35 @@ from redbot.core import commands
 from redbot.core.utils.chat_formatting import error, warning
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 
-__author__ = "PhasecoreX"
-
 
 class Wikipedia(commands.Cog):
     """Look up stuff on Wikipedia."""
+
+    __author__ = "PhasecoreX"
+    __version__ = "3.0.0"
 
     DISAMBIGUATION_CAT = "Category:All disambiguation pages"
     WHITESPACE = re.compile(r"[\n\s]{4,}")
     NEWLINES = re.compile(r"\n+")
 
-    async def red_delete_data_for_user(self, **kwargs):
+    #
+    # Red methods
+    #
+
+    def format_help_for_context(self, ctx: commands.Context) -> str:
+        """Show version in help."""
+        pre_processed = super().format_help_for_context(ctx)
+        return f"{pre_processed}\n\nCog Version: {self.__version__}"
+
+    async def red_delete_data_for_user(
+        self, **kwargs
+    ):  # pylint: disable=unused-argument
         """Nothing to delete."""
         return
+
+    #
+    # Command methods
+    #
 
     @commands.command(aliases=["wiki"])
     async def wikipedia(self, ctx: commands.Context, *, query: str):
@@ -69,6 +85,10 @@ class Wikipedia(commands.Cog):
                 embed.set_author(name=f"Result {count} of {len(embeds)}")
             await menu(ctx, embeds, DEFAULT_CONTROLS, timeout=60.0)
 
+    #
+    # Public methods
+    #
+
     def generate_payload(self, query: str):
         """Generate the payload for Wikipedia based on a query string."""
         query_tokens = query.split()
@@ -99,6 +119,7 @@ class Wikipedia(commands.Cog):
         return payload
 
     async def perform_search(self, query, only_first_result: bool = False):
+        """Query Wikipedia."""
         payload = self.generate_payload(query)
         async with aiohttp.ClientSession() as session:
             async with session.get(

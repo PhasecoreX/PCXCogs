@@ -3,14 +3,10 @@ from typing import List, Union
 
 import discord
 from discord.ext.commands import CooldownMapping
-from redbot.core import Config, commands
+from redbot.core import Config
 from redbot.core.bot import Red
 
 from autoroom.pcx_template import Template
-
-
-class CompositeMetaClass(type(commands.Cog), type(ABC)):
-    """This allows the metaclass used for proper type detection to coexist with discord.py's metaclass."""
 
 
 class MixinMeta(ABC):
