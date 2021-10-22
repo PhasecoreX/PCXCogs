@@ -76,7 +76,9 @@ class BanCheck(commands.Cog):
 
     async def _migrate_config(self):
         """Perform some configuration migrations."""
-        if not await self.config.schema_version():
+        schema_version = await self.config.schema_version()
+
+        if schema_version < 1:
             guild_dict = await self.config.all_guilds()
             for guild_id, guild_info in guild_dict.items():
                 # Migrate channel -> notify_channel

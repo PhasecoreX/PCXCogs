@@ -81,14 +81,16 @@ class UpdateNotify(commands.Cog):
 
     async def _migrate_config(self):
         """Perform some configuration migrations."""
-        if not await self.config.schema_version():
+        schema_version = await self.config.schema_version()
+
+        if schema_version < 1:
             # Migrate old update_check_interval (minutes) to frequency (seconds)
             update_check_interval = await self.config.get_raw(
                 "update_check_interval", default=False
             )
             if update_check_interval:
                 await self.config.frequency.set(update_check_interval * 60.0)
-                await self.config.clear_raw("update_check_interval")
+            await self.config.clear_raw("update_check_interval")
             await self.config.clear_raw("version")
             await self.config.schema_version.set(1)
 

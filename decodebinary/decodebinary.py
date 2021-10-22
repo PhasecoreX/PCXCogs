@@ -59,7 +59,9 @@ class DecodeBinary(commands.Cog):
 
     async def _migrate_config(self):
         """Perform some configuration migrations."""
-        if not await self.config.schema_version():
+        schema_version = await self.config.schema_version()
+
+        if schema_version < 1:
             # Remove "ignore_guild"
             guild_dict = await self.config.all_guilds()
             for guild_id in guild_dict:
