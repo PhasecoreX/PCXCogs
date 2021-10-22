@@ -120,6 +120,7 @@ class AutoRoom(
         """Perform some configuration migrations."""
         schema_version = await self.config.schema_version()
 
+        schema_1_migration_autorooms = {}
         if schema_version < 1:
             # Migrate private -> room_type
             guild_dict = await self.config.all_guilds()
@@ -134,9 +135,7 @@ class AutoRoom(
                                 "private" if avc_settings["private"] else "public"
                             )
                             del avc_settings["private"]
-                    await self.config.guild_from_id(guild_id).set_raw(
-                        "auto_voice_channels", value=avcs
-                    )
+                    schema_1_migration_autorooms = avcs
             await self.config.schema_version.set(1)
 
         if schema_version < 2:
@@ -150,9 +149,11 @@ class AutoRoom(
             # Migrate to AUTOROOM_SOURCE custom config group
             guild_dict = await self.config.all_guilds()
             for guild_id, guild_info in guild_dict.items():
-                avcs = await self.config.guild_from_id(guild_id).get_raw(
-                    "auto_voice_channels", default={}
-                )
+                avcs = schema_1_migration_autorooms
+                if not avcs:
+                    avcs = await self.config.guild_from_id(guild_id).get_raw(
+                        "auto_voice_channels", default={}
+                    )
                 for avc_id, avc_settings in avcs.items():
                     new_dict = {
                         "dest_category_id": avc_settings["dest_category_id"],
