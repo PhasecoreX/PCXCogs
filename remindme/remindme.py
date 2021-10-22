@@ -33,7 +33,7 @@ class RemindMe(
     """Never forget anything anymore."""
 
     __author__ = "PhasecoreX"
-    __version__ = "3.0.1"
+    __version__ = "3.0.2"
 
     default_global_settings = {
         "schema_version": 0,
@@ -107,6 +107,7 @@ class RemindMe(
         """Perform some configuration migrations."""
         schema_version = await self.config.schema_version()
 
+        schema_1_migration_reminders = []
         if schema_version < 1:
             # Add/generate USER_REMINDER_ID, rename some fields
             current_reminders = await self.config.get_raw("reminders", default=[])
