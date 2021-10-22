@@ -33,7 +33,7 @@ class RemindMe(
     """Never forget anything anymore."""
 
     __author__ = "PhasecoreX"
-    __version__ = "3.0.0"
+    __version__ = "3.0.1"
 
     default_global_settings = {
         "schema_version": 0,
@@ -124,12 +124,14 @@ class RemindMe(
                 }
                 user_reminder_ids[reminder["ID"]] = user_reminder_id + 1
                 new_reminders.append(new_reminder)
-            await self.config.reminders.set(new_reminders)
+            schema_1_migration_reminders = new_reminders
             await self.config.schema_version.set(1)
 
         if schema_version < 2:
             # Migrate to REMINDER custom config group
-            current_reminders = await self.config.get_raw("reminders", default=[])
+            current_reminders = schema_1_migration_reminders
+            if not current_reminders:
+                current_reminders = await self.config.get_raw("reminders", default=[])
             for reminder in current_reminders:
                 # Try and convert the future text over to an actual point in time
                 created_converted = reminder["FUTURE"] - 1
