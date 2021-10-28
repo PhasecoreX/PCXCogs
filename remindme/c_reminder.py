@@ -418,10 +418,15 @@ class ReminderCommands(MixinMeta):
         repeat_delta = None
         if repeat_dict:
             repeat_delta = relativedelta(**repeat_dict)
-            if created_datetime + repeat_delta < created_datetime + relativedelta(
-                days=1
-            ):
-                await reply(ctx, "Reminder repeat time must be at least 1 day.")
+            try:
+                # Make sure repeat isn't really big or less than 1 day
+                if created_datetime + repeat_delta < created_datetime + relativedelta(
+                    days=1
+                ):
+                    await reply(ctx, "Reminder repeat time must be at least 1 day.")
+                    return None
+            except (OverflowError, ValueError):
+                await reply(ctx, "Reminder repeat time is too large.")
                 return None
 
         expires_dict = parse_result["in"] if "in" in parse_result else repeat_dict
@@ -429,10 +434,15 @@ class ReminderCommands(MixinMeta):
             await ctx.send_help()
             return None
         expires_delta = relativedelta(**expires_dict)
-        if created_datetime + expires_delta < created_datetime + relativedelta(
-            minutes=1
-        ):
-            await reply(ctx, "Reminder time must be at least 1 minute.")
+        try:
+            # Make sure expire time isn't over 9999 years and is at least 1 minute
+            if created_datetime + expires_delta < created_datetime + relativedelta(
+                minutes=1
+            ):
+                await reply(ctx, "Reminder time must be at least 1 minute.")
+                return None
+        except (OverflowError, ValueError):
+            await reply(ctx, "Reminder time is too large.")
             return None
         expires_datetime = created_datetime + expires_delta
         expires_timestamp_int = int(expires_datetime.timestamp())

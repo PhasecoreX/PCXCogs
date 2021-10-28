@@ -2,7 +2,7 @@
 import asyncio
 import logging
 from abc import ABC
-from datetime import datetime, timezone
+from datetime import MAXYEAR, datetime, timezone
 from typing import Union
 
 import discord
@@ -134,8 +134,17 @@ class RemindMe(
             if not current_reminders:
                 current_reminders = await self.config.get_raw("reminders", default=[])
             for reminder in current_reminders:
+                # Get normalized expires datetime
+                try:
+                    expires_normalized = datetime.fromtimestamp(
+                        reminder["FUTURE"], timezone.utc
+                    )
+                except (OverflowError, ValueError):
+                    expires_normalized = datetime(
+                        MAXYEAR, 12, 31, 23, 59, 59, 0, tzinfo=timezone.utc
+                    )
                 # Try and convert the future text over to an actual point in time
-                created_converted = reminder["FUTURE"] - 1
+                created_converted = expires_normalized - relativedelta(seconds=1)
                 log.debug(
                     "Converting to relativedelta object: %s", reminder["FUTURE_TEXT"]
                 )
@@ -147,11 +156,7 @@ class RemindMe(
                     if not in_dict:
                         raise ParseException
                     in_delta = relativedelta(**in_dict)
-                    created_datetime = (
-                        datetime.fromtimestamp(reminder["FUTURE"], timezone.utc)
-                        - in_delta
-                    )
-                    created_converted = int(created_datetime.timestamp())
+                    created_converted = expires_normalized - in_delta
                     log.debug(
                         "Successfully converted to relativedelta object: %s",
                         self.humanize_relativedelta(in_delta),
@@ -164,8 +169,8 @@ class RemindMe(
                 # Required fields
                 new_reminder = {
                     "text": reminder["REMINDER"],
-                    "created": created_converted,
-                    "expires": reminder["FUTURE"],
+                    "created": int(created_converted.timestamp()),
+                    "expires": int(expires_normalized.timestamp()),
                     "jump_link": reminder["JUMP_LINK"],
                 }
                 # Optional fields
@@ -413,11 +418,15 @@ class RemindMe(
                 full_reminder["expires"], timezone.utc
             )
             repeat_time = relativedelta(**full_reminder["repeat"])
-            while next_reminder_time < now:
-                next_reminder_time = next_reminder_time + repeat_time
-            # Set new reminder time
-            await config_reminder.created.set(full_reminder["expires"])
-            await config_reminder.expires.set(int(next_reminder_time.timestamp()))
+            try:
+                while next_reminder_time < now:
+                    next_reminder_time = next_reminder_time + repeat_time
+                # Set new reminder time
+                await config_reminder.created.set(full_reminder["expires"])
+                await config_reminder.expires.set(int(next_reminder_time.timestamp()))
+            except (OverflowError, ValueError):
+                # Next repeat would be after the year 9999. We don't support that.
+                await config_reminder.clear()
         else:
             await config_reminder.clear()
         # Search for next reminder, in case this was a successful retry reminder
