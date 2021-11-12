@@ -36,7 +36,7 @@ class ReminderCommands(MixinMeta):
             "REMINDER", str(author.id)
         ).all()  # Does NOT return default values
         for user_reminder_id, reminder in user_reminders_dict.items():
-            reminder.update({"user_reminder_id": user_reminder_id})
+            reminder.update({"user_reminder_id": int(user_reminder_id)})
             user_reminders.append(reminder)
 
         # Check if they actually have any reminders
@@ -350,9 +350,9 @@ class ReminderCommands(MixinMeta):
                 await reply(ctx, "You don't have any upcoming reminders.")
                 return
 
-            reminder_id_to_delete = list(all_users_reminders_dict)[-1]
+            reminder_id_to_delete = int(list(all_users_reminders_dict)[-1])
             await self.config.custom(
-                "REMINDER", str(author.id), reminder_id_to_delete
+                "REMINDER", str(author.id), str(reminder_id_to_delete)
             ).clear()
             # Notify background task
             await self.update_bg_task(author.id, reminder_id_to_delete)

@@ -32,7 +32,7 @@ class RemindMe(
     """Never forget anything anymore."""
 
     __author__ = "PhasecoreX"
-    __version__ = "3.0.2"
+    __version__ = "3.0.3"
 
     default_global_settings = {
         "schema_version": 0,
@@ -620,6 +620,8 @@ class RemindMe(
         user_id is always required, user_reminder_id and partial_reminder are usually required,
         unless we are doing reminder deletions (and forgetme/red_delete_data_for_user)
         """
+        user_id = int(user_id)
+        user_reminder_id = int(user_reminder_id)
         if self.search_for_next_reminder:
             # If the bg task is already going to perform a search soon
             log.debug("Background task will be searching for new reminders soon")
