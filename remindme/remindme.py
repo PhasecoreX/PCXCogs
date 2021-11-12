@@ -32,7 +32,7 @@ class RemindMe(
     """Never forget anything anymore."""
 
     __author__ = "PhasecoreX"
-    __version__ = "3.0.3"
+    __version__ = "3.0.4"
 
     default_global_settings = {
         "schema_version": 0,
@@ -160,7 +160,7 @@ class RemindMe(
                         "Successfully converted to relativedelta object: %s",
                         self.humanize_relativedelta(in_delta),
                     )
-                except ParseException:
+                except (OverflowError, ParseException, ValueError):
                     log.warning(
                         'Failed to convert to datetime object for migration: %s, using "1 second" ago as created time',
                         reminder["FUTURE_TEXT"],
