@@ -7,9 +7,10 @@ from typing import Union
 
 import discord
 from dateutil.relativedelta import relativedelta
-from pyparsing import ParseException
 from redbot.core import Config, commands
 from redbot.core.utils.chat_formatting import humanize_list
+
+from pyparsing import ParseException
 
 from .c_reminder import ReminderCommands
 from .c_remindmeset import RemindMeSetCommands
@@ -621,7 +622,8 @@ class RemindMe(
         unless we are doing reminder deletions (and forgetme/red_delete_data_for_user)
         """
         user_id = int(user_id)
-        user_reminder_id = int(user_reminder_id)
+        if user_reminder_id:
+            user_reminder_id = int(user_reminder_id)
         if self.search_for_next_reminder:
             # If the bg task is already going to perform a search soon
             log.debug("Background task will be searching for new reminders soon")
