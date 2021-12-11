@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Union
+from typing import Dict, Union
 
 import discord
 from discord.ext.commands import CooldownMapping
@@ -21,7 +21,9 @@ class MixinMeta(ABC):
     bucket_autoroom_name: CooldownMapping
     extra_channel_name_change_delay: int
 
-    perms_view: List[str]
+    perms_public: Dict[str, bool]
+    perms_locked: Dict[str, bool]
+    perms_private: Dict[str, bool]
 
     @staticmethod
     @abstractmethod

@@ -34,7 +34,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.1.0"
+    __version__ = "3.2.0"
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {
@@ -58,13 +58,23 @@ class AutoRoom(
     }
     extra_channel_name_change_delay = 4
 
-    perms_view = ["connect", "view_channel"]
-    perms_autoroom_owner = perms_view + ["manage_channels"]
-    perms_bot_source = perms_view + ["move_members"]
-    perms_bot_dest = perms_autoroom_owner + ["move_members"]
+    perms_public = {"connect": True, "view_channel": True}
+    perms_locked = {"connect": False, "view_channel": True}
+    perms_private = {"connect": False, "view_channel": False}
 
-    perms_view_text = ["read_message_history", "read_messages"]
-    perms_autoroom_owner_text = perms_view_text + ["manage_channels", "manage_messages"]
+    perms_autoroom_owner = {**perms_public, "manage_channels": True}
+    perms_bot_source = {**perms_public, "move_members": True}
+    perms_bot_dest = {**perms_autoroom_owner, "move_members": True}
+
+    perms_text = ["read_message_history", "read_messages"]
+    perms_text_allow = dict.fromkeys(perms_text, True)
+    perms_text_deny = dict.fromkeys(perms_text, False)
+    perms_text_reset = dict.fromkeys(perms_text, None)
+    perms_autoroom_owner_text = {
+        **perms_text_allow,
+        "manage_channels": True,
+        "manage_messages": True,
+    }
     perms_bot_dest_text = perms_autoroom_owner_text
 
     def __init__(self, bot):
@@ -124,7 +134,7 @@ class AutoRoom(
         if schema_version < 1:
             # Migrate private -> room_type
             guild_dict = await self.config.all_guilds()
-            for guild_id, guild_info in guild_dict.items():
+            for guild_id in guild_dict.keys():
                 avcs = await self.config.guild_from_id(guild_id).get_raw(
                     "auto_voice_channels", default={}
                 )
@@ -141,14 +151,14 @@ class AutoRoom(
         if schema_version < 2:
             # Migrate member_role -> per auto_voice_channel member_roles
             guild_dict = await self.config.all_guilds()
-            for guild_id, guild_info in guild_dict.items():
+            for guild_id in guild_dict.keys():
                 await self.config.guild_from_id(guild_id).clear_raw("member_role")
             await self.config.schema_version.set(2)
 
         if schema_version < 4:
             # Migrate to AUTOROOM_SOURCE custom config group
             guild_dict = await self.config.all_guilds()
-            for guild_id, guild_info in guild_dict.items():
+            for guild_id in guild_dict.keys():
                 avcs = schema_1_migration_autorooms
                 if not avcs:
                     avcs = await self.config.guild_from_id(guild_id).get_raw(
@@ -366,6 +376,7 @@ class AutoRoom(
         source_overwrites = (
             autoroom_source.overwrites if autoroom_source.overwrites else {}
         )
+        member_roles = self.get_member_roles(autoroom_source)
         for target, permissions in source_overwrites.items():
             # We can't put manage_roles in overwrites, so just get rid of it
             permissions.update(manage_roles=None)
@@ -380,19 +391,32 @@ class AutoRoom(
             if failed_checks:
                 permissions.update(**failed_checks)
             perms.set(target, permissions)
-            if autoroom_source_config["room_type"] == "private":
-                perms.update(target, self.perms_view, False)
+            if member_roles and target in member_roles:
+                # If we have member roles and this target is one, apply AutoRoom type permissions
+                if autoroom_source_config["room_type"] == "private":
+                    perms.update(target, self.perms_private)
+                elif autoroom_source_config["room_type"] == "locked":
+                    perms.update(target, self.perms_locked)
+                else:
+                    perms.update(target, self.perms_public)
 
-        # Just in case there are no AutoRoom Source overwrites
-        if autoroom_source_config["room_type"] == "private":
-            perms.update(guild.default_role, self.perms_view, False)
+        # Update overwrites for default role to account for AutoRoom type
+        if member_roles:
+            perms.update(guild.default_role, self.perms_private)
+        else:
+            if autoroom_source_config["room_type"] == "private":
+                perms.update(guild.default_role, self.perms_private)
+            elif autoroom_source_config["room_type"] == "locked":
+                perms.update(guild.default_role, self.perms_locked)
+            else:
+                perms.update(guild.default_role, self.perms_public)
 
         # Bot overwrites
-        perms.update(guild.me, self.perms_bot_dest, True)
+        perms.update(guild.me, self.perms_bot_dest)
 
         # AutoRoom Owner overwrites
         if autoroom_source_config["room_type"] != "server":
-            perms.update(member, self.perms_autoroom_owner, True)
+            perms.update(member, self.perms_autoroom_owner)
 
         # Admin/moderator overwrites
         additional_allowed_roles = []
@@ -404,7 +428,7 @@ class AutoRoom(
             additional_allowed_roles += await self.bot.get_admin_roles(guild)
         for role in additional_allowed_roles:
             # Add all the mod/admin roles, if required
-            perms.update(role, self.perms_view, True)
+            perms.update(role, self.perms_public)
 
         # Create new AutoRoom
         new_voice_channel = await guild.create_voice_channel(
@@ -432,12 +456,12 @@ class AutoRoom(
                     return
             # Generate overwrites
             perms = Perms()
-            perms.update(guild.me, self.perms_bot_dest_text, True)
-            perms.update(guild.default_role, self.perms_view_text, False)
+            perms.update(guild.me, self.perms_bot_dest_text)
+            perms.update(guild.default_role, self.perms_text_deny)
             if autoroom_source_config["room_type"] != "server":
-                perms.update(member, self.perms_autoroom_owner_text, True)
+                perms.update(member, self.perms_autoroom_owner_text)
             else:
-                perms.update(member, self.perms_view_text, True)
+                perms.update(member, self.perms_text_allow)
             # Admin/moderator overwrites
             additional_allowed_roles_text = []
             if await self.config.guild(guild).mod_access_text():
@@ -448,7 +472,7 @@ class AutoRoom(
                 additional_allowed_roles_text += await self.bot.get_admin_roles(guild)
             for role in additional_allowed_roles_text:
                 # Add all the mod/admin roles, if required
-                perms.update(role, self.perms_view_text, True)
+                perms.update(role, self.perms_text_allow)
             # Create text channel
             new_text_channel = await guild.create_text_channel(
                 name=new_channel_name.replace("'s ", " "),
@@ -502,10 +526,10 @@ class AutoRoom(
                 and member not in autoroom.members
                 and member != autoroom.guild.me
             ):
-                perms.update(member, self.perms_view_text, None)
+                perms.update(member, self.perms_text_reset)
         # Add read perms for users in autoroom
         for member in autoroom.members:
-            perms.update(member, self.perms_view_text, True)
+            perms.update(member, self.perms_text_allow)
         # Edit channel if overwrites were modified
         if perms.modified:
             await text_channel.edit(
@@ -782,18 +806,18 @@ class AutoRoom(
             )
         elif isinstance(member_or_role, discord.Role):
             if member_or_role in channel.overwrites:
-                everyone_allow, everyone_deny = channel.overwrites[
+                overwrites_allow, overwrites_deny = channel.overwrites[
                     member_or_role
                 ].pair()
                 if (
-                    everyone_deny.connect
-                    or everyone_deny.view_channel
+                    overwrites_deny.connect
+                    or overwrites_deny.view_channel
                     or (
-                        not everyone_allow.connect
+                        not overwrites_allow.connect
                         and not member_or_role.permissions.connect
                     )
                     or (
-                        not everyone_allow.view_channel
+                        not overwrites_allow.view_channel
                         and not member_or_role.permissions.view_channel
                     )
                 ):
@@ -809,7 +833,7 @@ class AutoRoom(
     def get_member_roles(self, autoroom_source: discord.VoiceChannel):
         """Get member roles set on an AutoRoom Source."""
         member_roles = []
-        # Check if @everyone is allowed to connect to source channel
+        # If @everyone is allowed to connect to source channel, there are no member roles
         if not self.check_if_member_or_role_allowed(
             autoroom_source, autoroom_source.guild.default_role
         ):

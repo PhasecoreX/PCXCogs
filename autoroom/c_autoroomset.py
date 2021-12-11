@@ -34,19 +34,19 @@ class AutoRoomSetCommands(MixinMeta):
         """Display current settings."""
         server_section = SettingDisplay("Server Settings")
         server_section.add(
-            "Admin private AutoRoom access",
+            "Admin access all AutoRooms",
             await self.config.guild(ctx.guild).admin_access(),
         )
         server_section.add(
-            "Admin private AutoRoom Text Channel access",
+            "Admin access all AutoRoom Text Channels",
             await self.config.guild(ctx.guild).admin_access_text(),
         )
         server_section.add(
-            "Moderator private AutoRoom access",
+            "Moderator access all AutoRooms",
             await self.config.guild(ctx.guild).mod_access(),
         )
         server_section.add(
-            "Moderator private AutoRoom Text Channel access",
+            "Moderator access all AutoRoom Text Channels",
             await self.config.guild(ctx.guild).mod_access_text(),
         )
 
@@ -173,23 +173,23 @@ class AutoRoomSetCommands(MixinMeta):
 
     @access_admin.command(name="room")
     async def access_admin_room(self, ctx: commands.Context):
-        """Allow Admins to join private AutoRooms."""
+        """Allow Admins to join locked/private AutoRooms."""
         admin_access = not await self.config.guild(ctx.guild).admin_access()
         await self.config.guild(ctx.guild).admin_access.set(admin_access)
         await ctx.send(
             checkmark(
-                f"Admins are {'now' if admin_access else 'no longer'} able to join (new) private AutoRooms."
+                f"Admins are {'now' if admin_access else 'no longer'} able to join (new) locked/private AutoRooms."
             )
         )
 
     @access_admin.command(name="text")
     async def access_admin_text(self, ctx: commands.Context):
-        """Allow Admins to see private AutoRoom Text Channels."""
+        """Allow Admins to see all AutoRoom Text Channels."""
         admin_access_text = not await self.config.guild(ctx.guild).admin_access_text()
         await self.config.guild(ctx.guild).admin_access_text.set(admin_access_text)
         await ctx.send(
             checkmark(
-                f"Admins are {'now' if admin_access_text else 'no longer'} able to see (new) private AutoRoom Text Channels."
+                f"Admins are {'now' if admin_access_text else 'no longer'} able to see all (new) AutoRoom Text Channels."
             )
         )
 
@@ -199,23 +199,23 @@ class AutoRoomSetCommands(MixinMeta):
 
     @access_mod.command(name="room")
     async def access_mod_room(self, ctx: commands.Context):
-        """Allow Moderators to join private AutoRooms."""
+        """Allow Moderators to join locked/private AutoRooms."""
         mod_access = not await self.config.guild(ctx.guild).mod_access()
         await self.config.guild(ctx.guild).mod_access.set(mod_access)
         await ctx.send(
             checkmark(
-                f"Moderators are {'now' if mod_access else 'no longer'} able to join (new) private AutoRooms."
+                f"Moderators are {'now' if mod_access else 'no longer'} able to join (new) locked/private AutoRooms."
             )
         )
 
     @access_mod.command(name="text")
     async def access_mod_text(self, ctx: commands.Context):
-        """Allow Moderators to see private AutoRoom Text Channels."""
+        """Allow Moderators to see all AutoRoom Text Channels."""
         mod_access_text = not await self.config.guild(ctx.guild).mod_access_text()
         await self.config.guild(ctx.guild).mod_access_text.set(mod_access_text)
         await ctx.send(
             checkmark(
-                f"Moderators are {'now' if mod_access_text else 'no longer'} able to see (new) private AutoRoom Text Channels."
+                f"Moderators are {'now' if mod_access_text else 'no longer'} able to see all (new) AutoRoom Text Channels."
             )
         )
 
@@ -254,7 +254,7 @@ class AutoRoomSetCommands(MixinMeta):
         new_source = {"dest_category_id": dest_category.id}
 
         # Room type
-        options = ["public", "private", "server"]
+        options = ["public", "locked", "private", "server"]
         pred = MessagePredicate.lower_contained_in(options, ctx)
         await ctx.send(
             "**Welcome to the setup wizard for creating an AutoRoom Source!**"
@@ -266,14 +266,16 @@ class AutoRoomSetCommands(MixinMeta):
             "\n"
             "AutoRooms can be one of the following types when created:"
             "\n"
-            "`public ` - Visible to other users, and the AutoRoom Owner can kick/ban users out of them."
+            "`public ` - Visible and joinable by other users. The AutoRoom Owner can kick/ban users out of them."
             "\n"
-            "`private` - Only visible to the AutoRoom Owner, who can allow users into their room."
+            "`locked ` - Visible, but not joinable by other users. The AutoRoom Owner must allow users into their room."
+            "\n"
+            "`private` - Not visible or joinable by other users. The AutoRoom Owner must allow users into their room."
             "\n"
             "`server ` - Same as a public AutoRoom, but with no AutoRoom Owner. "
             "No modifications can be made to the generated AutoRoom."
             "\n\n"
-            "What would you like these created AutoRooms to be by default? (`public`/`private`/`server`)"
+            "What would you like these created AutoRooms to be by default? (`public`/`locked`/`private`/`server`)"
         )
         try:
             await ctx.bot.wait_for("message", check=pred, timeout=60)
@@ -397,6 +399,13 @@ class AutoRoomSetCommands(MixinMeta):
     ):
         """Rooms will be open to all. AutoRoom Owner has control over room."""
         await self._save_public_private(ctx, autoroom_source, "public")
+
+    @modify_type.command(name="locked")
+    async def modify_type_locked(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ):
+        """Rooms will be visible to all, but not joinable. AutoRoom Owner can allow users in."""
+        await self._save_public_private(ctx, autoroom_source, "locked")
 
     @modify_type.command(name="private")
     async def modify_type_private(

@@ -1,6 +1,6 @@
 """The autoroom command."""
 import datetime
-from typing import Union
+from typing import Dict, Union
 
 import discord
 from redbot.core import commands
@@ -48,17 +48,21 @@ class AutoRoomCommands(MixinMeta):
         if source_channel:
             member_roles = self.get_member_roles(source_channel)
 
-            is_public = True
+            access_text = ""
             if member_roles:
                 for role in member_roles:
-                    if not self.check_if_member_or_role_allowed(autoroom_channel, role):
-                        is_public = False
+                    autoroom_type = self.get_autoroom_type(autoroom_channel, role)
+                    if not access_text:
+                        access_text = autoroom_type
+                    elif access_text != autoroom_type:
+                        # Multiple member roles present, and we can't determine the autoroom type
+                        access_text = "custom"
                         break
             else:
-                is_public = self.check_if_member_or_role_allowed(
-                    autoroom_channel, ctx.guild.default_role
+                access_text = self.get_autoroom_type(
+                    autoroom_channel, autoroom_channel.guild.default_role
                 )
-            access_text = "Public" if is_public else "Private"
+            access_text = access_text.capitalize()
             if member_roles:
                 access_text += ", only certain roles"
             room_settings.add("Access", access_text)
@@ -80,7 +84,7 @@ class AutoRoomCommands(MixinMeta):
         allowed_roles = []
         denied_members = []
         denied_roles = []
-        for member_or_role, overwrite in autoroom_channel.overwrites.items():
+        for member_or_role in autoroom_channel.overwrites.keys():
             if isinstance(member_or_role, discord.Role):
                 if self.check_if_member_or_role_allowed(
                     autoroom_channel, member_or_role
@@ -187,19 +191,26 @@ class AutoRoomCommands(MixinMeta):
     @autoroom.command()
     async def public(self, ctx: commands.Context):
         """Make your AutoRoom public."""
-        await self._process_allow_deny(ctx, True)
+        await self._process_allow_deny(ctx, self.perms_public)
+
+    @autoroom.command()
+    async def locked(self, ctx: commands.Context):
+        """Lock your AutoRoom (visible, but no one can join)."""
+        await self._process_allow_deny(ctx, self.perms_locked)
 
     @autoroom.command()
     async def private(self, ctx: commands.Context):
         """Make your AutoRoom private."""
-        await self._process_allow_deny(ctx, False)
+        await self._process_allow_deny(ctx, self.perms_private)
 
     @autoroom.command(aliases=["add"])
     async def allow(
         self, ctx: commands.Context, member_or_role: Union[discord.Role, discord.Member]
     ):
         """Allow a user (or role) into your AutoRoom."""
-        await self._process_allow_deny(ctx, True, member_or_role=member_or_role)
+        await self._process_allow_deny(
+            ctx, self.perms_public, member_or_role=member_or_role
+        )
 
     @autoroom.command(aliases=["ban", "block"])
     async def deny(
@@ -213,7 +224,9 @@ class AutoRoomCommands(MixinMeta):
         they too will be disconnected. Keep in mind that if the server is using
         member roles, denying roles will probably not work as expected.
         """
-        if await self._process_allow_deny(ctx, False, member_or_role=member_or_role):
+        if await self._process_allow_deny(
+            ctx, self.perms_private, member_or_role=member_or_role
+        ):
             channel = self._get_current_voice_channel(ctx.message.author)
             if not channel or not ctx.guild.me.permissions_in(channel).move_members:
                 return
@@ -224,7 +237,7 @@ class AutoRoomCommands(MixinMeta):
     async def _process_allow_deny(
         self,
         ctx: commands.Context,
-        allow: bool,
+        perm_overwrite: Dict[str, bool],
         *,
         member_or_role: Union[discord.Role, discord.Member] = None,
     ) -> bool:
@@ -265,9 +278,9 @@ class AutoRoomCommands(MixinMeta):
         denied_message = ""
         to_modify = [member_or_role]
         if not member_or_role:
-            # Public/private command
+            # Public/locked/private command
             to_modify = member_roles or [source_channel.guild.default_role]
-        elif allow:
+        elif False not in perm_overwrite.values():
             # Allow a specific user
             # - check if they have connect perm in the source channel
             # - works for both deny everyone with allowed roles/users, and allow everyone with denied roles/users
@@ -305,13 +318,15 @@ class AutoRoomCommands(MixinMeta):
                     "I can't deny them from entering your AutoRoom."
                 )
             elif await self.is_admin_or_admin_role(member_or_role):
-                denied_message = "that's an admin{}, so I can't deny them from entering your AutoRoom.".format(
+                role_suffix = (
                     " role" if isinstance(member_or_role, discord.Role) else ""
                 )
+                denied_message = f"that's an admin{role_suffix}, so I can't deny them from entering your AutoRoom."
             elif await self.is_mod_or_mod_role(member_or_role):
-                denied_message = "that's a moderator{}, so I can't deny them from entering your AutoRoom.".format(
+                role_suffix = (
                     " role" if isinstance(member_or_role, discord.Role) else ""
                 )
+                denied_message = f"that's a moderator{role_suffix}, so I can't deny them from entering your AutoRoom."
         if denied_message:
             hint = await ctx.send(
                 error(f"{ctx.message.author.mention}, {denied_message}")
@@ -322,7 +337,7 @@ class AutoRoomCommands(MixinMeta):
 
         perms = Perms(dict(autoroom_channel.overwrites))
         for target in to_modify:
-            perms.update(target, self.perms_view, allow)
+            perms.update(target, perm_overwrite)
         if perms.modified:
             await autoroom_channel.edit(
                 overwrites=perms.overwrites,
@@ -364,3 +379,24 @@ class AutoRoomCommands(MixinMeta):
             await delete(hint, delay=10)
             return None, None
         return autoroom_channel, autoroom_info
+
+    @staticmethod
+    def get_autoroom_type(autoroom: discord.VoiceChannel, role: discord.Role):
+        """Get the type of access a role has in an AutoRoom (public, locked, private, etc)."""
+        view_channel = role.permissions.view_channel
+        connect = role.permissions.connect
+        if role in autoroom.overwrites:
+            overwrites_allow, overwrites_deny = autoroom.overwrites[role].pair()
+            if overwrites_allow.view_channel:
+                view_channel = True
+            if overwrites_allow.connect:
+                connect = True
+            if overwrites_deny.view_channel:
+                view_channel = False
+            if overwrites_deny.connect:
+                connect = False
+        if not view_channel and not connect:
+            return "private"
+        if view_channel and not connect:
+            return "locked"
+        return "public"

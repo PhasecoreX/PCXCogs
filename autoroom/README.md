@@ -18,14 +18,14 @@ There are some additional configuration options for AutoRoom Sources that you ca
 
 The default AutoRoom name format is based on the AutoRoom Owners username. Using `[p]autoroomset modify name`, you can choose a default format, or you can set a custom format. For custom formats, you have a couple of variables you can use in your template:
 
-- `{{username}}` - The AutoRoom Owners username
-- `{{game}}` - The AutoRoom Owners game they were playing when the AutoRoom was created, or blank if they were not plating a game.
-- `{{dupenum}}` - A number, starting at 1, that will increment when the generated AutoRoom name would be a duplicate of an already existing AutoRoom.
+-   `{{username}}` - The AutoRoom Owners username
+-   `{{game}}` - The AutoRoom Owners game they were playing when the AutoRoom was created, or blank if they were not plating a game.
+-   `{{dupenum}}` - A number, starting at 1, that will increment when the generated AutoRoom name would be a duplicate of an already existing AutoRoom.
 
 You are also able to use `if`/`elif`/`else`/`endif` statements in order to conditionally show or hide parts of your template. Here are the templates for the two default formats included:
 
-- `username` - `{{username}}'s Room{% if dupenum > 1 %} ({{dupenum}}){% endif %}`
-- `game` - `{{game}}{% if not game %}{{username}}'s Room{% endif %}{% if dupenum > 1 %} ({{dupenum}}){% endif %}`
+-   `username` - `{{username}}'s Room{% if dupenum > 1 %} ({{dupenum}}){% endif %}`
+-   `game` - `{{game}}{% if not game %}{{username}}'s Room{% endif %}{% if dupenum > 1 %} ({{dupenum}}){% endif %}`
 
 The username format is pretty self-explanatory: put the username, along with "'s Room" after it. For the game format, we put the game name, and then if there isn't a game, show `{{username}}'s Room` instead. Remember, if no game is being played, `{{game}}` won't return anything.
 
@@ -37,11 +37,12 @@ This template format can also be used for the message hint sent to new AutoRoom 
 
 Once you join an AutoRoom Source, you will be moved into a brand new AutoRoom (voice channel). This is your AutoRoom, you can do whatever you want with it. Use the `[p]autoroom` command to check out all the different things you can do. Some examples include:
 
-- Check its current settings with `[p]autoroom settings`
-- Make it a public AutoRoom with `[p]autoroom public`
-- Make it a private AutoRoom with `[p]autoroom private`
-- Kick/ban users (or entire roles) from your AutoRoom with `[p]autoroom deny` (useful for public AutoRooms)
-- Allow users (or roles) into your AutoRoom with `[p]autoroom allow` (useful for private AutoRooms)
-- If your AutoRoom has an associated text channel, you can manage the messages in your text channel
+-   Check its current settings with `[p]autoroom settings`
+-   Make it a public AutoRoom with `[p]autoroom public` (everyone can see and join your AutoRoom)
+-   Make it a locked AutoRoom with `[p]autoroom locked` (everyone can see, but nobody can join your AutoRoom)
+-   Make it a private AutoRoom with `[p]autoroom private` (nobody can see and join your AutoRoom)
+-   Kick/ban users (or entire roles) from your AutoRoom with `[p]autoroom deny` (useful for public AutoRooms)
+-   Allow users (or roles) into your AutoRoom with `[p]autoroom allow` (useful for locked and private AutoRooms)
+-   If your AutoRoom has an associated text channel, you can manage the messages in your text channel
 
 When everyone leaves your AutoRoom, it (and the associated text channel, if it exists) will automatically be deleted.
