@@ -1,6 +1,6 @@
 """Shared code across multiple cogs."""
 import asyncio
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import discord
 from redbot.core import __version__ as redbot_version
@@ -197,15 +197,12 @@ class Perms:
     def update(
         self,
         target: Union[discord.Role, discord.Member],
-        perm: Union[str, List[str]],
-        value: Union[bool, None],
+        perm: Mapping[str, Optional[bool]],
     ):
         """Update the permissions for a target."""
         if target not in self.__overwrites:
             self.__overwrites[target] = discord.PermissionOverwrite()
-        if isinstance(perm, str):
-            perm = [perm]
-        self.__overwrites[target].update(**dict.fromkeys(perm, value))
+        self.__overwrites[target].update(**perm)
         if self.__overwrites[target].is_empty():
             del self.__overwrites[target]
 
