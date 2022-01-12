@@ -2,8 +2,8 @@
 import aiohttp
 from redbot.core import __version__ as redbot_version
 
-from ..dto.lookup_result import LookupResult
-from ..dto.report_result import ReportResult
+from .dto.lookup_result import LookupResult
+from .dto.report_result import ReportResult
 
 user_agent = (
     f"Red-DiscordBot/{redbot_version} BanCheck (https://github.com/PhasecoreX/PCXCogs)"
@@ -32,16 +32,15 @@ class KSoftSi:
                         "user-agent": user_agent,
                     },
                 ) as resp:
-                    """Response 200 example:
-                    {
-                        "is_banned": true
-                    }
-                    """
-                    """ Response 401 example:
-                    {
-                        "detail": "Invalid token."
-                    }
-                    """
+                    # Response 200 example:
+                    # {
+                    #     "is_banned": true
+                    # }
+                    #
+                    # Response 401 example:
+                    # {
+                    #     "detail": "Invalid token."
+                    # }
                     data = await resp.json()
                     if resp.status != 200:
                         reason = ""
@@ -64,31 +63,30 @@ class KSoftSi:
                         "user-agent": user_agent,
                     },
                 ) as resp:
-                    """Response 200 example:
-                    {
-                        "id": 492811511081861130,
-                        "name": "󐂪 discord.gg/bYNTxCJ 󐂪",
-                        "discriminator": "3334",
-                        "moderator_id": 205680187394752512,
-                        "reason": "Anarchy Raider",
-                        "proof": "https://imgur.com/a/eiOgTjS",
-                        "is_ban_active": true,
-                        "can_be_appealed": false,
-                        "timestamp": "2018-09-21T23:58:32.743",
-                        "appeal_reason": "",
-                        "appeal_date": null,
-                        "requested_by": "205680187394752512",
-                        "exists": true
-                    }
-                    """
-                    """ Response 404 example:
-                    {
-                        "code": 404,
-                        "error": true,
-                        "exists": false,
-                        "message": "specified user does not exist"
-                    }
-                    """
+                    # Response 200 example:
+                    # {
+                    #     "id": 492811511081861130,
+                    #     "name": "󐂪 discord.gg/bYNTxCJ 󐂪",
+                    #     "discriminator": "3334",
+                    #     "moderator_id": 205680187394752512,
+                    #     "reason": "Anarchy Raider",
+                    #     "proof": "https://imgur.com/a/eiOgTjS",
+                    #     "is_ban_active": true,
+                    #     "can_be_appealed": false,
+                    #     "timestamp": "2018-09-21T23:58:32.743",
+                    #     "appeal_reason": "",
+                    #     "appeal_date": null,
+                    #     "requested_by": "205680187394752512",
+                    #     "exists": true
+                    # }
+                    #
+                    # Response 404 example:
+                    # {
+                    #     "code": 404,
+                    #     "error": true,
+                    #     "exists": false,
+                    #     "message": "specified user does not exist"
+                    # }
                     data = await resp.json()
                     if resp.status != 200:
                         reason = ""
