@@ -8,8 +8,6 @@ from redbot.core.utils.chat_formatting import error, info, question, warning
 from redbot.core.utils.predicates import MessagePredicate
 
 from .pcx_lib import checkmark, delete
-from .services.alertbot import AlertBot
-from .services.globan import Globan
 from .services.imgur import Imgur
 from .services.ksoftsi import KSoftSi
 
@@ -35,7 +33,7 @@ class BanCheck(commands.Cog):
         "services": {},
     }
     supported_global_services = {"ksoftsi": KSoftSi}
-    supported_guild_services = {"alertbot": AlertBot, "globan": Globan}
+    supported_guild_services = {}
     all_supported_services = {**supported_global_services, **supported_guild_services}
 
     def __init__(self, bot):
@@ -883,14 +881,15 @@ class BanCheck(commands.Cog):
                 and guild.me.guild_permissions.ban_members
             ):
                 try:
+                    singular_or_plural = (
+                        "a global ban list"
+                        if len(banned_services) == 1
+                        else "multiple global ban lists"
+                    )
+                    list_of_banned_services = ", ".join(banned_services)
                     await member.send(
-                        "Hello! Since you are currently on {} ({}), you have automatically been banned from {}.".format(
-                            "a global ban list"
-                            if len(banned_services) == 1
-                            else "multiple global ban lists",
-                            ", ".join(banned_services),
-                            member.guild,
-                        )
+                        f"Hello! Since you are currently on {singular_or_plural} ({list_of_banned_services}), "
+                        f"you have automatically been banned from {member.guild}."
                     )
                 except (discord.Forbidden, discord.NotFound):
                     pass  # Couldn't message user for some reason...
