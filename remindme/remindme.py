@@ -7,10 +7,9 @@ from typing import Union
 
 import discord
 from dateutil.relativedelta import relativedelta
+from pyparsing import ParseException
 from redbot.core import Config, commands
 from redbot.core.utils.chat_formatting import humanize_list
-
-from pyparsing import ParseException
 
 from .c_reminder import ReminderCommands
 from .c_remindmeset import RemindMeSetCommands
