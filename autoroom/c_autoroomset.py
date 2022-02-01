@@ -112,15 +112,28 @@ class AutoRoomSetCommands(MixinMeta):
         required_check, optional_check, details_list = await self._check_all_perms(
             ctx.guild, detailed=True
         )
-        if len(details_list) > 1:
-            if not ctx.channel.permissions_for(ctx.me).add_reactions:
-                await ctx.send(
-                    error(
-                        "Since you have multiple AutoRoom Sources, "
-                        'I need the "Add Reactions" permission to display permission information'
-                    )
+        if not details_list:
+            await ctx.send(
+                info(
+                    "You don't have any AutoRoom Sources set up! "
+                    "Set one up with `[p]autoroomset create` first, "
+                    "then I can check what permissions I need for it."
                 )
-                return
+            )
+            return
+
+        if (
+            len(details_list) > 1
+            and not ctx.channel.permissions_for(ctx.me).add_reactions
+        ):
+            await ctx.send(
+                error(
+                    "Since you have multiple AutoRoom Sources, "
+                    'I need the "Add Reactions" permission to display permission information.'
+                )
+            )
+            return
+
         if not required_check:
             await ctx.send(
                 error(
@@ -151,6 +164,7 @@ class AutoRoomSetCommands(MixinMeta):
             )
         else:
             await ctx.send(checkmark("Everything looks good here!"))
+
         if len(details_list) > 1:
             if (
                 ctx.channel.permissions_for(ctx.me).add_reactions
