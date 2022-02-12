@@ -43,14 +43,17 @@ async def reply(ctx: commands.Context, content: Any = None, **kwargs: Any):
         ):
             mention_author = kwargs.pop("mention_author", False)
             kwargs.update(mention_author=mention_author)
-            await ctx.reply(content=content, **kwargs)
-        else:
-            allowed_mentions = kwargs.pop(
-                "allowed_mentions",
-                discord.AllowedMentions(users=False),
-            )
-            kwargs.update(allowed_mentions=allowed_mentions)
-            await ctx.send(content=f"{ctx.message.author.mention} {content}", **kwargs)
+            try:
+                await ctx.reply(content=content, **kwargs)
+                return
+            except discord.HTTPException:
+                pass
+        allowed_mentions = kwargs.pop(
+            "allowed_mentions",
+            discord.AllowedMentions(users=False),
+        )
+        kwargs.update(allowed_mentions=allowed_mentions)
+        await ctx.send(content=f"{ctx.message.author.mention} {content}", **kwargs)
     else:
         await ctx.send(content=content, **kwargs)
 
