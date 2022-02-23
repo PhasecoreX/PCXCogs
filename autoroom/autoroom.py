@@ -34,7 +34,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.2.0"
+    __version__ = "3.3.0"
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {

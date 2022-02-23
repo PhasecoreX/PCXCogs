@@ -403,6 +403,42 @@ class AutoRoomSetCommands(MixinMeta):
     async def modify(self, ctx: commands.Context):
         """Modify an existing AutoRoom Source."""
 
+    @modify.command(name="category")
+    async def modify_category(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+        dest_category: discord.CategoryChannel,
+    ):
+        """Set the category that AutoRooms will be created in."""
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            ).dest_category_id.set(dest_category.id)
+            good_permissions, details = self.check_perms_source_dest(
+                autoroom_source, dest_category, detailed=True
+            )
+            message = f"**{autoroom_source.mention}** will now create new AutoRooms in the **{dest_category.mention}** category."
+            if good_permissions:
+                await ctx.send(checkmark(message))
+            else:
+                await ctx.send(
+                    warning(
+                        f"{message}"
+                        "\n"
+                        "Do note, this new category does not have sufficient permissions for me to make AutoRooms. "
+                        "Until you fix this, the AutoRoom Source will not work."
+                        "\n"
+                        f"{details}"
+                    )
+                )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
     @modify.group(name="type")
     async def modify_type(self, ctx: commands.Context):
         """Choose what type of AutoRoom is created."""
