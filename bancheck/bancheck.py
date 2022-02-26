@@ -802,7 +802,8 @@ class BanCheck(commands.Cog):
                 repeatedly_joining = bucket.update_rate_limit()
                 if not repeatedly_joining:
                     embed = await self._user_lookup(member.guild, member, do_ban=True)
-                    await self.send_embed(channel, embed)
+                    if embed:
+                        await self.send_embed(channel, embed)
 
     async def _user_lookup(
         self,
