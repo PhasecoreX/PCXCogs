@@ -170,9 +170,10 @@ class RemindMe(
                     "text": reminder["REMINDER"],
                     "created": int(created_converted.timestamp()),
                     "expires": int(expires_normalized.timestamp()),
-                    "jump_link": reminder["JUMP_LINK"],
                 }
                 # Optional fields
+                if "JUMP_LINK" in reminder and reminder["JUMP_LINK"]:
+                    new_reminder["jump_link"] = reminder["JUMP_LINK"]
                 if "REPEAT" in reminder and reminder["REPEAT"]:
                     new_reminder["repeat"] = self.relativedelta_to_dict(
                         relativedelta(seconds=reminder["REPEAT"])
