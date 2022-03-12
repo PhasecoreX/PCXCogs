@@ -10,6 +10,7 @@ from redbot.core.utils.predicates import MessagePredicate
 from .pcx_lib import checkmark, delete
 from .services.imgur import Imgur
 from .services.ksoftsi import KSoftSi
+from .services.ravy import Ravy
 
 
 class BanCheck(commands.Cog):
@@ -32,7 +33,7 @@ class BanCheck(commands.Cog):
         "total_bans": 0,
         "services": {},
     }
-    supported_global_services = {"ksoftsi": KSoftSi}
+    supported_global_services = {"ksoftsi": KSoftSi, "ravy": Ravy}
     supported_guild_services = {}
     all_supported_services = {**supported_global_services, **supported_guild_services}
 

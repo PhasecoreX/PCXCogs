@@ -1,4 +1,4 @@
-"""Ban lookup for KSoft.Si (via Ravy)."""
+"""Ban lookup for Ravi."""
 import aiohttp
 from redbot.core import __version__ as redbot_version
 
@@ -9,37 +9,40 @@ user_agent = (
 )
 
 
-class KSoftSi:
-    """Ban lookup for KSoft.Si (via Ravy)."""
+class Ravy:
+    """Ban lookup for Ravy."""
 
-    SERVICE_NAME = "KSoft.Si Bans (via Ravy)"
+    SERVICE_NAME = "Ravy"
     SERVICE_API_KEY_REQUIRED = True
     SERVICE_URL = "https://docs.ravy.org/share/5bc92059-64ef-4d6d-816e-144b78e97d89"
-    SERVICE_HINT = "You can't get this API key anymore, use Ravy instead."
-    BASE_URL = "https://ravy.org/api/v1/ksoft/bans"
+    SERVICE_HINT = "You will need the 'users.bans' permission node for your token."
+    BASE_URL = "https://ravy.org/api/v1/users"
 
     @staticmethod
     async def lookup(user_id: int, api_key: str):
-        """Perform user lookup on KSoft.Si (via Ravy)."""
+        """Perform user lookup on Ravy."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"{KSoftSi.BASE_URL}/{user_id}",
+                    f"{Ravy.BASE_URL}/{user_id}/bans",
                     headers={
-                        "Authorization": "KSoft " + api_key,
+                        "Authorization": "Ravy " + api_key,
                         "user-agent": user_agent,
                     },
                 ) as resp:
                     # Response 200 example:
                     # {
-                    #     "id": "140926691442359926",
-                    #     "tag": "PhasecoreX 󠂪#0000",
-                    #     "reason": "Being too cool",
-                    #     "proof": "https://www.youtube.com/watch?v=I7Tps0M-l64",
-                    #     "moderator": "141866639703756037",
-                    #     "severe": true,
-                    #     "timestamp": "2018-09-21T23:58:32.743477",
-                    #     "found": true
+                    #     "bans": [
+                    #         {
+                    #             "provider": "ksoft",
+                    #             "reason": "Anarchy Raider",
+                    #             "moderator": "141866639703756037"
+                    #         }
+                    #     ],
+                    #     "trust": {
+                    #         "level": 1,
+                    #         "label": "very untrustworthy"
+                    #     }
                     # }
                     #
                     # Response 401 examples:
@@ -54,31 +57,32 @@ class KSoftSi:
                     #
                     # Response 404 example:
                     # {
-                    #     "error": "Not Found",
-                    #     "details": "The user you queried is not banned",
-                    #     "found": false
+                    #     "bans": [],
+                    #     "trust": {
+                    #         "level": 3,
+                    #         "label": "no data"
+                    #     }
                     # }
                     data = await resp.json()
-                    if "found" in data:
-                        # "found" will always be in a successful lookup
-                        if data["found"]:
+                    if "bans" in data:
+                        # "bans" will always be in a successful lookup
+                        if data["bans"]:
                             return LookupResult(
-                                KSoftSi.SERVICE_NAME,
+                                Ravy.SERVICE_NAME,
                                 "ban",
-                                reason=data["reason"],
-                                proof_url=data["proof"] if "proof" in data else None,
+                                reason=data["bans"][0]["reason"],
                             )
                         else:
-                            return LookupResult(KSoftSi.SERVICE_NAME, "clear")
+                            return LookupResult(Ravy.SERVICE_NAME, "clear")
                     # Otherwise, failed lookup
                     reason = ""
                     if "details" in data:
                         reason = data["details"]
-                    return LookupResult(KSoftSi.SERVICE_NAME, "error", reason=reason)
+                    return LookupResult(Ravy.SERVICE_NAME, "error", reason=reason)
 
         except aiohttp.ClientConnectionError:
             return LookupResult(
-                KSoftSi.SERVICE_NAME,
+                Ravy.SERVICE_NAME,
                 "error",
                 reason="Could not connect to host",
             )
@@ -89,7 +93,7 @@ class KSoftSi:
         except KeyError:
             pass  # json element does not exist (malformed data)
         return LookupResult(
-            KSoftSi.SERVICE_NAME,
+            Ravy.SERVICE_NAME,
             "error",
             reason="Response data malformed",
         )
