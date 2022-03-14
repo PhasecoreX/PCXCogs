@@ -14,7 +14,7 @@ class Ravy:
 
     SERVICE_NAME = "Ravy"
     SERVICE_API_KEY_REQUIRED = True
-    SERVICE_URL = "https://docs.ravy.org/share/5bc92059-64ef-4d6d-816e-144b78e97d89"
+    SERVICE_URL = "https://ravy.org/api"
     SERVICE_HINT = "You will need the 'users.bans' permission node for your token."
     BASE_URL = "https://ravy.org/api/v1/users"
 

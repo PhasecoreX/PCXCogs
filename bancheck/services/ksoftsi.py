@@ -14,7 +14,7 @@ class KSoftSi:
 
     SERVICE_NAME = "KSoft.Si Bans (via Ravy)"
     SERVICE_API_KEY_REQUIRED = True
-    SERVICE_URL = "https://docs.ravy.org/share/5bc92059-64ef-4d6d-816e-144b78e97d89"
+    SERVICE_URL = "https://ravy.org/api"
     SERVICE_HINT = "You can't get this API key anymore, use Ravy instead."
     BASE_URL = "https://ravy.org/api/v1/ksoft/bans"
 

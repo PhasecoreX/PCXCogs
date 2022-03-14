@@ -25,7 +25,7 @@ class BanCheck(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "2.2.0"
+    __version__ = "2.3.0"
 
     default_global_settings = {"schema_version": 0, "total_bans": 0}
     default_guild_settings: Any = {
