@@ -34,7 +34,10 @@ class ReactChannel(commands.Cog):
         "react_to": {
             "users": True,
             "bots": False,
+            "myself": False,
         },
+        "react_roles": [],
+        "react_roles_allow": True,
         "react_filter": {
             "text": True,
             "commands": False,
@@ -167,6 +170,23 @@ class ReactChannel(commands.Cog):
                     ).clear_raw("ignore_bots")
             await self.config.schema_version.set(3)
 
+        if schema_version < 4:
+            # Add "myself" react to option
+            all_react_channels = await self.config.custom("REACT_CHANNEL").all()
+            for guild_id, guild_react_channels in all_react_channels.items():
+                for (
+                    channel_id,
+                    react_channel_config,
+                ) in guild_react_channels.items():
+                    if (
+                        "react_to" in react_channel_config
+                        and "bots" in react_channel_config["react_to"]
+                    ):
+                        await self.config.custom(
+                            "REACT_CHANNEL", guild_id, channel_id
+                        ).react_to.myself.set(react_channel_config["react_to"]["bots"])
+            await self.config.schema_version.set(4)
+
     #
     # Command methods: reactchannelset
     #
@@ -182,18 +202,18 @@ class ReactChannel(commands.Cog):
         """Display current settings."""
         message = ""
         channels = await self.config.custom(
-            "REACT_CHANNEL", ctx.guild.id
+            "REACT_CHANNEL", str(ctx.guild.id)
         ).all()  # Does NOT return default values
         for channel_id in channels:
-            channel = self.bot.get_channel(int(channel_id))
+            channel = ctx.guild.get_channel(int(channel_id))
             if not channel:
                 await self.config.custom(
-                    "REACT_CHANNEL", ctx.guild.id, channel_id
+                    "REACT_CHANNEL", str(ctx.guild.id), channel_id
                 ).clear()
                 continue
             channel_settings = await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
-            ).all()  # Does return defaul values
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+            ).all()  # Does return default values
             reaction_template = channel_settings["reaction_template"]
             emojis = "???"
             if reaction_template == "checklist":
@@ -222,11 +242,23 @@ class ReactChannel(commands.Cog):
             sources = []
             for source, enabled in channel_settings["react_to"].items():
                 if enabled:
-                    sources.append(f"{source.capitalize()}")
+                    if source == "myself":
+                        sources.append(f"Myself ({ctx.guild.me.display_name})")
+                    elif source == "bots":
+                        sources.append("Other Bots")
+                    else:
+                        sources.append(f"{source.capitalize()}")
             if sources:
                 message += f"\nSources: {', '.join(sources)}"
             else:
                 message += "\nSources: None"
+            # react_roles
+            roles_list = self._list_roles(ctx.guild, channel_settings["react_roles"])
+            if roles_list:
+                if channel_settings["react_roles_allow"]:
+                    message += f"\nOnly Roles: \n{roles_list}"
+                else:
+                    message += f"\nIgnoring Roles: \n{roles_list}"
             # react_filter
             filters = []
             for r_filter, enabled in channel_settings["react_filter"].items():
@@ -291,17 +323,17 @@ class ReactChannel(commands.Cog):
                 )
                 return
             await self.config.custom(
-                "REACT_CHANNEL", ctx.guild.id, channel.id
+                "REACT_CHANNEL", str(ctx.guild.id), str(channel.id)
             ).reaction_template.set(emoji_tuple_list)
 
         else:
             await self.config.custom(
-                "REACT_CHANNEL", ctx.guild.id, channel.id
+                "REACT_CHANNEL", str(ctx.guild.id), str(channel.id)
             ).reaction_template.set(reaction_template)
             # Make sure we don't react to bots
             if reaction_template == "vote":
                 await self.config.custom(
-                    "REACT_CHANNEL", ctx.guild.id, channel.id
+                    "REACT_CHANNEL", str(ctx.guild.id), str(channel.id)
                 ).react_to.bots.clear()
 
         custom_emojis = ""
@@ -332,7 +364,9 @@ class ReactChannel(commands.Cog):
         if channel is None:
             channel = ctx.message.channel
 
-        await self.config.custom("REACT_CHANNEL", ctx.guild.id, channel.id).clear()
+        await self.config.custom(
+            "REACT_CHANNEL", str(ctx.guild.id), str(channel.id)
+        ).clear()
         await ctx.send(
             checkmark(
                 f"ReactChannel functionality has been disabled on {channel.mention}."
@@ -355,16 +389,16 @@ class ReactChannel(commands.Cog):
         if channel is None:
             channel = ctx.message.channel
         reaction_template = await self.config.custom(
-            "REACT_CHANNEL", channel.guild.id, channel.id
+            "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
         if not reaction_template:
             await ctx.send(error(f"{channel.mention} is not a ReactChannel."))
         else:
             react_to_users = not await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_to.users()
             await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_to.users.set(react_to_users)
             await ctx.send(
                 checkmark(
@@ -378,13 +412,13 @@ class ReactChannel(commands.Cog):
         if channel is None:
             channel = ctx.message.channel
         reaction_template = await self.config.custom(
-            "REACT_CHANNEL", channel.guild.id, channel.id
+            "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
         if not reaction_template:
             await ctx.send(error(f"{channel.mention} is not a ReactChannel."))
         else:
             react_to_bots = not await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_to.bots()
             if reaction_template == "vote" and react_to_bots:
                 await ctx.send(
@@ -392,13 +426,135 @@ class ReactChannel(commands.Cog):
                 )
                 return
             await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_to.bots.set(react_to_bots)
             await ctx.send(
                 checkmark(
                     f"{channel.mention} ReactChannel will {'now' if react_to_bots else 'no longer'} automatically react to bots."
                 )
             )
+
+    @filter.group()
+    async def role(self, ctx: commands.Context):
+        """Filter what user roles will be reacted to."""
+
+    @role.command(name="add")
+    async def role_add(
+        self,
+        ctx: commands.Context,
+        role: discord.Role,
+        channel: Optional[discord.TextChannel],
+    ):
+        """Add a role to the role filter."""
+        if channel is None:
+            channel = ctx.message.channel
+        reaction_template = await self.config.custom(
+            "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+        ).reaction_template()
+        if not reaction_template:
+            await ctx.send(error(f"{channel.mention} is not a ReactChannel."))
+        else:
+            react_role_ids = await self.config.custom(
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+            ).react_roles()
+            if role.id not in react_role_ids:
+                react_role_ids.append(role.id)
+                await self.config.custom(
+                    "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+                ).react_roles.set(react_role_ids)
+
+            react_roles_allow = await self.config.custom(
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+            ).react_roles_allow()
+
+            await ctx.send(
+                checkmark(
+                    f"{channel.mention} ReactChannel will {'only' if react_roles_allow else 'not'} react to users with the given roles:\n\n"
+                    f"{self._list_roles(channel.guild, react_role_ids)}"
+                )
+            )
+
+    @role.command(name="remove", aliases=["delete", "rem"])
+    async def role_remove(
+        self,
+        ctx: commands.Context,
+        role: discord.Role,
+        channel: Optional[discord.TextChannel],
+    ):
+        """Remove a role from the role filter."""
+        if channel is None:
+            channel = ctx.message.channel
+        reaction_template = await self.config.custom(
+            "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+        ).reaction_template()
+        if not reaction_template:
+            await ctx.send(error(f"{channel.mention} is not a ReactChannel."))
+        else:
+            react_role_ids = await self.config.custom(
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+            ).react_roles()
+            if role.id in react_role_ids:
+                react_role_ids.remove(role.id)
+                await self.config.custom(
+                    "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+                ).react_roles.set(react_role_ids)
+
+            if not react_role_ids:
+                await ctx.send(
+                    checkmark(
+                        f"{channel.mention} ReactChannel will not filter on roles anymore."
+                    )
+                )
+            else:
+                react_roles_allow = await self.config.custom(
+                    "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+                ).react_roles_allow()
+
+                await ctx.send(
+                    checkmark(
+                        f"{channel.mention} ReactChannel will {'only' if react_roles_allow else 'not'} react to users with the given roles:\n\n"
+                        f"{self._list_roles(channel.guild, react_role_ids)}"
+                    )
+                )
+
+    @role.command(name="toggle")
+    async def role_toggle(
+        self, ctx: commands.Context, channel: Optional[discord.TextChannel]
+    ):
+        """Toggle between allowing or denying these roles."""
+        if channel is None:
+            channel = ctx.message.channel
+        reaction_template = await self.config.custom(
+            "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+        ).reaction_template()
+        if not reaction_template:
+            await ctx.send(error(f"{channel.mention} is not a ReactChannel."))
+        else:
+            react_roles_allow = not await self.config.custom(
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+            ).react_roles_allow()
+            await self.config.custom(
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+            ).react_roles_allow.set(react_roles_allow)
+
+            react_role_ids = await self.config.custom(
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+            ).react_roles()
+            if react_role_ids:
+                await ctx.send(
+                    checkmark(
+                        f"{channel.mention} ReactChannel will {'only' if react_roles_allow else 'not'} react to users with the given roles:\n\n"
+                        f"{self._list_roles(channel.guild, react_role_ids)}"
+                    )
+                )
+            else:
+                await ctx.send(
+                    warning(
+                        f"{channel.mention} ReactChannel will {'only' if react_roles_allow else 'not'} react to users with specific roles. "
+                        "You don't have any roles set up though, so this will not take effect. "
+                        "Use `[p]reactchannelset filter role add` to begin filtering based on roles."
+                    )
+                )
 
     @filter.group()
     async def content(self, ctx: commands.Context):
@@ -410,16 +566,16 @@ class ReactChannel(commands.Cog):
         if channel is None:
             channel = ctx.message.channel
         reaction_template = await self.config.custom(
-            "REACT_CHANNEL", channel.guild.id, channel.id
+            "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
         if not reaction_template:
             await ctx.send(error(f"{channel.mention} is not a ReactChannel."))
         else:
             react_filter_text = not await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_filter.text()
             await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_filter.text.set(react_filter_text)
             await ctx.send(
                 checkmark(
@@ -435,16 +591,16 @@ class ReactChannel(commands.Cog):
         if channel is None:
             channel = ctx.message.channel
         reaction_template = await self.config.custom(
-            "REACT_CHANNEL", channel.guild.id, channel.id
+            "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
         if not reaction_template:
             await ctx.send(error(f"{channel.mention} is not a ReactChannel."))
         else:
             react_filter_commands = not await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_filter.commands()
             await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_filter.commands.set(react_filter_commands)
             await ctx.send(
                 checkmark(
@@ -460,16 +616,16 @@ class ReactChannel(commands.Cog):
         if channel is None:
             channel = ctx.message.channel
         reaction_template = await self.config.custom(
-            "REACT_CHANNEL", channel.guild.id, channel.id
+            "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
         if not reaction_template:
             await ctx.send(error(f"{channel.mention} is not a ReactChannel."))
         else:
             react_filter_images = not await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_filter.images()
             await self.config.custom(
-                "REACT_CHANNEL", channel.guild.id, channel.id
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_filter.images.set(react_filter_images)
             await ctx.send(
                 checkmark(
@@ -609,22 +765,45 @@ class ReactChannel(commands.Cog):
         if not message.channel.permissions_for(message.guild.me).add_reactions:
             return
         # react_to check
-        if message.author.bot:
+        if message.author == message.guild.me:
             if not await self.config.custom(
-                "REACT_CHANNEL", message.guild.id, message.channel.id
+                "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
+            ).react_to.myself():
+                return
+        elif message.author.bot:
+            if not await self.config.custom(
+                "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
             ).react_to.bots():
                 return
         else:
             if not await self.config.custom(
-                "REACT_CHANNEL", message.guild.id, message.channel.id
+                "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
             ).react_to.users():
+                return
+        # react_roles check
+        react_role_ids = await self.config.custom(
+            "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
+        ).react_roles()
+        print(react_role_ids)
+        if react_role_ids:
+            member_role_ids = [role.id for role in message.author.roles]
+            has_matching_role = any(
+                role_id in react_role_ids for role_id in member_role_ids
+            )
+            print(member_role_ids)
+            print(has_matching_role)
+            react_roles_allow = await self.config.custom(
+                "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
+            ).react_roles_allow()
+            # If the user has a matching role and we are denying roles, or if they don't and we are allowing roles
+            if has_matching_role != react_roles_allow:
                 return
         # react_filter check
         ctx = await self.bot.get_context(message)
         if ctx and ctx.valid:
             # command
             if not await self.config.custom(
-                "REACT_CHANNEL", message.guild.id, message.channel.id
+                "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
             ).react_filter.commands():
                 return
         elif message.attachments and message.attachments[0].content_type.startswith(
@@ -632,18 +811,18 @@ class ReactChannel(commands.Cog):
         ):
             # image
             if not await self.config.custom(
-                "REACT_CHANNEL", message.guild.id, message.channel.id
+                "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
             ).react_filter.images():
                 return
         else:
             # text
             if not await self.config.custom(
-                "REACT_CHANNEL", message.guild.id, message.channel.id
+                "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
             ).react_filter.text():
                 return
         # Actually do reactions now!
         reaction_template = await self.config.custom(
-            "REACT_CHANNEL", message.guild.id, message.channel.id
+            "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
         ).reaction_template()
         if reaction_template == "checklist":
             # checklist
@@ -675,16 +854,16 @@ class ReactChannel(commands.Cog):
             return
         # Get required data
         guild = self.bot.get_guild(payload.guild_id)
-        channel = self.bot.get_channel(payload.channel_id)
-        user = self.bot.get_user(payload.user_id)  # User who added a reaction
-        if not guild or not channel or not user or not payload.message_id:
+        channel = guild.get_channel(payload.channel_id)
+        member = guild.get_member(payload.user_id)  # User who added a reaction
+        if not guild or not channel or not member or not payload.message_id:
             return
         # Ignore bots
-        if user.bot:
+        if member.bot:
             return
         # Get reaction_template and message
         reaction_template = await self.config.custom(
-            "REACT_CHANNEL", payload.guild_id, payload.channel_id
+            "REACT_CHANNEL", str(payload.guild_id), str(payload.channel_id)
         ).reaction_template()
         try:
             message = await channel.fetch_message(payload.message_id)
@@ -708,7 +887,7 @@ class ReactChannel(commands.Cog):
         elif downvote and str(payload.emoji) == downvote:
             karma = -1
         if karma:
-            if message.author.bot or user == message.author:
+            if message.author.bot or member == message.author:
                 # Bots can't get karma, users can't upvote themselves
                 return
             await self._increment_karma(message.author, karma)
@@ -723,9 +902,9 @@ class ReactChannel(commands.Cog):
             return
         # Get required data
         guild = self.bot.get_guild(payload.guild_id)
-        channel = self.bot.get_channel(payload.channel_id)
-        user = self.bot.get_user(payload.user_id)  # User whose reaction was removed
-        if not guild or not channel or not user or not payload.message_id:
+        channel = guild.get_channel(payload.channel_id)
+        member = guild.get_member(payload.user_id)  # User whose reaction was removed
+        if not guild or not channel or not member or not payload.message_id:
             return
         # Get message
         try:
@@ -743,7 +922,7 @@ class ReactChannel(commands.Cog):
         elif downvote and str(payload.emoji) == downvote:
             karma = 1
         if karma:
-            if message.author.bot or user == message.author:
+            if message.author.bot or member == message.author:
                 # Bots can't get karma, users can't upvote themselves
                 return
             await self._increment_karma(message.author, karma)
@@ -752,7 +931,7 @@ class ReactChannel(commands.Cog):
     async def on_guild_channel_delete(self, guild_channel: discord.abc.GuildChannel):
         """Clean up config when a ReactChannel is deleted."""
         await self.config.custom(
-            "REACT_CHANNEL", guild_channel.guild.id, guild_channel.id
+            "REACT_CHANNEL", str(guild_channel.guild.id), str(guild_channel.id)
         ).clear()
 
     #
@@ -779,5 +958,14 @@ class ReactChannel(commands.Cog):
             total_karma += delta
             await member.karma.set(total_karma)
             if await member.created_at() == 0:
-                time = int(datetime.datetime.utcnow().timestamp())
+                time = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
                 await member.created_at.set(time)
+
+    @staticmethod
+    def _list_roles(guild: discord.Guild, role_ids: list[int]):
+        result = ""
+        for role_id in role_ids:
+            role = guild.get_role(role_id)
+            if role:
+                result += f"- {role.name}\n"
+        return result.strip()
