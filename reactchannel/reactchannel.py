@@ -408,7 +408,7 @@ class ReactChannel(commands.Cog):
 
     @source.command(aliases=["bot"])
     async def bots(self, ctx: commands.Context, channel: Optional[discord.TextChannel]):
-        """Toggle reacting to bot messages."""
+        """Toggle reacting to other bot messages."""
         if channel is None:
             channel = ctx.message.channel
         reaction_template = await self.config.custom(
