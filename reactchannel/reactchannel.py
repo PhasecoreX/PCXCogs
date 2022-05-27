@@ -784,14 +784,11 @@ class ReactChannel(commands.Cog):
         react_role_ids = await self.config.custom(
             "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
         ).react_roles()
-        print(react_role_ids)
         if react_role_ids:
             member_role_ids = [role.id for role in message.author.roles]
             has_matching_role = any(
                 role_id in react_role_ids for role_id in member_role_ids
             )
-            print(member_role_ids)
-            print(has_matching_role)
             react_roles_allow = await self.config.custom(
                 "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
             ).react_roles_allow()
