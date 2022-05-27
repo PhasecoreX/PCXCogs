@@ -434,6 +434,36 @@ class ReactChannel(commands.Cog):
                 )
             )
 
+    @source.command(aliases=["me"])
+    async def myself(
+        self, ctx: commands.Context, channel: Optional[discord.TextChannel]
+    ):
+        """Toggle reacting to my own messages."""
+        if channel is None:
+            channel = ctx.message.channel
+        reaction_template = await self.config.custom(
+            "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+        ).reaction_template()
+        if not reaction_template:
+            await ctx.send(error(f"{channel.mention} is not a ReactChannel."))
+        else:
+            react_to_myself = not await self.config.custom(
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+            ).react_to.myself()
+            if reaction_template == "vote" and react_to_myself:
+                await ctx.send(
+                    warning("Bots are always ignored on vote ReactChannels.")
+                )
+                return
+            await self.config.custom(
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
+            ).react_to.myself.set(react_to_myself)
+            await ctx.send(
+                checkmark(
+                    f"{channel.mention} ReactChannel will {'now' if react_to_myself else 'no longer'} automatically react to my ({ctx.guild.me.display_name}) messages."
+                )
+            )
+
     @filter.group()
     async def role(self, ctx: commands.Context):
         """Filter what user roles will be reacted to."""
