@@ -1,5 +1,6 @@
 """The autoroomset command."""
 import asyncio
+from abc import ABC
 
 import discord
 from redbot.core import checks, commands
@@ -16,7 +17,7 @@ channel_name_template = {
 }
 
 
-class AutoRoomSetCommands(MixinMeta):
+class AutoRoomSetCommands(MixinMeta, ABC):
     """The autoroomset command."""
 
     @commands.group()
@@ -38,16 +39,8 @@ class AutoRoomSetCommands(MixinMeta):
             await self.config.guild(ctx.guild).admin_access(),
         )
         server_section.add(
-            "Admin access all AutoRoom Text Channels",
-            await self.config.guild(ctx.guild).admin_access_text(),
-        )
-        server_section.add(
             "Moderator access all AutoRooms",
             await self.config.guild(ctx.guild).mod_access(),
-        )
-        server_section.add(
-            "Moderator access all AutoRoom Text Channels",
-            await self.config.guild(ctx.guild).mod_access_text(),
         )
 
         autoroom_sections = []
@@ -66,11 +59,6 @@ class AutoRoomSetCommands(MixinMeta):
                 "Destination category",
                 f"#{dest_category.name}" if dest_category else "INVALID CATEGORY",
             )
-            if avc_settings["text_channel"]:
-                autoroom_section.add(
-                    "Text Channel",
-                    "True",
-                )
             member_roles = self.get_member_roles(source_channel)
             if member_roles:
                 autoroom_section.add(
@@ -100,8 +88,7 @@ class AutoRoomSetCommands(MixinMeta):
         elif not optional_check:
             message += "\n" + warning(
                 "It looks like I am missing one or more optional permissions. "
-                "All AutoRooms will work, however some features (text channels and "
-                "cloned source permissions) may not work. "
+                "All AutoRooms will work, however cloning all source permissions to the AutoRooms may not work. "
                 "Check `[p]autoroomset permissions` for more information."
             )
         await ctx.send(message)
@@ -149,8 +136,7 @@ class AutoRoomSetCommands(MixinMeta):
             await ctx.send(
                 warning(
                     "It looks like I am missing one or more optional permissions. "
-                    "All AutoRooms will work, however some features (text channels and cloned source permissions) "
-                    "may not work. "
+                    "All AutoRooms will work, however cloning all source permissions to the AutoRooms may not work. "
                     "\n\n"
                     "The easiest way of fixing this is just giving me these permissions as part of my server role, "
                     "otherwise you will need to give me these permissions on the destination category, "
@@ -179,14 +165,15 @@ class AutoRoomSetCommands(MixinMeta):
 
     @autoroomset.group()
     async def access(self, ctx: commands.Context):
-        """Control access to all AutoRooms."""
+        """Control access to all AutoRooms.
 
-    @access.group(name="admin")
+        Roles that are considered "admin" or "moderator" are
+        set up with the commands `[p]set addadminrole`
+        and `[p]set addmodrole` (plus the remove commands too)
+        """
+
+    @access.command(name="admin")
     async def access_admin(self, ctx: commands.Context):
-        """Change Admin access to AutoRooms."""
-
-    @access_admin.command(name="room")
-    async def access_admin_room(self, ctx: commands.Context):
         """Allow Admins to join locked/private AutoRooms."""
         admin_access = not await self.config.guild(ctx.guild).admin_access()
         await self.config.guild(ctx.guild).admin_access.set(admin_access)
@@ -196,40 +183,14 @@ class AutoRoomSetCommands(MixinMeta):
             )
         )
 
-    @access_admin.command(name="text")
-    async def access_admin_text(self, ctx: commands.Context):
-        """Allow Admins to see all AutoRoom Text Channels."""
-        admin_access_text = not await self.config.guild(ctx.guild).admin_access_text()
-        await self.config.guild(ctx.guild).admin_access_text.set(admin_access_text)
-        await ctx.send(
-            checkmark(
-                f"Admins are {'now' if admin_access_text else 'no longer'} able to see all (new) AutoRoom Text Channels."
-            )
-        )
-
-    @access.group(name="mod")
+    @access.command(name="mod")
     async def access_mod(self, ctx: commands.Context):
-        """Change Moderator access to AutoRooms."""
-
-    @access_mod.command(name="room")
-    async def access_mod_room(self, ctx: commands.Context):
         """Allow Moderators to join locked/private AutoRooms."""
         mod_access = not await self.config.guild(ctx.guild).mod_access()
         await self.config.guild(ctx.guild).mod_access.set(mod_access)
         await ctx.send(
             checkmark(
                 f"Moderators are {'now' if mod_access else 'no longer'} able to join (new) locked/private AutoRooms."
-            )
-        )
-
-    @access_mod.command(name="text")
-    async def access_mod_text(self, ctx: commands.Context):
-        """Allow Moderators to see all AutoRoom Text Channels."""
-        mod_access_text = not await self.config.guild(ctx.guild).mod_access_text()
-        await self.config.guild(ctx.guild).mod_access_text.set(mod_access_text)
-        await ctx.send(
-            checkmark(
-                f"Moderators are {'now' if mod_access_text else 'no longer'} able to see all (new) AutoRoom Text Channels."
             )
         )
 
@@ -317,42 +278,6 @@ class AutoRoomSetCommands(MixinMeta):
             )
             return
 
-        # Text channel
-        pred = MessagePredicate.yes_or_no(ctx)
-        await ctx.send(
-            "**Text Channel**"
-            "\n"
-            "AutoRooms can optionally have a text channel created with them, where only the AutoRoom members can"
-            "see and message in it. This is useful to keep AutoRoom specific chat out of your other channels."
-            "\n\n"
-            "Would you like these created AutoRooms to also have a created text channel? (`yes`/`no`)"
-        )
-        try:
-            await ctx.bot.wait_for("message", check=pred, timeout=60)
-        except asyncio.TimeoutError:
-            await ctx.send("No valid answer was received, canceling setup process.")
-            return
-        new_source["text_channel"] = pred.result
-
-        # Check perms text channel
-        good_permissions, details = self.check_perms_source_dest(
-            source_voice_channel,
-            dest_category,
-            with_manage_roles_guild=new_source["room_type"] != "server",
-            with_text_channel=new_source["text_channel"],
-            detailed=True,
-        )
-        if not good_permissions:
-            await ctx.send(
-                warning(
-                    f"Since you want to have this AutoRoom Source also create text channels, "
-                    "I will need a few extra permissions. "
-                    "Until I have these permissions, text channels will not be created."
-                    "\n"
-                    f"{details}"
-                )
-            )
-
         # Channel name
         options = ["username", "game"]
         pred = MessagePredicate.lower_contained_in(options, ctx)
@@ -373,7 +298,7 @@ class AutoRoomSetCommands(MixinMeta):
 
         # Save new source
         await self.config.custom(
-            "AUTOROOM_SOURCE", ctx.guild.id, source_voice_channel.id
+            "AUTOROOM_SOURCE", str(ctx.guild.id), str(source_voice_channel.id)
         ).set(new_source)
         await ctx.send(
             checkmark(
@@ -391,7 +316,7 @@ class AutoRoomSetCommands(MixinMeta):
     ):
         """Remove an AutoRoom Source."""
         await self.config.custom(
-            "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+            "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
         ).clear()
         await ctx.send(
             checkmark(
@@ -413,7 +338,7 @@ class AutoRoomSetCommands(MixinMeta):
         """Set the category that AutoRooms will be created in."""
         if await self.get_autoroom_source_config(autoroom_source):
             await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
             ).dest_category_id.set(dest_category.id)
             good_permissions, details = self.check_perms_source_dest(
                 autoroom_source, dest_category, detailed=True
@@ -480,7 +405,7 @@ class AutoRoomSetCommands(MixinMeta):
         """Save the public/private setting."""
         if await self.get_autoroom_source_config(autoroom_source):
             await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
             ).room_type.set(room_type)
             await ctx.send(
                 checkmark(
@@ -574,14 +499,14 @@ class AutoRoomSetCommands(MixinMeta):
                     )
                     return
                 await self.config.custom(
-                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                    "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
                 ).channel_name_format.set(template)
             else:
                 await self.config.custom(
-                    "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                    "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
                 ).channel_name_format.clear()
             await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
             ).channel_name_type.set(room_type)
             message = (
                 f"New AutoRooms created by **{autoroom_source.mention}** "
@@ -608,138 +533,87 @@ class AutoRoomSetCommands(MixinMeta):
                 )
             )
 
-    @modify.group(name="text")
-    async def modify_text(
-        self,
-        ctx: commands.Context,
-    ):
-        """Manage if a text channel should be created as well."""
+    # TODO Once discord.py supports sending messages to the text chat in a voice channel, this can be enabled
 
-    @modify_text.command(name="enable")
-    async def modify_text_enable(
-        self,
-        ctx: commands.Context,
-        autoroom_source: discord.VoiceChannel,
-    ):
-        """Enable creating a text channel with the AutoRoom."""
-        if await self.get_autoroom_source_config(autoroom_source):
-            await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).text_channel.set(True)
-            await ctx.send(
-                checkmark(
-                    f"New AutoRooms created by **{autoroom_source.mention}** will now get their own text channel."
-                )
-            )
-        else:
-            await ctx.send(
-                error(
-                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                )
-            )
-
-    @modify_text.command(name="disable")
-    async def modify_text_disable(
-        self,
-        ctx: commands.Context,
-        autoroom_source: discord.VoiceChannel,
-    ):
-        """Disable creating a text channel with the AutoRoom."""
-        if await self.get_autoroom_source_config(autoroom_source):
-            await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).text_channel.clear()
-            await ctx.send(
-                checkmark(
-                    f"New AutoRooms created by **{autoroom_source.mention}** will no longer get their own text channel."
-                )
-            )
-        else:
-            await ctx.send(
-                error(
-                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                )
-            )
-
-    @modify_text.group(name="hint")
-    async def modify_text_hint(
-        self,
-        ctx: commands.Context,
-    ):
-        """Configure sending an introductory message to the text channel."""
-
-    @modify_text_hint.command(name="set")
-    async def modify_text_hint_set(
-        self,
-        ctx: commands.Context,
-        autoroom_source: discord.VoiceChannel,
-        *,
-        hint_text: str,
-    ):
-        """Send a message to the newly generated text channel.
-
-        This can have template variables and statements, which you can learn more
-        about by looking at `[p]autoroomset modify name custom`, or by looking at
-        [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md).
-        """
-        if await self.get_autoroom_source_config(autoroom_source):
-            data = self.get_template_data(ctx.author)
-            try:
-                # Validate template
-                hint_text_formatted = self.template.render(hint_text, data)
-            except RuntimeError as rte:
-                await ctx.send(
-                    error(
-                        "Hmm... that doesn't seem to be a valid template:"
-                        "\n\n"
-                        f"`{str(rte)}`"
-                        "\n\n"
-                        "If you need some help, take a look at "
-                        "[the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)."
-                    )
-                )
-                return
-
-            await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).text_channel_hint.set(hint_text)
-
-            await ctx.send(
-                checkmark(
-                    f"New AutoRooms created by **{autoroom_source.mention}** will have the following message sent to their text channel:"
-                    "\n\n"
-                    f"{hint_text_formatted}"
-                )
-            )
-        else:
-            await ctx.send(
-                error(
-                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                )
-            )
-
-    @modify_text_hint.command(name="disable")
-    async def modify_text_hint_disable(
-        self,
-        ctx: commands.Context,
-        autoroom_source: discord.VoiceChannel,
-    ):
-        """Disable sending a message to the newly generated text channel."""
-        if await self.get_autoroom_source_config(autoroom_source):
-            await self.config.custom(
-                "AUTOROOM_SOURCE", ctx.guild.id, autoroom_source.id
-            ).text_channel_hint.clear()
-            await ctx.send(
-                checkmark(
-                    f"New AutoRooms created by **{autoroom_source.mention}** will no longer have a message sent to their text channel."
-                )
-            )
-        else:
-            await ctx.send(
-                error(
-                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-                )
-            )
+    # @modify.group(name="text")
+    # async def modify_text(
+    #     self,
+    #     ctx: commands.Context,
+    # ):
+    #     """Configure sending an introductory message to the AutoRoom text channel."""
+    #
+    # @modify_text.command(name="set")
+    # async def modify_text_set(
+    #     self,
+    #     ctx: commands.Context,
+    #     autoroom_source: discord.VoiceChannel,
+    #     *,
+    #     hint_text: str,
+    # ):
+    #     """Send a message to the newly generated AutoRoom text channel.
+    #
+    #     This can have template variables and statements, which you can learn more
+    #     about by looking at `[p]autoroomset modify name custom`, or by looking at
+    #     [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md).
+    #     """
+    #     if await self.get_autoroom_source_config(autoroom_source):
+    #         data = self.get_template_data(ctx.author)
+    #         try:
+    #             # Validate template
+    #             hint_text_formatted = self.template.render(hint_text, data)
+    #         except RuntimeError as rte:
+    #             await ctx.send(
+    #                 error(
+    #                     "Hmm... that doesn't seem to be a valid template:"
+    #                     "\n\n"
+    #                     f"`{str(rte)}`"
+    #                     "\n\n"
+    #                     "If you need some help, take a look at "
+    #                     "[the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)."
+    #                 )
+    #             )
+    #             return
+    #
+    #         await self.config.custom(
+    #             "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+    #         ).text_channel_hint.set(hint_text)
+    #
+    #         await ctx.send(
+    #             checkmark(
+    #                 f"New AutoRooms created by **{autoroom_source.mention}** will have the following message sent in them:"
+    #                 "\n\n"
+    #                 f"{hint_text_formatted}"
+    #             )
+    #         )
+    #     else:
+    #         await ctx.send(
+    #             error(
+    #                 f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+    #             )
+    #         )
+    #
+    # @modify_text.command(name="disable")
+    # async def modify_text_disable(
+    #     self,
+    #     ctx: commands.Context,
+    #     autoroom_source: discord.VoiceChannel,
+    # ):
+    #     """Disable sending a message to the newly generated AutoRoom text channel."""
+    #     if await self.get_autoroom_source_config(autoroom_source):
+    #         await self.config.custom(
+    #             "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+    #         ).text_channel_hint.clear()
+    #         await ctx.send(
+    #             checkmark(
+    #                 f"New AutoRooms created by **{autoroom_source.mention}** will no longer have a message sent in them."
+    #             )
+    #         )
+    #     else:
+    #         await ctx.send(
+    #             error(
+    #                 f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+    #             )
+    #         )
 
     @modify.command(
         name="defaults", aliases=["bitrate", "memberrole", "other", "perms", "users"]
@@ -787,7 +661,6 @@ class AutoRoomSetCommands(MixinMeta):
                         autoroom_source,
                         category_dest,
                         with_manage_roles_guild=avc_settings["room_type"] != "server",
-                        with_text_channel=avc_settings["text_channel"],
                         with_optional_clone_perms=True,
                         split_required_optional_check=True,
                         detailed=True,
@@ -800,7 +673,6 @@ class AutoRoomSetCommands(MixinMeta):
                         autoroom_source,
                         category_dest,
                         with_manage_roles_guild=avc_settings["room_type"] != "server",
-                        with_text_channel=avc_settings["text_channel"],
                         with_optional_clone_perms=True,
                         split_required_optional_check=True,
                     )

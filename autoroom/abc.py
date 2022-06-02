@@ -48,7 +48,6 @@ class MixinMeta(ABC):
         autoroom_source: discord.VoiceChannel,
         category_dest: discord.CategoryChannel,
         with_manage_roles_guild=False,
-        with_text_channel=False,
         with_optional_clone_perms=False,
         split_required_optional_check=False,
         detailed=False,

@@ -31,8 +31,6 @@ The username format is pretty self-explanatory: put the username, along with "'s
 
 The last bit of both of these is `{% if dupenum > 1 %} ({{dupenum}}){% endif %}`. With this, we are checking if `dupenum` is greater than 1. If it is, we display ` ({{dupenum}})` at the end of our room name. This way, only duplicate named rooms will ever get a ` (2)`, ` (3)`, etc. appended to them, no ` (1)` will be shown.
 
-This template format can also be used for the message hint sent to new AutoRoom text channels.
-
 ## For Members - `[p]autoroom`
 
 Once you join an AutoRoom Source, you will be moved into a brand new AutoRoom (voice channel). This is your AutoRoom, you can do whatever you want with it. Use the `[p]autoroom` command to check out all the different things you can do. Some examples include:
@@ -43,6 +41,5 @@ Once you join an AutoRoom Source, you will be moved into a brand new AutoRoom (v
 -   Make it a private AutoRoom with `[p]autoroom private` (nobody can see and join your AutoRoom)
 -   Kick/ban users (or entire roles) from your AutoRoom with `[p]autoroom deny` (useful for public AutoRooms)
 -   Allow users (or roles) into your AutoRoom with `[p]autoroom allow` (useful for locked and private AutoRooms)
--   If your AutoRoom has an associated text channel, you can manage the messages in your text channel
 
-When everyone leaves your AutoRoom, it (and the associated text channel, if it exists) will automatically be deleted.
+When everyone leaves your AutoRoom, it will automatically be deleted.
