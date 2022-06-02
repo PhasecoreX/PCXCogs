@@ -18,7 +18,7 @@ log = logging.getLogger("red.pcxcogs.heartbeat")
 
 
 class Heartbeat(commands.Cog):
-    """Monitor your bots uptime.
+    """Monitor the uptime of your bot.
 
     The bot owner can specify a URL that the bot will ping (send a GET request)
     at a configurable frequency. Using this with an uptime tracking service can

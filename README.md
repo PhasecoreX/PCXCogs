@@ -45,15 +45,15 @@ Perform complex dice rolling. Supports dice notation (such as 3d6+3), shows all 
 
 ### Heartbeat
 
-Monitor the uptime of your bot by having it send heartbeat pings to a configurable URL (healthchecks.io for instance).
+Monitor the uptime of your bot by sending heartbeat pings to a configurable URL (healthchecks.io for instance).
 
 ### NetSpeed
 
-Test your servers internet speed. Runs an internet speedtest and prints the results. Only the owner can run this.
+Test the internet speed of the server your bot is hosted on. Runs an internet speedtest and prints the results. Only the owner can run this.
 
 ### ReactChannel
 
-Per-channel automatic reaction tools, where every message in a channel will have reactions added to them. Supports turning a channel into a checklist (checkmark will delete the message), an upvote-like system (affects a users karma total), or a custom channel.
+Per-channel automatic reaction tools, where every message in a channel will have reactions added to them. Supports turning a channel into a checklist (checkmark will delete the message), an upvote-like system (affects a user's karma total), or a custom channel.
 
 ### RemindMe
 
@@ -61,7 +61,7 @@ Set reminders for yourself. Ported from v2; originally by Twentysix26. I've made
 
 ### UpdateNotify
 
-Automatically check for updates to Red-Discordbot, notifying the owner. Also checks for updates to [my docker image](https://hub.docker.com/r/phasecorex/red-discordbot) if you are using that.
+Automatically check for updates to Red-DiscordBot, notifying the owner. Also checks for updates to [my docker image](https://hub.docker.com/r/phasecorex/red-discordbot) if you are using that.
 
 ### UwU
 

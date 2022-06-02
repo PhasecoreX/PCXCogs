@@ -259,7 +259,7 @@ class BanCheck(commands.Cog):
         notify_channel = None
         notify_channel_id = await self.config.guild(ctx.guild).notify_channel()
         if notify_channel_id:
-            notify_channel = self.bot.get_channel(notify_channel_id)
+            notify_channel = ctx.guild.get_channel(notify_channel_id)
         self._get_autocheck_status(embed, notify_channel, any_enabled)
         self._get_autoban_status(
             embed,
@@ -600,7 +600,7 @@ class BanCheck(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    # Only the owner for now, until I do some research on who to open it up to
+    # Only the owner for now, until I do some research on whom to open it up to
     @checks.is_owner()
     # @checks.admin_or_permissions(ban_members=True)
     async def banreport(
@@ -622,7 +622,7 @@ class BanCheck(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    # Only the owner for now, until I do some research on who to open it up to
+    # Only the owner for now, until I do some research on whom to open it up to
     @checks.is_owner()
     # @checks.admin_or_permissions(ban_members=True)
     async def banreportmanual(
@@ -796,7 +796,7 @@ class BanCheck(commands.Cog):
             return
         channel_id = await self.config.guild(member.guild).notify_channel()
         if channel_id:
-            channel = self.bot.get_channel(channel_id)
+            channel = member.guild.get_channel(channel_id)
             if channel:
                 # Only do auto lookup if the user isn't repeatedly leaving and joining the server
                 bucket = self.bucket_member_join_cache.get_bucket(member)

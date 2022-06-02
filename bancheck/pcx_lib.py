@@ -104,7 +104,7 @@ async def embed_splitter(
             await destination.send(embed=embed)
         return [embed]
 
-    # Nah we really doing this
+    # Nah, we're really doing this
     split_embeds: List[discord.Embed] = []
     fields = embed_dict["fields"]
     embed_dict["fields"] = []
@@ -211,7 +211,7 @@ class Perms:
 
     @property
     def modified(self):
-        """Check if current overwrites are different than when this object was first initialized."""
+        """Check if current overwrites are different from when this object was first initialized."""
         return self.__overwrites != self.__original
 
     @property

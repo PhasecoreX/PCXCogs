@@ -47,7 +47,7 @@ class UpdateNotify(commands.Cog):
         self.notified_docker_build = self.docker_build
         self.notified_version = redbot_version
 
-        self.next_check = datetime.datetime.now()
+        self.next_check = datetime.datetime.now(datetime.timezone.utc)
         self.bg_loop_task = None
 
     #
@@ -132,7 +132,9 @@ class UpdateNotify(commands.Cog):
             frequency = 300.0
         while True:
             await self.check_for_updates()
-            self.next_check = datetime.datetime.now() + datetime.timedelta(0, frequency)
+            self.next_check = datetime.datetime.now(
+                datetime.timezone.utc
+            ) + datetime.timedelta(0, frequency)
             await asyncio.sleep(frequency)
 
     async def check_for_updates(self):
@@ -163,7 +165,9 @@ class UpdateNotify(commands.Cog):
         )
         global_section.add(
             "Next check in",
-            humanize_timedelta(timedelta=self.next_check - datetime.datetime.now()),
+            humanize_timedelta(
+                timedelta=self.next_check - datetime.datetime.now(datetime.timezone.utc)
+            ),
         )
         global_section.add(
             "Check Red-DiscordBot update",

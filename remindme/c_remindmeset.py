@@ -1,11 +1,13 @@
 """Commands for [p]remindmeset."""
+from abc import ABC
+
 from redbot.core import checks, commands
 
 from .abc import MixinMeta
 from .pcx_lib import SettingDisplay, checkmark
 
 
-class RemindMeSetCommands(MixinMeta):
+class RemindMeSetCommands(MixinMeta, ABC):
     """Commands for [p]remindmeset."""
 
     @commands.group()

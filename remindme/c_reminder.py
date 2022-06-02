@@ -1,19 +1,21 @@
 """Commands for the average user."""
 import asyncio
+from abc import ABC
 from datetime import datetime, timezone
 
 import discord
 from dateutil.relativedelta import relativedelta
-from pyparsing import ParseException
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import error
 from redbot.core.utils.predicates import MessagePredicate
+
+from pyparsing import ParseException
 
 from .abc import MixinMeta
 from .pcx_lib import delete, embed_splitter, reply
 
 
-class ReminderCommands(MixinMeta):
+class ReminderCommands(MixinMeta, ABC):
     """Commands for the average user."""
 
     @commands.group()
@@ -29,7 +31,7 @@ class ReminderCommands(MixinMeta):
         `added` for ordering by when the reminder was added,
         `id` for ordering by ID
         """
-        # Grab users reminders, format them so we can see the user_reminder_id
+        # Grab users reminders and format them so that we can see the user_reminder_id
         author = ctx.message.author
         user_reminders = []
         user_reminders_dict = await self.config.custom(
@@ -291,7 +293,7 @@ class ReminderCommands(MixinMeta):
             message += "."
         await reply(ctx, message)
 
-        # Send me too message if enabled
+        # Send "me too" message if enabled
         if (
             ctx.guild
             and await self.config.guild(ctx.guild).me_too()
@@ -302,7 +304,7 @@ class ReminderCommands(MixinMeta):
                 "click the bell below!"
             )
             self.me_too_reminders[query.id] = new_reminder
-            self.clicked_me_too_reminder[query.id] = set([author.id])
+            self.clicked_me_too_reminder[query.id] = {author.id}
             await query.add_reaction(self.reminder_emoji)
             await asyncio.sleep(30)
             await delete(query)
@@ -418,7 +420,7 @@ class ReminderCommands(MixinMeta):
         if repeat_dict:
             repeat_delta = relativedelta(**repeat_dict)
             try:
-                # Make sure repeat isn't really big or less than 1 day
+                # Make sure repeat isn't huge or less than 1 day
                 if created_datetime + repeat_delta < created_datetime + relativedelta(
                     days=1
                 ):

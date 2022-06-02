@@ -270,7 +270,7 @@ class AutoRoomCommands(MixinMeta, ABC):
             await delete(hint, delay=10)
             return False
 
-        # Gather member roles and determine lowest ranked member role
+        # Gather member roles and determine the lowest ranked member role
         member_roles = self.get_member_roles(source_channel)
         lowest_member_role = 999999999999
         for role in member_roles:
@@ -283,7 +283,7 @@ class AutoRoomCommands(MixinMeta, ABC):
             to_modify = member_roles or [source_channel.guild.default_role]
         elif False not in perm_overwrite.values():
             # Allow a specific user
-            # - check if they have connect perm in the source channel
+            # - check if they have "connect" perm in the source channel
             # - works for both deny everyone with allowed roles/users, and allow everyone with denied roles/users
             # Allow a specific role
             # - Make sure that the role isn't denied on the source channel

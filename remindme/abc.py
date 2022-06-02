@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Dict, Set, Union
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -9,17 +9,16 @@ from .reminder_parse import ReminderParser
 
 
 class MixinMeta(ABC):
-    """Base class for well behaved type hint detection with composite class.
+    """Base class for well-behaved type hint detection with composite class.
 
     Basically, to keep developers sane when not all attributes are defined in each mixin.
     """
 
-    def __init__(self, *_args):
-        self.config: Config
-        self.reminder_parser: ReminderParser
-        self.me_too_reminders: dict
-        self.clicked_me_too_reminder: dict
-        self.reminder_emoji: str
+    config: Config
+    reminder_parser: ReminderParser
+    me_too_reminders: Dict[int, dict]
+    clicked_me_too_reminder: Dict[int, Set[int]]
+    reminder_emoji: str
 
     @staticmethod
     @abstractmethod

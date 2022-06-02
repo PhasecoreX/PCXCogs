@@ -17,7 +17,7 @@ class ReactChannel(commands.Cog):
     will automatically have reactions applied. Depending on the type of ReactChannel,
     click these reactions could trigger automatic actions.
 
-    Additionally, Admins can set up a server-wide upvote and/or downvote emojis, where
+    Additionally, Admins can set up server-wide upvote and/or downvote emojis, where
     reacting to messages with these (in any channel) will increase or decrease the
     message owners total karma.
     """
@@ -287,7 +287,7 @@ class ReactChannel(commands.Cog):
 
     @enable.command()
     async def vote(self, ctx: commands.Context, channel: discord.TextChannel = None):
-        """All user messages will have an up and down arrow. Clicking them will affect a users karma total."""
+        """All user messages will have an up and down arrow. Clicking them will affect a user's karma total."""
         await self._save_channel(ctx, channel, "vote")
 
     @enable.command()
@@ -757,7 +757,7 @@ class ReactChannel(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def upvote(self, ctx: commands.Context):
-        """View this servers upvote reaction."""
+        """View the upvote reaction for this server."""
         upvote = await self._get_emoji(ctx.guild, "upvote")
         if upvote:
             await ctx.send(
@@ -769,7 +769,7 @@ class ReactChannel(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def downvote(self, ctx: commands.Context):
-        """View this servers downvote reaction."""
+        """View the downvote reaction for this server."""
         downvote = await self._get_emoji(ctx.guild, "downvote")
         if downvote:
             await ctx.send(
@@ -822,7 +822,7 @@ class ReactChannel(commands.Cog):
             react_roles_allow = await self.config.custom(
                 "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
             ).react_roles_allow()
-            # If the user has a matching role and we are denying roles, or if they don't and we are allowing roles
+            # If the user has a matching role, and we are denying roles, or if they don't, and we are allowing roles
             if has_matching_role != react_roles_allow:
                 return
         # react_filter check
@@ -873,7 +873,7 @@ class ReactChannel(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        """Watch for reactions added to messages."""
+        """Watch for reactions added to a message."""
         # Only guilds where the cog is enabled
         if not payload.guild_id or await self.bot.cog_disabled_in_guild_raw(
             self.qualified_name, payload.guild_id

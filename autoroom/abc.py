@@ -10,7 +10,7 @@ from autoroom.pcx_template import Template
 
 
 class MixinMeta(ABC):
-    """Base class for well behaved type hint detection with composite class.
+    """Base class for well-behaved type hint detection with composite class.
 
     Basically, to keep developers sane when not all attributes are defined in each mixin.
     """

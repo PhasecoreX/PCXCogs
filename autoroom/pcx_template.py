@@ -109,7 +109,7 @@ class Template:
         # Not
         if condition[0] == "not":
             return not self._evaluate(condition[1], data)
-        # And/Or, rhs could be ignored if short circuiting
+        # And/Or, rhs could be ignored if short-circuiting
         lhs = self._evaluate(condition[0], data)
         if condition[1] == "and":
             return lhs and self._evaluate(condition[2], data)
