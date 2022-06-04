@@ -42,6 +42,11 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             "Moderator access all AutoRooms",
             await self.config.guild(ctx.guild).mod_access(),
         )
+        bot_roles = ", ".join(
+            [role.name for role in await self.get_bot_roles(ctx.guild)]
+        )
+        if bot_roles:
+            server_section.add("Bot roles allowed in all AutoRooms", bot_roles)
 
         autoroom_sections = []
         avcs = await self.get_all_autoroom_source_configs(ctx.guild)
@@ -193,6 +198,52 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 f"Moderators are {'now' if mod_access else 'no longer'} able to join (new) locked/private AutoRooms."
             )
         )
+
+    @access.group(name="bot")
+    async def access_bot(self, ctx: commands.Context):
+        """Automatically allow bots into AutoRooms.
+
+        The AutoRoom Owner is able to freely allow or deny these roles as they see fit.
+        """
+
+    @access_bot.command(name="add")
+    async def access_bot_add(self, ctx: commands.Context, role: discord.Role):
+        """Allow a bot role into every AutoRoom."""
+        bot_role_ids = await self.config.guild(ctx.guild).bot_access()
+        if role.id not in bot_role_ids:
+            bot_role_ids.append(role.id)
+            await self.config.guild(ctx.guild).bot_access.set(bot_role_ids)
+
+        role_list = "\n".join(
+            [role.name for role in await self.get_bot_roles(ctx.guild)]
+        )
+        await ctx.send(
+            checkmark(
+                f"AutoRooms will now allow the following bot roles in by default:\n\n{role_list}"
+            )
+        )
+
+    @access_bot.command(name="remove", aliases=["delete", "del"])
+    async def access_bot_remove(self, ctx: commands.Context, role: discord.Role):
+        """Disallow a bot role from joining every AutoRoom."""
+        bot_role_ids = await self.config.guild(ctx.guild).bot_access()
+        if role.id in bot_role_ids:
+            bot_role_ids.remove(role.id)
+            await self.config.guild(ctx.guild).bot_access.set(bot_role_ids)
+
+        if bot_role_ids:
+            role_list = "\n".join(
+                [role.name for role in await self.get_bot_roles(ctx.guild)]
+            )
+            await ctx.send(
+                checkmark(
+                    f"AutoRooms will now allow the following bot roles in by default:\n\n{role_list}"
+                )
+            )
+        else:
+            await ctx.send(
+                checkmark("New AutoRooms will not allow any extra bot roles in.")
+            )
 
     @autoroomset.command(aliases=["enable", "add"])
     async def create(

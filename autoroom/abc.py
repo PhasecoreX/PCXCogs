@@ -71,9 +71,14 @@ class MixinMeta(ABC):
     def check_if_member_or_role_allowed(
         channel: discord.VoiceChannel,
         member_or_role: Union[discord.Member, discord.Role],
+        check_guild_role_perms: bool = False,
     ):
         raise NotImplementedError()
 
     @abstractmethod
     def get_member_roles(self, autoroom_source: discord.VoiceChannel):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def get_bot_roles(self, guild: discord.guild):
         raise NotImplementedError()

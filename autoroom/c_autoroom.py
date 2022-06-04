@@ -282,13 +282,19 @@ class AutoRoomCommands(MixinMeta, ABC):
             # Public/locked/private command
             to_modify = member_roles or [source_channel.guild.default_role]
         elif False not in perm_overwrite.values():
+            # If we are allowing a bot role, allow it
+            if isinstance(
+                member_or_role, discord.Role
+            ) and member_or_role in await self.get_bot_roles(ctx.guild):
+                pass
             # Allow a specific user
-            # - check if they have "connect" perm in the source channel
+            # - check if they have "connect" and "view" perm in the source channel
             # - works for both deny everyone with allowed roles/users, and allow everyone with denied roles/users
             # Allow a specific role
-            # - Make sure that the role isn't denied on the source channel
-            # - Check that the role is equal to or above the lowest allowed (member) role on the source channel
-            if not self.check_if_member_or_role_allowed(source_channel, member_or_role):
+            # - Make sure that the role isn't specifically denied on the source channel
+            elif not self.check_if_member_or_role_allowed(
+                source_channel, member_or_role
+            ):
                 user_role = "user"
                 them_it = "them"
                 if isinstance(member_or_role, discord.Role):
@@ -298,6 +304,8 @@ class AutoRoomCommands(MixinMeta, ABC):
                     f"since that {user_role} is not allowed to connect to the AutoRoom Source "
                     f"that this AutoRoom was made from, I can't allow {them_it} here either."
                 )
+            # Allow a specific role part 2
+            # - Check that the role is equal to or above the lowest allowed (member) role on the source channel
             elif (
                 isinstance(member_or_role, discord.Role)
                 and member_roles

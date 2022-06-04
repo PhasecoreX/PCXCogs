@@ -41,6 +41,7 @@ class AutoRoom(
     default_guild_settings = {
         "admin_access": True,
         "mod_access": False,
+        "bot_access": [],
     }
     default_autoroom_source_settings = {
         "dest_category_id": None,
@@ -421,8 +422,9 @@ class AutoRoom(
         if autoroom_source_config["room_type"] != "server":
             perms.update(member, self.perms_autoroom_owner)
 
-        # Admin/moderator overwrites
-        additional_allowed_roles = []
+        # Admin/moderator/bot overwrites
+        # Add bot roles to be allowed
+        additional_allowed_roles = await self.get_bot_roles(guild)
         if await self.config.guild(guild).mod_access():
             # Add mod roles to be allowed
             additional_allowed_roles += await self.bot.get_mod_roles(guild)
@@ -725,8 +727,14 @@ class AutoRoom(
     def check_if_member_or_role_allowed(
         channel: discord.VoiceChannel,
         member_or_role: Union[discord.Member, discord.Role],
+        check_guild_role_perms: bool = False,
     ):
-        """Check if a member/role is allowed to view and connect to a voice channel."""
+        """Check if a member/role is allowed to view and connect to a voice channel.
+
+        For roles, it only checks that they aren't specifically denied with channel overwrites.
+        If check_guild_role_perms is True, it will additionally check the combination of
+        channel overwrites and guild permissions if they would prevent connecting to the channel.
+        """
         if isinstance(member_or_role, discord.Member):
             return (
                 channel.permissions_for(member_or_role).connect
@@ -737,25 +745,26 @@ class AutoRoom(
                 overwrites_allow, overwrites_deny = channel.overwrites[
                     member_or_role
                 ].pair()
-                if (
-                    overwrites_deny.connect
-                    or overwrites_deny.view_channel
-                    or (
+                if overwrites_deny.connect or overwrites_deny.view_channel:
+                    return False
+                if check_guild_role_perms:
+                    if (
                         not overwrites_allow.connect
                         and not member_or_role.permissions.connect
-                    )
-                    or (
+                    ) or (
                         not overwrites_allow.view_channel
                         and not member_or_role.permissions.view_channel
-                    )
-                ):
-                    return False
+                    ):
+                        return False
                 else:
                     return True
-            return (
-                member_or_role.permissions.connect
-                and member_or_role.permissions.view_channel
-            )
+            if check_guild_role_perms:
+                return (
+                    member_or_role.permissions.connect
+                    and member_or_role.permissions.view_channel
+                )
+            else:
+                return True
         return False
 
     def get_member_roles(self, autoroom_source: discord.VoiceChannel):
@@ -763,7 +772,9 @@ class AutoRoom(
         member_roles = []
         # If @everyone is allowed to view and connect to the source channel, there are no member roles
         if not self.check_if_member_or_role_allowed(
-            autoroom_source, autoroom_source.guild.default_role
+            autoroom_source,
+            autoroom_source.guild.default_role,
+            check_guild_role_perms=True,
         ):
             # If it isn't allowed, then member roles are being used
             for role, overwrite in autoroom_source.overwrites.items():
@@ -774,3 +785,20 @@ class AutoRoom(
                 ):
                     member_roles.append(role)
         return member_roles
+
+    async def get_bot_roles(self, guild: discord.Guild):
+        """Get the additional bot roles that are added to each AutoRoom."""
+        bot_roles = []
+        bot_role_ids = []
+        some_roles_were_not_found = False
+        for bot_role_id in await self.config.guild(guild).bot_access():
+            bot_role = guild.get_role(bot_role_id)
+            if bot_role:
+                bot_roles.append(bot_role)
+                bot_role_ids.append(bot_role_id)
+            else:
+                some_roles_were_not_found = True
+        if some_roles_were_not_found:
+            # Update the bot role list to remove nonexistent roles
+            await self.config.guild(guild).bot_access.set(bot_role_ids)
+        return bot_roles
