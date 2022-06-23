@@ -1,6 +1,6 @@
 """ReactChannel cog for Red-DiscordBot by PhasecoreX."""
 import datetime
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import discord
 from redbot.core import Config, checks, commands
@@ -989,7 +989,7 @@ class ReactChannel(commands.Cog):
                 await member.created_at.set(time)
 
     @staticmethod
-    def _list_roles(guild: discord.Guild, role_ids: list[int]):
+    def _list_roles(guild: discord.Guild, role_ids: List[int]):
         result = ""
         for role_id in role_ids:
             role = guild.get_role(role_id)
