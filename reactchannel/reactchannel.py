@@ -1,6 +1,6 @@
 """ReactChannel cog for Red-DiscordBot by PhasecoreX."""
 import datetime
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 import discord
 from redbot.core import Config, checks, commands
