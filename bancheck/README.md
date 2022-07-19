@@ -4,7 +4,7 @@ This cog allows server admins to check their members against multiple external b
 
 ## For Bot Owners - `[p]banchecksetglobal`
 
-There are certain ban list APIs that can only be set up for the entire bot (instead of per server). Usually this is due to the fact that your bot needs to go through a verification process before you get an API key, and only one key per bot is issued. At the time of writing, [KSoft.Si](https://api.ksoft.si/) is the only one that does this. Once you set the API key, the ban list checking functionality for that service will be available for use in all servers your bot is a part of. The admins of the servers will need to manually enable the service for checking, however.
+There are certain ban list APIs that can only be set up for the entire bot (instead of per server). Usually this is due to the fact that your bot needs to go through a verification process before you get an API key, and only one key per bot is issued. At the time of writing, [Ravy](https://ravy.org/api) is the only one that does this. Once you set the API key, the ban list checking functionality for that service will be available for use in all servers your bot is a part of. The admins of the servers will need to manually enable the service for checking, however.
 
 ```
 [p]banchecksetglobal settings
