@@ -28,7 +28,7 @@ class Heartbeat(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "1.2.0"
+    __version__ = "1.2.1"
 
     default_global_settings = {"url": "", "frequency": 60}
 
@@ -114,8 +114,8 @@ class Heartbeat(commands.Cog):
             self.bg_loop_task = self.bot.loop.create_task(self.bg_loop(url, frequency))
             self.bg_loop_task.add_done_callback(error_handler)
             return attempt
-        except Exception as exc:
-            self.current_error = str(exc)
+        except Exception as ex:
+            self.current_error = str(ex)
         return False
 
     async def bg_loop(self, url, frequency):
@@ -178,7 +178,8 @@ class Heartbeat(commands.Cog):
                 humanize_timedelta(
                     timedelta=self.next_heartbeat
                     - datetime.datetime.now(datetime.timezone.utc)
-                ),
+                )
+                or "0 seconds",
             )
         if self.current_error:
             global_section.add("Current error", self.current_error)
