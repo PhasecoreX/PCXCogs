@@ -28,7 +28,7 @@ class Heartbeat(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "1.2.1"
+    __version__ = "1.2.2"
 
     default_global_settings = {"url": "", "frequency": 60}
 
@@ -201,7 +201,7 @@ class Heartbeat(commands.Cog):
 
     @heartbeat.command()
     async def disable(self, ctx: commands.Context):
-        """Set the URL Heartbeat will send pings to."""
+        """Remove the set URL and disable Heartbeat pings."""
         await self.config.url.clear()
         await self.enable_bg_loop()
         await ctx.send(checkmark("Heartbeat has been disabled."))
