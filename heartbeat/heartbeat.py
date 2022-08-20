@@ -28,7 +28,7 @@ class Heartbeat(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "1.2.2"
+    __version__ = "1.3.0"
 
     default_global_settings = {"url": "", "frequency": 60}
 
@@ -72,13 +72,13 @@ class Heartbeat(commands.Cog):
 
     async def initialize(self):
         """Perform setup actions before loading cog."""
-        await self.enable_bg_loop()
+        self.enable_bg_loop()
 
     #
     # Background loop methods
     #
 
-    async def enable_bg_loop(self):
+    def enable_bg_loop(self, skip_first=False):
         """Set up the background loop task."""
 
         def error_handler(fut: asyncio.Future):
@@ -93,44 +93,43 @@ class Heartbeat(commands.Cog):
                 )
                 asyncio.create_task(
                     self.bot.send_to_owners(
-                        "An unexpected exception occurred in the background loop of Heartbeat.\n"
+                        "An unexpected exception occurred in the background loop of Heartbeat:\n"
+                        f"```{str(exc)}```"
                         "Heartbeat pings will not be sent until Heartbeat is reloaded.\n"
-                        "Check your console or logs for details, and consider opening a bug report for this."
+                        "Check your console or logs for more details, and consider opening a bug report for this."
                     )
                 )
 
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
-            self.bg_loop_task = None
+        self.bg_loop_task = self.bot.loop.create_task(self.bg_loop(skip_first))
+        self.bg_loop_task.add_done_callback(error_handler)
+
+    async def bg_loop(self, skip_first):
+        """Background loop."""
         await self.bot.wait_until_ready()
         url = await self.config.url()
         if not url:
-            return False
+            return
         frequency = await self.config.frequency()
         if frequency < 60:
             frequency = 60.0
-        try:
-            attempt = await self.send_heartbeat(url)
-            self.bg_loop_task = self.bot.loop.create_task(self.bg_loop(url, frequency))
-            self.bg_loop_task.add_done_callback(error_handler)
-            return attempt
-        except Exception as ex:
-            self.current_error = str(ex)
-        return False
-
-    async def bg_loop(self, url, frequency):
-        """Background loop."""
+        if not skip_first:
+            self.current_error = await self.send_heartbeat(url)
         while True:
             self.next_heartbeat = datetime.datetime.now(
                 datetime.timezone.utc
             ) + datetime.timedelta(0, frequency)
             await asyncio.sleep(frequency)
-            await self.send_heartbeat(url)
+            self.current_error = await self.send_heartbeat(url)
 
     async def send_heartbeat(self, url):
-        """Send a heartbeat ping."""
+        """Send a heartbeat ping.
+
+        Returns error message if error, None otherwise
+        """
         if not url:
-            return False
+            return "No URL supplied"
         last_exception = None
         retries = 3
         while retries > 0:
@@ -139,16 +138,14 @@ class Heartbeat(commands.Cog):
                     url,
                     headers={"user-agent": user_agent},
                 )
-                self.current_error = None
-                return True
+                return
             except (
                 aiohttp.ClientConnectionError,
                 asyncio.TimeoutError,
             ) as exc:
                 last_exception = exc
             retries -= 1
-        self.current_error = str(last_exception)
-        return False
+        return str(last_exception)
 
     #
     # Command methods: heartbeat
@@ -164,7 +161,7 @@ class Heartbeat(commands.Cog):
         """Display current settings."""
         global_section = SettingDisplay("Global Settings")
         heartbeat_status = "Disabled (no URL set)"
-        if self.bg_loop_task:
+        if self.bg_loop_task and not self.bg_loop_task.done():
             heartbeat_status = "Enabled"
         elif await self.config.url():
             heartbeat_status = "Disabled (faulty URL)"
@@ -172,7 +169,7 @@ class Heartbeat(commands.Cog):
         global_section.add(
             "Frequency", humanize_timedelta(seconds=await self.config.frequency())
         )
-        if self.bg_loop_task:
+        if self.bg_loop_task and not self.bg_loop_task.done():
             global_section.add(
                 "Next heartbeat in",
                 humanize_timedelta(
@@ -189,21 +186,31 @@ class Heartbeat(commands.Cog):
     async def url(self, ctx: commands.Context, url: str):
         """Set the URL Heartbeat will send pings to."""
         await delete(ctx.message)
-        await self.config.url.set(url)
-        if await self.enable_bg_loop():
-            await ctx.send(checkmark("Heartbeat URL has been set and enabled."))
-        else:
-            await ctx.send(
-                error(
-                    "Something seems to be wrong with that URL, I am not able to connect to it."
-                )
+        try:
+            error_message = await self.send_heartbeat(url)
+            if not error_message:
+                await self.config.url.set(url)
+                self.enable_bg_loop(skip_first=True)
+                await ctx.send(checkmark("Heartbeat URL has been set and enabled."))
+                return
+        except Exception as ex:
+            error_message = str(ex)
+        previous_url_text = (
+            "I will continue to use the previous URL instead."
+            if await self.config.url()
+            else ""
+        )
+        await ctx.send(
+            error(
+                f"Something seems to be wrong with that URL, I am not able to connect to it:\n```{error_message}```{previous_url_text}"
             )
+        )
 
     @heartbeat.command()
     async def disable(self, ctx: commands.Context):
         """Remove the set URL and disable Heartbeat pings."""
         await self.config.url.clear()
-        await self.enable_bg_loop()
+        self.enable_bg_loop()
         await ctx.send(checkmark("Heartbeat has been disabled."))
 
     @heartbeat.command()
@@ -223,4 +230,4 @@ class Heartbeat(commands.Cog):
                 f"Heartbeat frequency has been set to {humanize_timedelta(timedelta=frequency)}."
             )
         )
-        await self.enable_bg_loop()
+        self.enable_bg_loop()
