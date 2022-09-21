@@ -182,7 +182,14 @@ class Template:
             if "comment" in token:
                 pass
             elif "identifier" in token[0] and printing:
-                result += str(self._get_value(token[0].identifier, data))
+                identifier_value = str(self._get_value(token[0].identifier, data))
+                if "filters" in token[0]:
+                    for filter_name in token[0]["filters"]:
+                        if filter_name == "lower":
+                            identifier_value = identifier_value.lower()
+                        elif filter_name == "upper":
+                            identifier_value = identifier_value.upper()
+                result += identifier_value
                 potential_standalone = False
             elif token[0][0] == "if":
                 stack.append(("if", self._evaluate(token[0][1], data) and stack[-1][1]))

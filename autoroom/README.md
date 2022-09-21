@@ -31,6 +31,11 @@ The username format is pretty self-explanatory: put the username, along with "'s
 
 The last bit of both of these is `{% if dupenum > 1 %} ({{dupenum}}){% endif %}`. With this, we are checking if `dupenum` is greater than 1. If it is, we display ` ({{dupenum}})` at the end of our room name. This way, only duplicate named rooms will ever get a ` (2)`, ` (3)`, etc. appended to them, no ` (1)` will be shown.
 
+Finally, you can use filters in order to format your variables. They are specified by adding a pipe, and then the name of the filter. The following are the currently implemented filters:
+
+-   `{{username | lower}}` - Will lowercase the variable, the username in this example
+-   `{{game | upper}}` - Will uppercase the variable, the game name in this example
+
 ## For Members - `[p]autoroom`
 
 Once you join an AutoRoom Source, you will be moved into a brand new AutoRoom (voice channel). This is your AutoRoom, you can do whatever you want with it. Use the `[p]autoroom` command to check out all the different things you can do. Some examples include:

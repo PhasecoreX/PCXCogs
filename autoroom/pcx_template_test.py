@@ -538,6 +538,36 @@ End.
         self.assertEqual(expected, result)
 
 
+class Filter(unittest.TestCase):
+    def test_invalid(self):
+        template = "{{words | invalidFilter}}"
+        data = {"words": "This won't be changed"}
+        result = renderer.render(template, data)
+        expected = "This won't be changed"
+        self.assertEqual(expected, result)
+
+    def test_lower(self):
+        template = "{{word | lower}}"
+        data = {"word": "QUIET"}
+        result = renderer.render(template, data)
+        expected = "quiet"
+        self.assertEqual(expected, result)
+
+    def test_upper(self):
+        template = "{{word | upper}}"
+        data = {"word": "loud"}
+        result = renderer.render(template, data)
+        expected = "LOUD"
+        self.assertEqual(expected, result)
+
+    def test_multiple(self):
+        template = "{{word | upper | lower | upper | lower | upper | lower | upper | lower | upper}}"
+        data = {"word": "loud"}
+        result = renderer.render(template, data)
+        expected = "LOUD"
+        self.assertEqual(expected, result)
+
+
 # Run unit tests from command line
 if __name__ == "__main__":
     unittest.main()
