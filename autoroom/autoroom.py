@@ -3,7 +3,7 @@ from abc import ABC
 from typing import Union
 
 import discord
-from discord import ActivityType
+from discord import ActivityType, Permissions
 from redbot.core import Config, commands
 from redbot.core.utils.chat_formatting import humanize_timedelta
 
@@ -727,54 +727,101 @@ class AutoRoom(
     def check_if_member_or_role_allowed(
         channel: discord.VoiceChannel,
         member_or_role: Union[discord.Member, discord.Role],
-        check_guild_role_perms: bool = False,
     ):
-        """Check if a member/role is allowed to view and connect to a voice channel.
+        """Check if a member/role is allowed to connect to a voice channel.
 
-        For roles, it only checks that they aren't specifically denied with channel overwrites.
-        If check_guild_role_perms is True, it will additionally check the combination of
-        channel overwrites and guild permissions if they would prevent connecting to the channel.
+        Doesn't matter if they can't see it, it ONLY checks the connect permission.
+        Mostly copied from https://github.com/Rapptz/discord.py/blob/master/discord/abc.py:GuildChannel.permissions_for()
+        I needed the logic except the "if not base.read_messages:" part that removed all permissions.
         """
-        if isinstance(member_or_role, discord.Member):
-            return (
-                channel.permissions_for(member_or_role).connect
-                and channel.permissions_for(member_or_role).view_channel
-            )
-        elif isinstance(member_or_role, discord.Role):
-            if member_or_role in channel.overwrites:
-                overwrites_allow, overwrites_deny = channel.overwrites[
-                    member_or_role
-                ].pair()
-                if overwrites_deny.connect or overwrites_deny.view_channel:
-                    return False
-                if check_guild_role_perms:
-                    if (
-                        not overwrites_allow.connect
-                        and not member_or_role.permissions.connect
-                    ) or (
-                        not overwrites_allow.view_channel
-                        and not member_or_role.permissions.view_channel
-                    ):
-                        return False
-                else:
-                    return True
-            if check_guild_role_perms:
-                return (
-                    member_or_role.permissions.connect
-                    and member_or_role.permissions.view_channel
-                )
-            else:
+        if channel.guild.owner_id == member_or_role.id:
+            return True
+
+        default_role = channel.guild.default_role
+        base = Permissions(default_role.permissions.value)
+
+        # Handle the role case first
+        if isinstance(member_or_role, discord.Role):
+            base.value |= member_or_role.permissions.value
+
+            if base.administrator:
                 return True
-        return False
+
+            # Apply @everyone allow/deny first since it's special
+            try:
+                default_allow, default_deny = channel.overwrites[default_role].pair()
+                base.handle_overwrite(
+                    allow=default_allow.value, deny=default_deny.value
+                )
+            except KeyError:
+                pass
+
+            if member_or_role.is_default():
+                return base.connect
+
+            try:
+                role_allow, role_deny = channel.overwrites[member_or_role].pair()
+                base.handle_overwrite(allow=role_allow.value, deny=role_deny.value)
+            except KeyError:
+                pass
+
+            return base.connect
+
+        member_roles = member_or_role.roles
+
+        # Apply guild roles that the member has.
+        for role in member_roles:
+            base.value |= role.permissions.value
+
+        # Guild-wide Administrator -> True for everything
+        # Bypass all channel-specific overrides
+        if base.administrator:
+            return True
+
+        # Apply @everyone allow/deny first since it's special
+        try:
+            default_allow, default_deny = channel.overwrites[default_role].pair()
+            base.handle_overwrite(allow=default_allow.value, deny=default_deny.value)
+        except KeyError:
+            pass
+
+        allows = 0
+        denies = 0
+
+        # Apply channel specific role permission overwrites
+        for role, overwrite in channel.overwrites.items():
+            if (
+                isinstance(role, discord.Role)
+                and role != default_role
+                and role in member_roles
+            ):
+                allows |= overwrite.pair()[0].value
+                denies |= overwrite.pair()[1].value
+
+        base.handle_overwrite(allow=allows, deny=denies)
+
+        # Apply member specific permission overwrites
+        try:
+            member_allow, member_deny = channel.overwrites[member_or_role].pair()
+            base.handle_overwrite(allow=member_allow.value, deny=member_deny.value)
+        except KeyError:
+            pass
+
+        # Once 2.0 comes out
+        # if member_or_role.is_timed_out():
+        #     # Timeout leads to every permission except VIEW_CHANNEL and READ_MESSAGE_HISTORY
+        #     # being explicitly denied
+        #     return False
+
+        return base.connect
 
     def get_member_roles(self, autoroom_source: discord.VoiceChannel):
         """Get member roles set on an AutoRoom Source."""
         member_roles = []
-        # If @everyone is allowed to view and connect to the source channel, there are no member roles
+        # If @everyone is allowed to connect to the source channel, there are no member roles
         if not self.check_if_member_or_role_allowed(
             autoroom_source,
             autoroom_source.guild.default_role,
-            check_guild_role_perms=True,
         ):
             # If it isn't allowed, then member roles are being used
             for role, overwrite in autoroom_source.overwrites.items():

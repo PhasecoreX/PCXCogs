@@ -288,7 +288,7 @@ class AutoRoomCommands(MixinMeta, ABC):
             ) and member_or_role in await self.get_bot_roles(ctx.guild):
                 pass
             # Allow a specific user
-            # - check if they have "connect" and "view" perm in the source channel
+            # - check if they have "connect" perm in the source channel
             # - works for both deny everyone with allowed roles/users, and allow everyone with denied roles/users
             # Allow a specific role
             # - Make sure that the role isn't specifically denied on the source channel

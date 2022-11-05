@@ -71,7 +71,6 @@ class MixinMeta(ABC):
     def check_if_member_or_role_allowed(
         channel: discord.VoiceChannel,
         member_or_role: Union[discord.Member, discord.Role],
-        check_guild_role_perms: bool = False,
     ):
         raise NotImplementedError()
 
