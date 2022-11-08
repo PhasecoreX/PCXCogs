@@ -665,37 +665,41 @@ class BanCheck(commands.Cog):
                 service_class().lookup
             except AttributeError:
                 continue  # This service does not support lookup
-            response = await service_class().lookup(member_id, api_key)
-            checked.append(response.service)
 
-            if response.result == "ban":
-                banned_services[response.service] = response.reason
-                if do_ban and autoban:
-                    auto_banned = True
+            responses = await service_class().lookup(member_id, api_key)
+            if not isinstance(responses, list):
+                responses = [responses]
+            for response in responses:
+                checked.append(response.service)
 
-                proof = " (No proof provided)"
-                if response.proof_url:
-                    proof = f" ([proof]({response.proof_url}))"
+                if response.result == "ban":
+                    banned_services[response.service] = response.reason
+                    if do_ban and autoban:
+                        auto_banned = True
 
-                description += error(
-                    f"**{response.service}:** {response.reason}{proof}\n"
-                )
+                    proof = " (No proof provided)"
+                    if response.proof_url:
+                        proof = f" ([proof]({response.proof_url}))"
 
-            elif response.result == "clear":
-                description += checkmark(f"**{response.service}:** No ban found\n")
+                    description += error(
+                        f"**{response.service}:** {response.reason}{proof}\n"
+                    )
 
-            elif response.result == "error":
-                is_error = True
-                description += warning(
-                    f"**{response.service}:** Error - {response.reason if response.reason else 'No reason given'}\n"
-                )
+                elif response.result == "clear":
+                    description += checkmark(f"**{response.service}:** No ban found\n")
 
-            else:
-                is_error = True
-                description += warning(
-                    f"**{response.service}:** Fatal Error - "
-                    f"You should probably let PhasecoreX know about this -> `{response.result}`.\n"
-                )
+                elif response.result == "error":
+                    is_error = True
+                    description += warning(
+                        f"**{response.service}:** Error - {response.reason if response.reason else 'No reason given'}\n"
+                    )
+
+                else:
+                    is_error = True
+                    description += warning(
+                        f"**{response.service}:** Fatal Error - "
+                        f"You should probably let PhasecoreX know about this -> `{response.result}`.\n"
+                    )
 
         # Display result
         if banned_services:
