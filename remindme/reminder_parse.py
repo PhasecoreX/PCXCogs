@@ -25,26 +25,29 @@ class ReminderParser:
             CaselessLiteral("years") | CaselessLiteral("year") | CaselessLiteral("y")
         )
         years = (
-            Word(nums).setParseAction(lambda s, l, t: [int(t[0])])("years") + unit_years
+            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])("years")
+            + unit_years
         )
         unit_months = (
             CaselessLiteral("months") | CaselessLiteral("month") | CaselessLiteral("mo")
         )
         months = (
-            Word(nums).setParseAction(lambda s, l, t: [int(t[0])])("months")
+            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])("months")
             + unit_months
         )
         unit_weeks = (
             CaselessLiteral("weeks") | CaselessLiteral("week") | CaselessLiteral("w")
         )
         weeks = (
-            Word(nums).setParseAction(lambda s, l, t: [int(t[0])])("weeks") + unit_weeks
+            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])("weeks")
+            + unit_weeks
         )
         unit_days = (
             CaselessLiteral("days") | CaselessLiteral("day") | CaselessLiteral("d")
         )
         days = (
-            Word(nums).setParseAction(lambda s, l, t: [int(t[0])])("days") + unit_days
+            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])("days")
+            + unit_days
         )
         unit_hours = (
             CaselessLiteral("hours")
@@ -54,7 +57,8 @@ class ReminderParser:
             | CaselessLiteral("h")
         )
         hours = (
-            Word(nums).setParseAction(lambda s, l, t: [int(t[0])])("hours") + unit_hours
+            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])("hours")
+            + unit_hours
         )
         unit_minutes = (
             CaselessLiteral("minutes")
@@ -64,7 +68,9 @@ class ReminderParser:
             | CaselessLiteral("m")
         )
         minutes = (
-            Word(nums).setParseAction(lambda s, l, t: [int(t[0])])("minutes")
+            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])(
+                "minutes"
+            )
             + unit_minutes
         )
         unit_seconds = (
@@ -75,7 +81,9 @@ class ReminderParser:
             | CaselessLiteral("s")
         )
         seconds = (
-            Word(nums).setParseAction(lambda s, l, t: [int(t[0])])("seconds")
+            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])(
+                "seconds"
+            )
             + unit_seconds
         )
 
