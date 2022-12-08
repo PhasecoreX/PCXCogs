@@ -7,7 +7,7 @@ from redbot.core import Config, checks, commands
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import box, error, warning
 
-from .pcx_lib import checkmark, delete
+from .pcx_lib import checkmark, delete, message_splitter
 
 
 class ReactChannel(commands.Cog):
@@ -272,7 +272,7 @@ class ReactChannel(commands.Cog):
         if not message:
             message = " None"
         message = "**ReactChannels configured:**\n" + message
-        await ctx.send(message)
+        await message_splitter(message, ctx)
 
     @reactchannelset.group()
     async def enable(self, ctx: commands.Context):
