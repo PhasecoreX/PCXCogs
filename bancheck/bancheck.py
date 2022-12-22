@@ -6,6 +6,7 @@ from redbot.core import Config, checks, commands
 from redbot.core.utils.chat_formatting import error, info, warning
 
 from .pcx_lib import checkmark, delete
+from .services.antiraid import Antiraid
 from .services.ksoftsi import KSoftSi
 from .services.ravy import Ravy
 
@@ -22,7 +23,7 @@ class BanCheck(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "2.4.0"
+    __version__ = "2.5.0"
 
     default_global_settings = {"schema_version": 0, "total_bans": 0}
     default_guild_settings: Any = {
@@ -30,7 +31,7 @@ class BanCheck(commands.Cog):
         "total_bans": 0,
         "services": {},
     }
-    supported_global_services = {"ksoftsi": KSoftSi, "ravy": Ravy}
+    supported_global_services = {"antiraid": Antiraid, "ksoftsi": KSoftSi, "ravy": Ravy}
     supported_guild_services = {}
     all_supported_services = {**supported_global_services, **supported_guild_services}
 
@@ -157,12 +158,17 @@ class BanCheck(commands.Cog):
         )
         enabled_services = ""
         disabled_services = ""
-        for service_name in self.supported_global_services:
+        for service_name, service_class in self.supported_global_services.items():
             if await self.get_api_key(service_name):
                 enabled_services += (
                     f"{await self.format_service_name_url(service_name)}\n"
                 )
             else:
+                try:
+                    if service_class().HIDDEN:
+                        continue
+                except AttributeError:
+                    pass  # This service is not hidden
                 disabled_services += (
                     f"{await self.format_service_name_url(service_name, True)}\n"
                 )
@@ -363,7 +369,7 @@ class BanCheck(commands.Cog):
         disabled_services = ""
         disabled_services_api = ""
         disabled_services_global_api = ""
-        for service_name in self.all_supported_services:
+        for service_name, service_class in self.all_supported_services.items():
             api_key = await self.get_api_key(service_name, config_services)
             enabled = config_services.get(service_name, {}).get("enabled", False)
             show_help = service_name in self.supported_guild_services and not api_key
@@ -378,10 +384,16 @@ class BanCheck(commands.Cog):
                 enabled_services_api += service_name_formatted
             elif api_key:
                 disabled_services += service_name_formatted
-            elif service_name in self.supported_global_services:
-                disabled_services_global_api += service_name_formatted
             else:
-                disabled_services_api += service_name_formatted
+                try:
+                    if service_class().HIDDEN:
+                        continue
+                except AttributeError:
+                    pass  # This service is not hidden
+                if service_name in self.supported_global_services:
+                    disabled_services_global_api += service_name_formatted
+                else:
+                    disabled_services_api += service_name_formatted
         if enabled_services:
             embed.add_field(
                 name=checkmark("Enabled Services"), value=enabled_services, inline=False

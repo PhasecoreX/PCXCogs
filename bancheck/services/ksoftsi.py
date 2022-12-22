@@ -17,6 +17,7 @@ class KSoftSi:
     SERVICE_URL = "https://ravy.org/api"
     SERVICE_HINT = "You can't get this API key anymore, use Ravy instead."
     BASE_URL = "https://ravy.org/api/v1/ksoft/bans"
+    HIDDEN = True
 
     @staticmethod
     async def lookup(user_id: int, api_key: str):
