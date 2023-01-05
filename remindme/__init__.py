@@ -14,4 +14,6 @@ async def setup(bot: Red) -> None:
     """Load RemindMe cog."""
     cog = RemindMe(bot)
     await cog.initialize()
-    bot.add_cog(cog)
+    r = bot.add_cog(cog)
+    if r is not None:
+        await r
