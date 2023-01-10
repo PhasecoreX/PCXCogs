@@ -14,4 +14,4 @@ async def setup(bot: Red) -> None:
     """Load ReactChannel cog."""
     cog = ReactChannel(bot)
     await cog.initialize()
-    bot.add_cog(cog)
+    await bot.add_cog(cog)

@@ -1,6 +1,6 @@
 """NetSpeed cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
-import concurrent
+from concurrent.futures import ThreadPoolExecutor
 
 import discord
 import speedtest
@@ -36,19 +36,25 @@ class NetSpeed(commands.Cog):
     @checks.is_owner()
     async def netspeed(self, ctx):
         """Test the internet speed of the server your bot is hosted on."""
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         loop = asyncio.get_event_loop()
         speed_test = speedtest.Speedtest(secure=True)
         the_embed = await ctx.send(
             embed=self.generate_embed(0, speed_test.results.dict())
         )
-        await loop.run_in_executor(executor, speed_test.get_servers)
-        await loop.run_in_executor(executor, speed_test.get_best_server)
-        await the_embed.edit(embed=self.generate_embed(1, speed_test.results.dict()))
-        await loop.run_in_executor(executor, speed_test.download)
-        await the_embed.edit(embed=self.generate_embed(2, speed_test.results.dict()))
-        await loop.run_in_executor(executor, speed_test.upload)
-        await the_embed.edit(embed=self.generate_embed(3, speed_test.results.dict()))
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            await loop.run_in_executor(executor, speed_test.get_servers)
+            await loop.run_in_executor(executor, speed_test.get_best_server)
+            await the_embed.edit(
+                embed=self.generate_embed(1, speed_test.results.dict())
+            )
+            await loop.run_in_executor(executor, speed_test.download)
+            await the_embed.edit(
+                embed=self.generate_embed(2, speed_test.results.dict())
+            )
+            await loop.run_in_executor(executor, speed_test.upload)
+            await the_embed.edit(
+                embed=self.generate_embed(3, speed_test.results.dict())
+            )
 
     @staticmethod
     def generate_embed(step: int, results_dict):

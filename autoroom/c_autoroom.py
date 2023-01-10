@@ -76,7 +76,8 @@ class AutoRoomCommands(MixinMeta, ABC):
         room_settings.add(
             "Channel Age",
             humanize_timedelta(
-                timedelta=datetime.datetime.utcnow() - autoroom_channel.created_at
+                timedelta=datetime.datetime.now(datetime.timezone.utc)
+                - autoroom_channel.created_at
             ),
         )
 

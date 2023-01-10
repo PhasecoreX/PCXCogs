@@ -65,9 +65,9 @@ class UwU(commands.Cog):
                 except (discord.Forbidden, discord.NotFound, discord.HTTPException):
                     pass
             if not text:
-                text = (await ctx.channel.history(limit=2).flatten())[
-                    1
-                ].content or "I can't translate that!"
+                messages = [message async for message in ctx.channel.history(limit=2)]
+                # [0] is the command, [1] is the message before the command
+                text = messages[1].content or "I can't translate that!"
         await type_message(
             ctx.channel,
             self.uwuize_string(text),

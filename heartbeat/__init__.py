@@ -14,4 +14,4 @@ async def setup(bot: Red) -> None:
     """Load Heartbeat cog."""
     cog = Heartbeat(bot)
     await cog.initialize()
-    bot.add_cog(cog)
+    await bot.add_cog(cog)

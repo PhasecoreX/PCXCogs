@@ -236,11 +236,8 @@ class BanCheck(commands.Cog):
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
         embed = discord.Embed(title="BanCheck Settings", color=await ctx.embed_color())
-        embed.set_thumbnail(
-            url=ctx.guild.icon_url
-            if ctx.guild.icon_url
-            else "https://cdn.discordapp.com/embed/avatars/1.png"
-        )
+        if ctx.guild.icon:
+            embed.set_thumbnail(url=ctx.guild.icon.url)
         total_bans = await self.config.guild(ctx.guild).total_bans()
         users = "user" if total_bans == 1 else "users"
         embed.set_footer(
@@ -357,11 +354,8 @@ class BanCheck(commands.Cog):
             title="BanCheck Service Settings",
             color=await ctx.embed_color(),
         )
-        embed.set_thumbnail(
-            url=ctx.guild.icon_url
-            if ctx.guild.icon_url
-            else "https://cdn.discordapp.com/embed/avatars/1.png"
-        )
+        if ctx.guild.icon:
+            embed.set_thumbnail(url=ctx.guild.icon.url)
         config_services = await self.config.guild(ctx.guild).services()
         enabled_services = ""
         enabled_services_api = ""
@@ -593,7 +587,7 @@ class BanCheck(commands.Cog):
                 None,
                 discord.Colour.green(),
                 "\N{WHITE HEAVY CHECK MARK} **I will send all AutoCheck notifications here.**",
-                self.bot.user.avatar_url,
+                self.bot.user.display_avatar.url,
             ),
         ):
             await self.config.guild(ctx.guild).notify_channel.set(channel.id)
@@ -656,7 +650,7 @@ class BanCheck(commands.Cog):
         if isinstance(member, discord.Member):
             description = f"**Name:** {member.name}\n**ID:** {member.id}\n\n"
             member_id = member.id
-            member_avatar_url = member.avatar_url
+            member_avatar_url = member.display_avatar.url
         else:
             description = f"**ID:** {member}\n\n"
             member_id = member

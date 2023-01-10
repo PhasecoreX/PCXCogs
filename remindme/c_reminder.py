@@ -66,7 +66,7 @@ class ReminderCommands(MixinMeta, ABC):
             title=f"Reminders for {author.display_name}",
             color=await ctx.embed_color(),
         )
-        embed.set_thumbnail(url=author.avatar_url)
+        embed.set_thumbnail(url=author.display_avatar.url)
         for reminder in user_reminders:  # TODO make this look nicer.
             reminder_title = (
                 f"ID# {reminder['user_reminder_id']} — <t:{reminder['expires']}:f>"

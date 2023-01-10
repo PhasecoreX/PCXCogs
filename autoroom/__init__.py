@@ -14,4 +14,4 @@ async def setup(bot: Red) -> None:
     """Load AutoRoom cog."""
     cog = AutoRoom(bot)
     await cog.initialize()
-    bot.add_cog(cog)
+    await bot.add_cog(cog)
