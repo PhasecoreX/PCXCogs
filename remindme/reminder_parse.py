@@ -18,7 +18,7 @@ __author__ = "PhasecoreX"
 
 
 class ReminderParser:
-    def __init__(self):
+    def __init__(self) -> None:
         ParserElement.enablePackrat()
 
         unit_years = (

@@ -32,7 +32,7 @@ class UpdateNotify(commands.Cog):
         "pcx_docker_feature_only": False,
     }
 
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         """Set up the cog."""
         super().__init__()
         self.bot = bot

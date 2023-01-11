@@ -1,2 +1,7 @@
+[tool.ruff]
+select = ["ALL"]
+ignore = ["E501", "D415", "T20", "PLR1722", "ERA001", "ANN101", "D203", "D213"]
+target-version = "py39"
+
 [tool.isort]
 profile = "black"

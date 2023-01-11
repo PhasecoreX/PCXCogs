@@ -51,7 +51,7 @@ class RemindMe(
     }
     SEND_DELAY_SECONDS = 30
 
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         """Set up the cog."""
         super().__init__()
         self.bot = bot
@@ -460,20 +460,21 @@ class RemindMe(
                 f"Every {self.humanize_relativedelta(full_reminder['repeat'])}:"
             )
         else:
-            if delay:
-                time_ago = self.humanize_relativedelta(
+            time_ago = (
+                self.humanize_relativedelta(
                     relativedelta(
                         current_time,
                         datetime.fromtimestamp(full_reminder["created"], timezone.utc),
                     )
                 )
-            else:
-                time_ago = self.humanize_relativedelta(
+                if delay
+                else self.humanize_relativedelta(
                     relativedelta(
                         datetime.fromtimestamp(full_reminder["expires"], timezone.utc),
                         datetime.fromtimestamp(full_reminder["created"], timezone.utc),
                     )
                 )
+            )
             field_value = f"From {time_ago} ago:"
         # Field value - reminder text
         field_value += f"\n\n{full_reminder['text']}"

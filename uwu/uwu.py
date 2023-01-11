@@ -23,7 +23,7 @@ class UwU(commands.Cog):
         " xD",
     ]
     KAOMOJI_EMBARRASSED = [
-        " (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)..",
+        " (/ />/ ▽ /</ /)..",
         " (\\*^.^\\*)..,",
         "..,",
         ",,,",

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Set, Union
+from typing import Optional, Union
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -16,8 +16,8 @@ class MixinMeta(ABC):
 
     config: Config
     reminder_parser: ReminderParser
-    me_too_reminders: Dict[int, dict]
-    clicked_me_too_reminder: Dict[int, Set[int]]
+    me_too_reminders: dict[int, dict]
+    clicked_me_too_reminder: dict[int, set[int]]
     reminder_emoji: str
 
     @staticmethod

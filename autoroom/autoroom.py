@@ -4,6 +4,7 @@ from typing import Optional, Union
 
 import discord
 from redbot.core import Config, commands
+from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import humanize_timedelta
 
 from .c_autoroom import AutoRoomCommands
@@ -68,7 +69,7 @@ class AutoRoom(
     }
     perms_bot_dest = {**perms_autoroom_owner, "move_members": True}
 
-    def __init__(self, bot):
+    def __init__(self, bot: Red) -> None:
         """Set up the cog."""
         super().__init__()
         self.bot = bot
@@ -102,9 +103,7 @@ class AutoRoom(
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(
-        self, **kwargs
-    ):  # pylint: disable=unused-argument
+    async def red_delete_data_for_user(self, **kwargs) -> None:
         """Nothing to delete."""
         return
 
@@ -112,19 +111,19 @@ class AutoRoom(
     # Initialization methods
     #
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Perform setup actions before loading cog."""
         await self._migrate_config()
         self.bot.loop.create_task(self._cleanup_autorooms())
 
-    async def _migrate_config(self):
+    async def _migrate_config(self) -> None:
         """Perform some configuration migrations."""
         schema_version = await self.config.schema_version()
 
         if schema_version < 1:
             # Migrate private -> room_type
             guild_dict = await self.config.all_guilds()
-            for guild_id in guild_dict.keys():
+            for guild_id in guild_dict:
                 avcs = await self.config.guild_from_id(guild_id).get_raw(
                     "auto_voice_channels", default={}
                 )
@@ -143,14 +142,14 @@ class AutoRoom(
         if schema_version < 2:
             # Migrate member_role -> per auto_voice_channel member_roles
             guild_dict = await self.config.all_guilds()
-            for guild_id in guild_dict.keys():
+            for guild_id in guild_dict:
                 await self.config.guild_from_id(guild_id).clear_raw("member_role")
             await self.config.schema_version.set(2)
 
         if schema_version < 4:
             # Migrate to AUTOROOM_SOURCE custom config group
             guild_dict = await self.config.all_guilds()
-            for guild_id in guild_dict.keys():
+            for guild_id in guild_dict:
                 avcs = await self.config.guild_from_id(guild_id).get_raw(
                     "auto_voice_channels", default={}
                 )
@@ -232,10 +231,7 @@ class AutoRoom(
             # Remove member roles
             all_autoroom_sources = await self.config.custom("AUTOROOM_SOURCE").all()
             for guild_id, guild_autoroom_sources in all_autoroom_sources.items():
-                for (
-                    avc_id,
-                    autoroom_source_config,
-                ) in guild_autoroom_sources.items():
+                for avc_id in guild_autoroom_sources:
                     await self.config.custom(
                         "AUTOROOM_SOURCE", guild_id, avc_id
                     ).clear_raw("member_roles")
@@ -244,21 +240,18 @@ class AutoRoom(
         if schema_version < 7:
             # Remove auto text channels
             guild_dict = await self.config.all_guilds()
-            for guild_id in guild_dict.keys():
+            for guild_id in guild_dict:
                 await self.config.guild_from_id(guild_id).clear_raw("admin_access_text")
                 await self.config.guild_from_id(guild_id).clear_raw("mod_access_text")
             all_autoroom_sources = await self.config.custom("AUTOROOM_SOURCE").all()
             for guild_id, guild_autoroom_sources in all_autoroom_sources.items():
-                for (
-                    avc_id,
-                    autoroom_source_config,
-                ) in guild_autoroom_sources.items():
+                for avc_id in guild_autoroom_sources:
                     await self.config.custom(
                         "AUTOROOM_SOURCE", guild_id, avc_id
                     ).clear_raw("text_channel")
             await self.config.schema_version.set(7)
 
-    async def _cleanup_autorooms(self):
+    async def _cleanup_autorooms(self) -> None:
         """Remove non-existent AutoRooms from the config."""
         await self.bot.wait_until_ready()
         voice_channel_dict = await self.config.all_channels()
@@ -289,7 +282,9 @@ class AutoRoom(
     #
 
     @commands.Cog.listener()
-    async def on_guild_channel_delete(self, guild_channel: discord.abc.GuildChannel):
+    async def on_guild_channel_delete(
+        self, guild_channel: discord.abc.GuildChannel
+    ) -> None:
         """Clean up config when an AutoRoom (or Source) is deleted (either by the bot or the user)."""
         if not isinstance(guild_channel, discord.VoiceChannel):
             return
@@ -318,17 +313,24 @@ class AutoRoom(
             await self.config.channel(guild_channel).clear()
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member, leaving, joining):
+    async def on_voice_state_update(
+        self,
+        member: discord.Member,
+        leaving: discord.VoiceState,
+        joining: discord.VoiceState,
+    ) -> None:
         """Do voice channel stuff when users move about channels."""
         if await self.bot.cog_disabled_in_guild(self, member.guild):
             return
         # If user left an AutoRoom, do cleanup
-        if await self.get_autoroom_info(leaving.channel):
-            await self._process_autoroom_delete(leaving.channel)
+        if isinstance(leaving.channel, discord.VoiceChannel):
+            if await self.get_autoroom_info(leaving.channel):
+                await self._process_autoroom_delete(leaving.channel)
         # If user entered an AutoRoom Source channel, create new AutoRoom
-        asc = await self.get_autoroom_source_config(joining.channel)
-        if asc:
-            await self._process_autoroom_create(joining.channel, asc, member)
+        if isinstance(joining.channel, discord.VoiceChannel):
+            asc = await self.get_autoroom_source_config(joining.channel)
+            if asc:
+                await self._process_autoroom_create(joining.channel, asc, member)
 
     #
     # Private methods
@@ -336,7 +338,7 @@ class AutoRoom(
 
     async def _process_autoroom_create(
         self, autoroom_source, autoroom_source_config, member
-    ):
+    ) -> None:
         """Create a voice channel for a member in an AutoRoom Source channel."""
         # Check perms for guild, source, and dest
         guild = autoroom_source.guild
@@ -473,7 +475,7 @@ class AutoRoom(
         #         pass  # User manually screwed with the template
 
     @staticmethod
-    async def _process_autoroom_delete(voice_channel: discord.VoiceChannel):
+    async def _process_autoroom_delete(voice_channel: discord.VoiceChannel) -> None:
         """Delete AutoRoom if empty."""
         if (
             not voice_channel.members
@@ -489,7 +491,7 @@ class AutoRoom(
         autoroom_source_config: dict,
         member: discord.Member,
         taken_channel_names: list,
-    ):
+    ) -> str:
         """Return a channel name with an incrementing number appended to it, based on a formatting string."""
         template = None
         if autoroom_source_config["channel_name_type"] in channel_name_template:
@@ -529,7 +531,9 @@ class AutoRoom(
     #
 
     @staticmethod
-    def get_template_data(member: Union[discord.Member, discord.User]):
+    def get_template_data(
+        member: Union[discord.Member, discord.User]
+    ) -> dict[str, str]:
         """Return a dict of template data based on a member."""
         data = {"username": member.display_name}
         if isinstance(member, discord.Member):
@@ -539,7 +543,7 @@ class AutoRoom(
                     break
         return data
 
-    def format_template_room_name(self, template: str, data: dict, num: int = 1):
+    def format_template_room_name(self, template: str, data: dict, num: int = 1) -> str:
         """Return a formatted channel name, taking into account the 100 character channel name limit."""
         nums = {"dupenum": num}
         return self.template.render(
@@ -547,7 +551,9 @@ class AutoRoom(
             data={**nums, **data},
         )[:100].strip()
 
-    async def is_admin_or_admin_role(self, who: Union[discord.Role, discord.Member]):
+    async def is_admin_or_admin_role(
+        self, who: Union[discord.Role, discord.Member]
+    ) -> bool:
         """Check if a member (or role) is an admin (role).
 
         Also takes into account if the setting is enabled.
@@ -559,7 +565,9 @@ class AutoRoom(
                 return await self.bot.is_admin(who)
         return False
 
-    async def is_mod_or_mod_role(self, who: Union[discord.Role, discord.Member]):
+    async def is_mod_or_mod_role(
+        self, who: Union[discord.Role, discord.Member]
+    ) -> bool:
         """Check if a member (or role) is a mod (role).
 
         Also takes into account if the setting is enabled.
@@ -611,8 +619,7 @@ class AutoRoom(
         if not detailed:
             if split_required_optional_check:
                 return result_required, result_optional
-            else:
-                return result
+            return result
 
         source_section = SettingDisplay("Required on Source Voice Channel")
         for perm_name in self.perms_bot_source:
@@ -694,7 +701,7 @@ class AutoRoom(
         configs = await self.config.custom(
             "AUTOROOM_SOURCE", str(guild.id)
         ).all()  # Does NOT return default values
-        for channel_id in configs.keys():
+        for channel_id in configs:
             channel = guild.get_channel(int(channel_id))
             if not isinstance(channel, discord.VoiceChannel):
                 continue

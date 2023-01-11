@@ -1,7 +1,7 @@
 """The autoroom command."""
 import datetime
 from abc import ABC
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 import discord
 from redbot.core import commands
@@ -88,7 +88,7 @@ class AutoRoomCommands(MixinMeta, ABC):
         allowed_roles = []
         denied_members = []
         denied_roles = []
-        for member_or_role in autoroom_channel.overwrites.keys():
+        for member_or_role in autoroom_channel.overwrites:
             if isinstance(member_or_role, discord.Role):
                 if self.check_if_member_or_role_allowed(
                     autoroom_channel, member_or_role
@@ -248,7 +248,7 @@ class AutoRoomCommands(MixinMeta, ABC):
     async def _process_allow_deny(
         self,
         ctx: commands.Context,
-        perm_overwrite: Dict[str, bool],
+        perm_overwrite: dict[str, bool],
         *,
         member_or_role: Optional[Union[discord.Role, discord.Member]] = None,
     ) -> bool:
@@ -358,7 +358,7 @@ class AutoRoomCommands(MixinMeta, ABC):
 
         perms = Perms(dict(autoroom_channel.overwrites))
         for target in to_modify:
-            if isinstance(target, discord.Member) or isinstance(target, discord.Role):
+            if isinstance(target, (discord.Member, discord.Role)):
                 perms.update(target, perm_overwrite)
         if perms.modified:
             await autoroom_channel.edit(

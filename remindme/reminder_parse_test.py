@@ -16,7 +16,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "reminder!",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_og_long(self):
         reminder = "1y2mo3w4d5h6m7s reminder!"
@@ -33,7 +33,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "reminder!",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_in_og_long(self):
         reminder = "in 1y2mo3w4d5h6m7s reminder!"
@@ -50,7 +50,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "reminder!",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_in_english(self):
         reminder = "in 1 year, 2 months, 3 weeks, 4 days, 5 hours, 6 minutes, and 7 seconds reminder!"
@@ -67,7 +67,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "reminder!",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_in_broken_english(self):
         reminder = "in 1year2 mo, 3w4 day5hour6 mins       , and 7 s reminder!"
@@ -84,7 +84,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "reminder!",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_optional_to(self):
         reminder = "to eat in 3 hours"
@@ -95,7 +95,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "eat",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_only_in(self):
         reminder = "in 1 year"
@@ -106,7 +106,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_only_every(self):
         reminder = "every 1 year"
@@ -117,7 +117,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_in_every(self):
         reminder = "2w every 1 year"
@@ -131,7 +131,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_every_in(self):
         reminder = "every 1 year in 3 weeks"
@@ -145,7 +145,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_in_text(self):
         reminder = "in 3 weeks to keep coding"
@@ -156,7 +156,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "keep coding",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_text_in(self):
         reminder = "to keep coding in 2 hours"
@@ -167,7 +167,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "keep coding",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_every_text(self):
         reminder = "every 3 weeks to keep coding"
@@ -178,7 +178,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "keep coding",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_text_every(self):
         reminder = "to keep coding every 2 hours"
@@ -189,7 +189,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "keep coding",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_in_every_text(self):
         reminder = "2w every 1 year to write more code"
@@ -203,7 +203,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "write more code",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_every_in_text(self):
         reminder = "every 1 year in 3 weeks to write more code"
@@ -217,7 +217,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "write more code",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_in_text_every(self):
         reminder = "12 hrs write more code every 1 month"
@@ -231,7 +231,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "write more code",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_every_text_in(self):
         reminder = "every 1 month to write more code in 4 hours"
@@ -245,7 +245,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "write more code",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_text_in_every(self):
         reminder = "to write more unit tests in 8 days and 1 month every 1 week"
@@ -260,7 +260,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "write more unit tests",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_text_every_in(self):
         reminder = "to write more unit tests every 1 week 3 days in 2 months and 1 day"
@@ -276,7 +276,7 @@ class TestCases(unittest.TestCase):
             },
             "text": "write more unit tests",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
 
 # Run unit tests from command line

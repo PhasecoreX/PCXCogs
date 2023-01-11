@@ -1,6 +1,6 @@
 """Shared code across multiple cogs."""
 import asyncio
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, Mapping, Optional, Union
 
 import discord
 from redbot.core import __version__ as redbot_version
@@ -77,7 +77,7 @@ async def type_message(
 
 async def message_splitter(
     message: str, destination: Optional[discord.abc.Messageable] = None
-) -> List[str]:
+) -> list[str]:
     """Take a message string and split it so that each message in the resulting list is no greater than 1900.
 
     Splits on double newlines (\n\n), and if there are none, just trims the strings down to 1900.
@@ -90,7 +90,7 @@ async def message_splitter(
             await destination.send(message)
         return [message]
 
-    split_messages: List[str] = []
+    split_messages: list[str] = []
     message_buffer = ""
     for message_chunk in message.split("\n\n"):
         test_message = (message_buffer + "\n\n" + message_chunk).strip()
@@ -113,7 +113,7 @@ async def message_splitter(
 
 async def embed_splitter(
     embed: discord.Embed, destination: Optional[discord.abc.Messageable] = None
-) -> List[discord.Embed]:
+) -> list[discord.Embed]:
     """Take an embed and split it so that each embed has at most 20 fields and a length of 5900.
 
     Each field value will also be checked to have a length no greater than 1024.
@@ -141,7 +141,7 @@ async def embed_splitter(
         return [embed]
 
     # Nah, we're really doing this
-    split_embeds: List[discord.Embed] = []
+    split_embeds: list[discord.Embed] = []
     fields = embed_dict["fields"] if "fields" in embed_dict else []
     embed_dict["fields"] = []
 
@@ -166,11 +166,11 @@ async def embed_splitter(
 class SettingDisplay:
     """A formatted list of settings."""
 
-    def __init__(self, header: Optional[str] = None):
+    def __init__(self, header: Optional[str] = None) -> None:
         """Init."""
         self.header = header
         self._length = 0
-        self._settings: List[Tuple] = []
+        self._settings: list[tuple] = []
 
     def add(self, setting: str, value):
         """Add a setting."""
@@ -210,12 +210,12 @@ class Perms:
     def __init__(
         self,
         overwrites: Optional[
-            Dict[
+            dict[
                 Union[discord.Role, discord.Member, discord.Object],
                 discord.PermissionOverwrite,
             ]
         ] = None,
-    ):
+    ) -> None:
         """Init."""
         self.__overwrites = {}
         self.__original = {}

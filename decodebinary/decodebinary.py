@@ -24,7 +24,7 @@ class DecodeBinary(commands.Cog):
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {"ignored_channels": []}
 
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         """Set up the cog."""
         super().__init__()
         self.bot = bot

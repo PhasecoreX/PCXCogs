@@ -21,7 +21,7 @@ class Dice(commands.Cog):
     EXPLODED_RE = re.compile(r"\*(\d+)\*")
     DROPPED_RE = re.compile(r"-(\d+)-")
 
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         """Set up the cog."""
         super().__init__()
         self.bot = bot
@@ -69,7 +69,9 @@ class Dice(commands.Cog):
         """Set the maximum number of dice a user can roll at one time.
 
         More formally, the maximum number of random numbers the bot will generate for any one dice calculation.
-        WARNING:
+
+        Warning:
+        -------
         Setting this too high will allow other users to slow down/freeze/crash your bot!
         Generating random numbers is easily the most CPU consuming process here,
         so keep this number low (less than one million, and way less than that on a Pi)

@@ -1,5 +1,5 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import discord
 from redbot.core import Config, checks, commands
@@ -35,7 +35,7 @@ class BanCheck(commands.Cog):
     supported_guild_services = {}
     all_supported_services = {**supported_global_services, **supported_guild_services}
 
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         """Set up the cog."""
         super().__init__()
         self.bot = bot
@@ -674,11 +674,11 @@ class BanCheck(commands.Cog):
     ):
         """Perform user lookup and return results embed. Optionally ban user too."""
         config_services = await self.config.guild(guild).services()
-        banned_services: Dict[str, str] = {}
+        banned_services: dict[str, str] = {}
         auto_banned = False
         is_error = False
         checked = []
-        if isinstance(member, discord.Member) or isinstance(member, discord.User):
+        if isinstance(member, (discord.Member, discord.User)):
             description = f"**Name:** {member.name}\n**ID:** {member.id}\n\n"
             member_id = member.id
             member_avatar_url = member.display_avatar.url
@@ -864,10 +864,11 @@ class BanCheck(commands.Cog):
         embed: discord.Embed,
     ):
         """Send an embed. If the bot can't send it, complains about permissions."""
-        if isinstance(channel_or_ctx, commands.Context):
-            destination = channel_or_ctx.channel
-        else:
-            destination = channel_or_ctx
+        destination = (
+            channel_or_ctx.channel
+            if isinstance(channel_or_ctx, commands.Context)
+            else channel_or_ctx
+        )
         if (
             hasattr(destination, "guild")
             and destination.guild

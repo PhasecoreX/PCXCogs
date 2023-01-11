@@ -221,7 +221,8 @@ class ReminderCommands(MixinMeta, ABC):
         You can also add `every <repeat_time>` to the command for repeating reminders.
         `<repeat_time>` accepts days and weeks only, but otherwise is the same as `<time>`.
 
-        Examples:
+        Examples
+        --------
         `[p]remindme in 8min45sec to do that thing`
         `[p]remindme to water my plants in 2 hours`
         `[p]remindme in 3 days`

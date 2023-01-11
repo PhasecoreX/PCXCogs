@@ -14,7 +14,7 @@ class LookupResult:
         *,
         reason: Optional[str] = None,
         proof_url: Optional[str] = None,
-    ):
+    ) -> None:
         """Create the base lookup result."""
         self.service = service
         self.result = result

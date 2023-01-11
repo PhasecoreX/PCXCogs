@@ -1,6 +1,6 @@
 """ReactChannel cog for Red-DiscordBot by PhasecoreX."""
 import datetime
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import discord
 from redbot.core import Config, checks, commands
@@ -46,7 +46,7 @@ class ReactChannel(commands.Cog):
     }
     default_member_settings = {"karma": 0, "created_at": 0}
 
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         """Set up the cog."""
         super().__init__()
         self.bot = bot
@@ -98,7 +98,7 @@ class ReactChannel(commands.Cog):
             for guild_id, guild_info in guild_dict.items():
                 channels = guild_info.get("channels", {})
                 if channels:
-                    for channel_id, channel_type in channels.items():
+                    for channel_type in channels.values():
                         if channel_type == "vote":
                             emoji_group = self.config.guild_from_id(guild_id).emojis
                             if isinstance(emoji_group, commands.Group):
@@ -117,7 +117,7 @@ class ReactChannel(commands.Cog):
         if schema_version < 2:
             # Migrate to REACT_CHANNEL custom config group
             guild_dict = await self.config.all_guilds()
-            for guild_id, guild_info in guild_dict.items():
+            for guild_id in guild_dict:
                 channels = await self.config.guild_from_id(guild_id).get_raw(
                     "channels", default={}
                 )
@@ -127,7 +127,7 @@ class ReactChannel(commands.Cog):
                     ).set_raw(
                         value={
                             "channel_type": channel_type,
-                            "ignore_bots": True if channel_type == "vote" else False,
+                            "ignore_bots": channel_type == "vote",
                         }
                     )
                 await self.config.guild_from_id(guild_id).clear_raw("channels")
@@ -1049,7 +1049,7 @@ class ReactChannel(commands.Cog):
                 await member.created_at.set(time)
 
     @staticmethod
-    def _list_roles(guild: discord.Guild, role_ids: List[int]):
+    def _list_roles(guild: discord.Guild, role_ids: list[int]):
         result = ""
         for role_id in role_ids:
             role = guild.get_role(role_id)

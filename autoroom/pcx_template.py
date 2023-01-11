@@ -1,6 +1,6 @@
 """A simple template engine, safe for untrusted user templates."""
 
-from typing import Any, List, Tuple
+from typing import Any
 
 from pyparsing import (
     Keyword,
@@ -20,7 +20,7 @@ __author__ = "PhasecoreX"
 
 
 class Template:
-    def __init__(self):
+    def __init__(self) -> None:
         ParserElement.enablePackrat()
 
         expression_l = Suppress("{{")
@@ -120,7 +120,7 @@ class Template:
         # rhs is now required
         rhs = self._evaluate(condition[2], data)
         if not lhs:
-            if isinstance(rhs, int) or isinstance(rhs, float):
+            if isinstance(rhs, (int, float)):
                 lhs = 0
         if condition[1] == "==":
             return lhs == rhs
@@ -159,10 +159,7 @@ class Template:
         ):
             result = result.rstrip(" \t")
             to_append = to_append.lstrip(" \t")
-            if to_append.startswith("\r\n"):
-                to_append = to_append[2:]
-            else:
-                to_append = to_append[1:]
+            to_append = to_append[2:] if to_append.startswith("\r\n") else to_append[1:]
         return result + to_append
 
     def render(self, template="", data=None):
@@ -170,7 +167,7 @@ class Template:
             data = {}
         result = ""
         current_index = 0
-        stack: List[Tuple[str, Any]] = [("base", True)]
+        stack: list[tuple[str, Any]] = [("base", True)]
         potential_standalone = False
         tokens = self.template_parser.scanString(template)
         for token in tokens:

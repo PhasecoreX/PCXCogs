@@ -32,7 +32,7 @@ class Heartbeat(commands.Cog):
 
     default_global_settings = {"url": "", "frequency": 60}
 
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         """Set up the cog."""
         super().__init__()
         self.bot = bot
@@ -138,7 +138,7 @@ class Heartbeat(commands.Cog):
                     url,
                     headers={"user-agent": user_agent},
                 )
-                return
+                return None
             except (
                 aiohttp.ClientConnectionError,
                 asyncio.TimeoutError,
