@@ -1,5 +1,7 @@
 """A simple template engine, safe for untrusted user templates."""
 
+from typing import Any, List, Tuple
+
 from pyparsing import (
     Keyword,
     Literal,
@@ -168,7 +170,7 @@ class Template:
             data = {}
         result = ""
         current_index = 0
-        stack = [("base", True)]
+        stack: List[Tuple[str, Any]] = [("base", True)]
         potential_standalone = False
         tokens = self.template_parser.scanString(template)
         for token in tokens:

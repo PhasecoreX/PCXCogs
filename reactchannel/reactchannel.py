@@ -100,15 +100,15 @@ class ReactChannel(commands.Cog):
                 if channels:
                     for channel_id, channel_type in channels.items():
                         if channel_type == "vote":
-                            await self.config.guild_from_id(guild_id).emojis.upvote.set(
-                                guild_info.get("upvote", "\ud83d\udd3c")
-                            )
-                            await self.config.guild_from_id(
-                                guild_id
-                            ).emojis.downvote.set(
-                                guild_info.get("downvote", "\ud83d\udd3d")
-                            )
-                            break
+                            emoji_group = self.config.guild_from_id(guild_id).emojis
+                            if isinstance(emoji_group, commands.Group):
+                                await emoji_group.upvote.set(
+                                    guild_info.get("upvote", "\ud83d\udd3c")
+                                )
+                                await emoji_group.downvote.set(
+                                    guild_info.get("downvote", "\ud83d\udd3d")
+                                )
+                                break
                 await self.config.guild_from_id(guild_id).clear_raw("upvote")
                 await self.config.guild_from_id(guild_id).clear_raw("downvote")
             await self.config.clear_raw("version")
@@ -200,6 +200,8 @@ class ReactChannel(commands.Cog):
     @reactchannelset.command()
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
+        if not ctx.guild:
+            return
         message = ""
         channels = await self.config.custom(
             "REACT_CHANNEL", str(ctx.guild.id)
@@ -280,13 +282,15 @@ class ReactChannel(commands.Cog):
 
     @enable.command()
     async def checklist(
-        self, ctx: commands.Context, channel: discord.TextChannel = None
+        self, ctx: commands.Context, channel: Optional[discord.TextChannel] = None
     ):
         """All messages will have a checkmark. Clicking it will delete the message."""
         await self._save_channel(ctx, channel, "checklist")
 
     @enable.command()
-    async def vote(self, ctx: commands.Context, channel: discord.TextChannel = None):
+    async def vote(
+        self, ctx: commands.Context, channel: Optional[discord.TextChannel] = None
+    ):
         """All user messages will have an up and down arrow. Clicking them will affect a user's karma total."""
         await self._save_channel(ctx, channel, "vote")
 
@@ -306,7 +310,10 @@ class ReactChannel(commands.Cog):
     ):
         """Actually save the ReactChannel settings."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
         if isinstance(reaction_template, list):
             emoji_tuple_list = []
             try:
@@ -323,17 +330,17 @@ class ReactChannel(commands.Cog):
                 )
                 return
             await self.config.custom(
-                "REACT_CHANNEL", str(ctx.guild.id), str(channel.id)
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).reaction_template.set(emoji_tuple_list)
 
         else:
             await self.config.custom(
-                "REACT_CHANNEL", str(ctx.guild.id), str(channel.id)
+                "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).reaction_template.set(reaction_template)
             # Make sure we don't react to bots
             if reaction_template == "vote":
                 await self.config.custom(
-                    "REACT_CHANNEL", str(ctx.guild.id), str(channel.id)
+                    "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
                 ).react_to.bots.clear()
 
         custom_emojis = ""
@@ -347,8 +354,8 @@ class ReactChannel(commands.Cog):
         )
         if (
             reaction_template == "vote"
-            and not await self._get_emoji(ctx.guild, "upvote")
-            and not await self._get_emoji(ctx.guild, "downvote")
+            and not await self._get_emoji(channel.guild, "upvote")
+            and not await self._get_emoji(channel.guild, "downvote")
         ):
             await ctx.send(
                 warning(
@@ -359,13 +366,18 @@ class ReactChannel(commands.Cog):
             )
 
     @reactchannelset.command()
-    async def disable(self, ctx: commands.Context, channel: discord.TextChannel = None):
+    async def disable(
+        self, ctx: commands.Context, channel: Optional[discord.TextChannel] = None
+    ):
         """Disable ReactChannel functionality in a channel."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
 
         await self.config.custom(
-            "REACT_CHANNEL", str(ctx.guild.id), str(channel.id)
+            "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).clear()
         await ctx.send(
             checkmark(
@@ -387,7 +399,10 @@ class ReactChannel(commands.Cog):
     ):
         """Toggle reacting to user messages."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
         reaction_template = await self.config.custom(
             "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
@@ -410,7 +425,10 @@ class ReactChannel(commands.Cog):
     async def bots(self, ctx: commands.Context, channel: Optional[discord.TextChannel]):
         """Toggle reacting to other bot messages."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
         reaction_template = await self.config.custom(
             "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
@@ -440,7 +458,10 @@ class ReactChannel(commands.Cog):
     ):
         """Toggle reacting to my own messages."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
         reaction_template = await self.config.custom(
             "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
@@ -460,7 +481,7 @@ class ReactChannel(commands.Cog):
             ).react_to.myself.set(react_to_myself)
             await ctx.send(
                 checkmark(
-                    f"{channel.mention} ReactChannel will {'now' if react_to_myself else 'no longer'} automatically react to my ({ctx.guild.me.display_name}) messages."
+                    f"{channel.mention} ReactChannel will {'now' if react_to_myself else 'no longer'} automatically react to my ({channel.guild.me.display_name}) messages."
                 )
             )
 
@@ -477,7 +498,10 @@ class ReactChannel(commands.Cog):
     ):
         """Add a role to the role filter."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
         reaction_template = await self.config.custom(
             "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
@@ -513,7 +537,10 @@ class ReactChannel(commands.Cog):
     ):
         """Remove a role from the role filter."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
         reaction_template = await self.config.custom(
             "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
@@ -553,7 +580,10 @@ class ReactChannel(commands.Cog):
     ):
         """Toggle between allowing or denying these roles."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
         reaction_template = await self.config.custom(
             "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
@@ -594,7 +624,10 @@ class ReactChannel(commands.Cog):
     async def text(self, ctx: commands.Context, channel: Optional[discord.TextChannel]):
         """Toggle reacting to text-only messages."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
         reaction_template = await self.config.custom(
             "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
@@ -619,7 +652,10 @@ class ReactChannel(commands.Cog):
     ):
         """Toggle reacting to command messages."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
         reaction_template = await self.config.custom(
             "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
@@ -644,7 +680,10 @@ class ReactChannel(commands.Cog):
     ):
         """Toggle reacting to images."""
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.message.channel, discord.TextChannel):
+                channel = ctx.message.channel
+            else:
+                return
         reaction_template = await self.config.custom(
             "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).reaction_template()
@@ -666,6 +705,8 @@ class ReactChannel(commands.Cog):
     @reactchannelset.group()
     async def emoji(self, ctx: commands.Context):
         """Manage emojis used for ReactChannels."""
+        if not ctx.guild:
+            return
         if not ctx.invoked_subcommand:
             upvote = await self._get_emoji(ctx.guild, "upvote")
             downvote = await self._get_emoji(ctx.guild, "downvote")
@@ -674,19 +715,23 @@ class ReactChannel(commands.Cog):
             await ctx.send(message)
 
     @emoji.command(name="upvote")
-    async def set_upvote(self, ctx: commands.Context, emoji: Union[str, int]):
+    async def set_upvote(self, ctx: commands.Context, emoji: Union[discord.Emoji, str]):
         """Set the upvote emoji used. Use "none" to remove the emoji and disable upvotes."""
         await self._save_emoji(ctx, emoji, "upvote")
 
     @emoji.command(name="downvote")
-    async def set_downvote(self, ctx: commands.Context, emoji: Union[str, int]):
+    async def set_downvote(
+        self, ctx: commands.Context, emoji: Union[discord.Emoji, str]
+    ):
         """Set the downvote emoji used. Use "none" to remove the emoji and disable downvotes."""
         await self._save_emoji(ctx, emoji, "downvote")
 
     async def _save_emoji(
-        self, ctx: commands.Context, emoji: Union[str, int], emoji_type: str
+        self, ctx: commands.Context, emoji: Union[discord.Emoji, str], emoji_type: str
     ):
         """Actually save the emoji."""
+        if not ctx.guild:
+            return
         if emoji == "none":
             setting = getattr(self.config.guild(ctx.guild).emojis, emoji_type)
             await setting.set(None)
@@ -698,11 +743,11 @@ class ReactChannel(commands.Cog):
             await self._get_emoji(ctx.guild, emoji_type, refresh=True)
             return
         try:
+            if isinstance(emoji, discord.PartialEmoji):
+                raise LookupError
             await ctx.message.add_reaction(emoji)
             await ctx.message.remove_reaction(emoji, self.bot.user)
             save = emoji
-            if isinstance(emoji, discord.PartialEmoji):
-                raise discord.HTTPException
             if isinstance(emoji, discord.Emoji):
                 save = emoji.id
             setting = getattr(self.config.guild(ctx.guild).emojis, emoji_type)
@@ -713,7 +758,7 @@ class ReactChannel(commands.Cog):
                 )
             )
             await self._get_emoji(ctx.guild, emoji_type, refresh=True)
-        except discord.HTTPException:
+        except discord.HTTPException | LookupError:
             await ctx.send(error("That is not a valid emoji I can use!"))
 
     #
@@ -722,13 +767,18 @@ class ReactChannel(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    async def karma(self, ctx: commands.Context, member: discord.Member = None):
+    async def karma(
+        self, ctx: commands.Context, member: Optional[discord.Member] = None
+    ):
         """View your (or another users) total karma for messages in this server."""
         prefix = f"{ctx.message.author.mention}, you have"
         if member and member != ctx.message.author:
             prefix = f"{member.display_name} has"
         else:
-            member = ctx.message.author
+            if isinstance(ctx.message.author, discord.Member):
+                member = ctx.message.author
+            else:
+                return
         member_config = self.config.member(member)
         total_karma = await member_config.karma()
         await ctx.send(f"{prefix} **{total_karma}** message karma")
@@ -737,6 +787,8 @@ class ReactChannel(commands.Cog):
     @commands.guild_only()
     async def karmatop(self, ctx: commands.Context):
         """View the members in this server with the highest total karma."""
+        if not ctx.guild:
+            return
         all_guild_members_dict = await self.config.all_members(ctx.guild)
         all_guild_members_sorted_list = sorted(
             all_guild_members_dict.items(),
@@ -758,6 +810,8 @@ class ReactChannel(commands.Cog):
     @commands.guild_only()
     async def upvote(self, ctx: commands.Context):
         """View the upvote reaction for this server."""
+        if not ctx.guild:
+            return
         upvote = await self._get_emoji(ctx.guild, "upvote")
         if upvote:
             await ctx.send(
@@ -770,6 +824,8 @@ class ReactChannel(commands.Cog):
     @commands.guild_only()
     async def downvote(self, ctx: commands.Context):
         """View the downvote reaction for this server."""
+        if not ctx.guild:
+            return
         downvote = await self._get_emoji(ctx.guild, "downvote")
         if downvote:
             await ctx.send(
@@ -815,6 +871,8 @@ class ReactChannel(commands.Cog):
             "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
         ).react_roles()
         if react_role_ids:
+            if not isinstance(message.author, discord.Member):
+                return
             member_role_ids = [role.id for role in message.author.roles]
             has_matching_role = any(
                 role_id in react_role_ids for role_id in member_role_ids
@@ -833,8 +891,10 @@ class ReactChannel(commands.Cog):
                 "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
             ).react_filter.commands():
                 return
-        elif message.attachments and message.attachments[0].content_type.startswith(
-            "image"
+        elif (
+            message.attachments
+            and message.attachments[0].content_type
+            and message.attachments[0].content_type.startswith("image")
         ):
             # image
             if not await self.config.custom(

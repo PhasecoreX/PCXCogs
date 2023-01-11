@@ -1,5 +1,6 @@
 """UwU cog for Red-DiscordBot by PhasecoreX."""
 import random
+from typing import Optional
 
 import discord
 from redbot.core import commands
@@ -54,14 +55,14 @@ class UwU(commands.Cog):
     #
 
     @commands.command(aliases=["owo"])
-    async def uwu(self, ctx: commands.Context, *, text: str = None):
+    async def uwu(self, ctx: commands.Context, *, text: Optional[str] = None):
         """Uwuize the replied to message, previous message, or your own text."""
         if not text:
             if hasattr(ctx.message, "reference") and ctx.message.reference:
                 try:
-                    text = (
-                        await ctx.fetch_message(ctx.message.reference.message_id)
-                    ).content
+                    message_id = ctx.message.reference.message_id
+                    if message_id:
+                        text = (await ctx.fetch_message(message_id)).content
                 except (discord.Forbidden, discord.NotFound, discord.HTTPException):
                     pass
             if not text:

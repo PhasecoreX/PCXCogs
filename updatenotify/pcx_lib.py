@@ -60,7 +60,7 @@ async def reply(ctx: commands.Context, content: Any = None, **kwargs: Any):
 
 async def type_message(
     destination: discord.abc.Messageable, content: str, **kwargs
-) -> discord.Message:
+) -> Optional[discord.Message]:
     """Simulate typing and sending a message to a destination.
 
     Will send a typing indicator, wait a variable amount of time based on the length
@@ -76,7 +76,7 @@ async def type_message(
 
 
 async def message_splitter(
-    message: str, destination: discord.abc.Messageable = None
+    message: str, destination: Optional[discord.abc.Messageable] = None
 ) -> List[str]:
     """Take a message string and split it so that each message in the resulting list is no greater than 1900.
 
@@ -112,7 +112,7 @@ async def message_splitter(
 
 
 async def embed_splitter(
-    embed: discord.Embed, destination: discord.abc.Messageable = None
+    embed: discord.Embed, destination: Optional[discord.abc.Messageable] = None
 ) -> List[discord.Embed]:
     """Take an embed and split it so that each embed has at most 20 fields and a length of 5900.
 
@@ -142,7 +142,7 @@ async def embed_splitter(
 
     # Nah, we're really doing this
     split_embeds: List[discord.Embed] = []
-    fields = embed_dict["fields"]
+    fields = embed_dict["fields"] if "fields" in embed_dict else []
     embed_dict["fields"] = []
 
     for field in fields:
@@ -166,7 +166,7 @@ async def embed_splitter(
 class SettingDisplay:
     """A formatted list of settings."""
 
-    def __init__(self, header: str = None):
+    def __init__(self, header: Optional[str] = None):
         """Init."""
         self.header = header
         self._length = 0
@@ -209,8 +209,11 @@ class Perms:
 
     def __init__(
         self,
-        overwrites: Dict[
-            Union[discord.Role, discord.Member], discord.PermissionOverwrite
+        overwrites: Optional[
+            Dict[
+                Union[discord.Role, discord.Member, discord.Object],
+                discord.PermissionOverwrite,
+            ]
         ] = None,
     ):
         """Init."""

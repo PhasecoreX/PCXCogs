@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Set, Union
+from typing import Dict, Optional, Set, Union
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -42,6 +42,9 @@ class MixinMeta(ABC):
 
     @abstractmethod
     async def update_bg_task(
-        self, user_id: int, user_reminder_id: int = None, partial_reminder: dict = None
+        self,
+        user_id: int,
+        user_reminder_id: Optional[int] = None,
+        partial_reminder: Optional[dict] = None,
     ):
         raise NotImplementedError()

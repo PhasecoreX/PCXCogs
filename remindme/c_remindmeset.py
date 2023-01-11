@@ -72,6 +72,8 @@ class RemindMeSetCommands(MixinMeta, ABC):
 
         If the bot doesn't have the Add Reactions permission in the channel, it won't ask regardless.
         """
+        if not ctx.guild:
+            return
         me_too = not await self.config.guild(ctx.guild).me_too()
         await self.config.guild(ctx.guild).me_too.set(me_too)
         await ctx.send(

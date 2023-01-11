@@ -1,7 +1,7 @@
 """The autoroom command."""
 import datetime
 from abc import ABC
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 import discord
 from redbot.core import commands
@@ -26,10 +26,12 @@ class AutoRoomCommands(MixinMeta, ABC):
     @autoroom.command(name="settings", aliases=["about", "info"])
     async def autoroom_settings(self, ctx: commands.Context):
         """Display current settings."""
+        if not ctx.guild:
+            return
         autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(
             ctx, check_owner=False
         )
-        if not autoroom_info:
+        if not autoroom_channel or not autoroom_info:
             return
 
         room_settings = SettingDisplay("Room Settings")
@@ -46,7 +48,7 @@ class AutoRoomCommands(MixinMeta, ABC):
             )
 
         source_channel = ctx.guild.get_channel(autoroom_info["source_channel"])
-        if source_channel:
+        if isinstance(source_channel, discord.VoiceChannel):
             member_roles = self.get_member_roles(source_channel)
 
             access_text = ""
@@ -126,45 +128,50 @@ class AutoRoomCommands(MixinMeta, ABC):
     @autoroom.command(name="name")
     async def autoroom_name(self, ctx: commands.Context, *, name: str):
         """Change the name of your AutoRoom."""
+        if not ctx.guild:
+            return
         autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
-        if not autoroom_info:
+        if not autoroom_channel or not autoroom_info:
             return
 
         if len(name) > 100:
             name = name[:100]
         if name != autoroom_channel.name:
             bucket = self.bucket_autoroom_name.get_bucket(autoroom_channel)
-            retry_after = bucket.update_rate_limit()
-            if retry_after:
-                per_display = bucket.per - self.extra_channel_name_change_delay
-                hint_text = error(
-                    f"{ctx.message.author.mention}, you can only modify an AutoRoom name **{bucket.rate}** times "
-                    f"every **{humanize_timedelta(seconds=per_display)}** with this command. "
-                    f"You can try again in **{humanize_timedelta(seconds=max(1, int(min(per_display, retry_after))))}**."
-                    "\n\n"
-                    "Alternatively, you can modify the channel yourself by either right clicking the channel on "
-                    "desktop or by long pressing it on mobile."
-                )
-                if ctx.guild.mfa_level:
-                    hint_text += (
-                        " Do note that since this server has 2FA enabled, you will need it enabled "
-                        "on your account to modify the channel in this way."
+            if bucket:
+                retry_after = bucket.update_rate_limit()
+                if retry_after:
+                    per_display = bucket.per - self.extra_channel_name_change_delay
+                    hint_text = error(
+                        f"{ctx.message.author.mention}, you can only modify an AutoRoom name **{bucket.rate}** times "
+                        f"every **{humanize_timedelta(seconds=per_display)}** with this command. "
+                        f"You can try again in **{humanize_timedelta(seconds=max(1, int(min(per_display, retry_after))))}**."
+                        "\n\n"
+                        "Alternatively, you can modify the channel yourself by either right clicking the channel on "
+                        "desktop or by long pressing it on mobile."
                     )
-                hint = await ctx.send(hint_text)
-                await delete(ctx.message, delay=30)
-                await delete(hint, delay=30)
-                return
-            await autoroom_channel.edit(
-                name=name, reason="AutoRoom: User edit room info"
-            )
+                    if ctx.guild.mfa_level:
+                        hint_text += (
+                            " Do note that since this server has 2FA enabled, you will need it enabled "
+                            "on your account to modify the channel in this way."
+                        )
+                    hint = await ctx.send(hint_text)
+                    await delete(ctx.message, delay=30)
+                    await delete(hint, delay=30)
+                    return
+                await autoroom_channel.edit(
+                    name=name, reason="AutoRoom: User edit room info"
+                )
         await ctx.tick()
         await delete(ctx.message, delay=5)
 
     @autoroom.command(name="bitrate", aliases=["kbps"])
     async def autoroom_bitrate(self, ctx: commands.Context, kbps: int):
         """Change the bitrate of your AutoRoom."""
+        if not ctx.guild:
+            return
         autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
-        if not autoroom_info:
+        if not autoroom_channel or not autoroom_info:
             return
 
         bps = max(8000, min(int(ctx.guild.bitrate_limit), kbps * 1000))
@@ -179,7 +186,7 @@ class AutoRoomCommands(MixinMeta, ABC):
     async def autoroom_users(self, ctx: commands.Context, user_limit: int):
         """Change the user limit of your AutoRoom."""
         autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
-        if not autoroom_info:
+        if not autoroom_channel or not autoroom_info:
             return
 
         limit = max(0, min(99, user_limit))
@@ -226,6 +233,8 @@ class AutoRoomCommands(MixinMeta, ABC):
         they too will be disconnected. Keep in mind that if the server is using
         member roles, denying roles will probably not work as expected.
         """
+        if not ctx.guild:
+            return
         if await self._process_allow_deny(
             ctx, self.perms_private, member_or_role=member_or_role
         ):
@@ -241,11 +250,13 @@ class AutoRoomCommands(MixinMeta, ABC):
         ctx: commands.Context,
         perm_overwrite: Dict[str, bool],
         *,
-        member_or_role: Union[discord.Role, discord.Member] = None,
+        member_or_role: Optional[Union[discord.Role, discord.Member]] = None,
     ) -> bool:
         """Actually do channel edit for allow/deny."""
+        if not ctx.guild:
+            return False
         autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
-        if not autoroom_info:
+        if not autoroom_channel or not autoroom_info:
             return False
 
         if not autoroom_channel.permissions_for(autoroom_channel.guild.me).manage_roles:
@@ -260,7 +271,7 @@ class AutoRoomCommands(MixinMeta, ABC):
             return False
 
         source_channel = ctx.guild.get_channel(autoroom_info["source_channel"])
-        if not source_channel:
+        if not isinstance(source_channel, discord.VoiceChannel):
             hint = await ctx.send(
                 error(
                     f"{ctx.message.author.mention}, it seems like the AutoRoom Source this AutoRoom was made from "
@@ -347,7 +358,8 @@ class AutoRoomCommands(MixinMeta, ABC):
 
         perms = Perms(dict(autoroom_channel.overwrites))
         for target in to_modify:
-            perms.update(target, perm_overwrite)
+            if isinstance(target, discord.Member) or isinstance(target, discord.Role):
+                perms.update(target, perm_overwrite)
         if perms.modified:
             await autoroom_channel.edit(
                 overwrites=perms.overwrites,
@@ -358,9 +370,13 @@ class AutoRoomCommands(MixinMeta, ABC):
         return True
 
     @staticmethod
-    def _get_current_voice_channel(member: discord.Member):
+    def _get_current_voice_channel(member: Union[discord.Member, discord.User]):
         """Get the members current voice channel, or None if not in a voice channel."""
-        if member.voice:
+        if (
+            isinstance(member, discord.Member)
+            and member.voice
+            and isinstance(member.voice.channel, discord.VoiceChannel)
+        ):
             return member.voice.channel
         return None
 

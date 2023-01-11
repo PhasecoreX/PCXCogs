@@ -7,7 +7,7 @@ import os
 import aiohttp
 from redbot.core import Config, VersionInfo, checks, commands
 from redbot.core import version_info as redbot_version
-from redbot.core.utils.chat_formatting import box, humanize_timedelta
+from redbot.core.utils.chat_formatting import box, error, humanize_timedelta
 
 from .pcx_lib import SettingDisplay, checkmark
 
@@ -273,27 +273,32 @@ class UpdateNotify(commands.Cog):
             )
         else:
             build = await self.get_latest_github_actions_build()
-            setting_display = SettingDisplay()
-            setting_display.add("Local Docker commit hash", self.docker_commit[:7])
-            setting_display.add("Latest Docker commit hash", build["sha"][:7])
-            setting_display.add("Local Docker build number", self.docker_build)
-            setting_display.add("Latest Docker build number", build["id"])
-            if await self.config.pcx_docker_feature_only():
-                setting_display.add(
-                    "Local Docker Status (based on hash)",
-                    "Up to date"
-                    if build["sha"] == self.docker_commit
-                    else "Update available",
-                )
+            if build:
+                setting_display = SettingDisplay()
+                setting_display.add("Local Docker commit hash", self.docker_commit[:7])
+                setting_display.add("Latest Docker commit hash", build["sha"][:7])
+                setting_display.add("Local Docker build number", self.docker_build)
+                setting_display.add("Latest Docker build number", build["id"])
+                if await self.config.pcx_docker_feature_only():
+                    setting_display.add(
+                        "Local Docker Status (based on hash)",
+                        "Up to date"
+                        if build["sha"] == self.docker_commit
+                        else "Update available",
+                    )
+                else:
+                    setting_display.add(
+                        "Local Docker Status (based on build num)",
+                        "Up to date"
+                        if build["id"] == self.docker_build
+                        else "Update available",
+                    )
+                setting_display.add("Latest Docker commit message", build["message"])
+                await ctx.send(str(setting_display))
             else:
-                setting_display.add(
-                    "Local Docker Status (based on build num)",
-                    "Up to date"
-                    if build["id"] == self.docker_build
-                    else "Update available",
+                await ctx.send(
+                    error("Could not connect to GitHub to check build information.")
                 )
-            setting_display.add("Latest Docker commit message", build["message"])
-            await ctx.send(str(setting_display))
 
     @staticmethod
     async def get_latest_redbot_version():
@@ -353,6 +358,8 @@ class UpdateNotify(commands.Cog):
             self.notified_docker_build = self.docker_build
 
         latest_redbot_version = None
+        if not self.notified_version:
+            self.notified_version = redbot_version
         if await self.config.check_red_discordbot():
             latest_redbot_version = await self.get_latest_redbot_version()
         update_redbot = (
@@ -381,7 +388,7 @@ class UpdateNotify(commands.Cog):
         update_docker = update_docker_commit or (
             update_docker_build and not feature_only
         )
-        if update_docker:
+        if update_docker and latest_docker_build:
             self.notified_docker_commit = latest_docker_build["sha"]
             self.notified_docker_build = latest_docker_build["id"]
             message += (

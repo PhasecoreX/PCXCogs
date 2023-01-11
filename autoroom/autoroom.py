@@ -1,9 +1,8 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
 from abc import ABC
-from typing import Union
+from typing import Optional, Union
 
 import discord
-from discord import ActivityType, Permissions
 from redbot.core import Config, commands
 from redbot.core.utils.chat_formatting import humanize_timedelta
 
@@ -122,7 +121,6 @@ class AutoRoom(
         """Perform some configuration migrations."""
         schema_version = await self.config.schema_version()
 
-        schema_1_migration_autorooms = {}
         if schema_version < 1:
             # Migrate private -> room_type
             guild_dict = await self.config.all_guilds()
@@ -137,7 +135,9 @@ class AutoRoom(
                                 "private" if avc_settings["private"] else "public"
                             )
                             del avc_settings["private"]
-                    schema_1_migration_autorooms = avcs
+                    await self.config.guild_from_id(guild_id).set_raw(
+                        "auto_voice_channels", value=avcs
+                    )
             await self.config.schema_version.set(1)
 
         if schema_version < 2:
@@ -151,11 +151,9 @@ class AutoRoom(
             # Migrate to AUTOROOM_SOURCE custom config group
             guild_dict = await self.config.all_guilds()
             for guild_id in guild_dict.keys():
-                avcs = schema_1_migration_autorooms
-                if not avcs:
-                    avcs = await self.config.guild_from_id(guild_id).get_raw(
-                        "auto_voice_channels", default={}
-                    )
+                avcs = await self.config.guild_from_id(guild_id).get_raw(
+                    "auto_voice_channels", default={}
+                )
                 for avc_id, avc_settings in avcs.items():
                     new_dict = {
                         "dest_category_id": avc_settings["dest_category_id"],
@@ -267,15 +265,16 @@ class AutoRoom(
         for voice_channel_id, voice_channel_settings in voice_channel_dict.items():
             voice_channel = self.bot.get_channel(voice_channel_id)
             if voice_channel:
-                # Delete AutoRoom if it is empty
-                await self._process_autoroom_delete(voice_channel)
+                if isinstance(voice_channel, discord.VoiceChannel):
+                    # Delete AutoRoom if it is empty
+                    await self._process_autoroom_delete(voice_channel)
             else:
                 # AutoRoom has already been deleted, clean up text channel if it still exists
                 text_channel = self.bot.get_channel(
                     voice_channel_settings["associated_text_channel"]
                 )
                 if (
-                    text_channel
+                    isinstance(text_channel, discord.abc.GuildChannel)
                     and text_channel.permissions_for(
                         text_channel.guild.me
                     ).manage_channels
@@ -349,22 +348,28 @@ class AutoRoom(
 
         # Check that user isn't spamming
         bucket = self.bucket_autoroom_create.get_bucket(member)
-        retry_after = bucket.update_rate_limit()
-        if retry_after:
-            warn_bucket = self.bucket_autoroom_create_warn.get_bucket(member)
-            if not warn_bucket.update_rate_limit():
-                try:
-                    await member.send(
-                        "Hello there! It looks like you're trying to make an AutoRoom."
-                        "\n"
-                        f"Please note that you are only allowed to make **{bucket.rate}** AutoRooms "
-                        f"every **{humanize_timedelta(seconds=bucket.per)}**."
-                        "\n"
-                        f"You can try again in **{humanize_timedelta(seconds=max(retry_after, 1))}**."
-                    )
-                except (discord.Forbidden, discord.NotFound, discord.HTTPException):
-                    pass
-            return
+        if bucket:
+            retry_after = bucket.update_rate_limit()
+            if retry_after:
+                warn_bucket = self.bucket_autoroom_create_warn.get_bucket(member)
+                if warn_bucket:
+                    if not warn_bucket.update_rate_limit():
+                        try:
+                            await member.send(
+                                "Hello there! It looks like you're trying to make an AutoRoom."
+                                "\n"
+                                f"Please note that you are only allowed to make **{bucket.rate}** AutoRooms "
+                                f"every **{humanize_timedelta(seconds=bucket.per)}**."
+                                "\n"
+                                f"You can try again in **{humanize_timedelta(seconds=max(retry_after, 1))}**."
+                            )
+                        except (
+                            discord.Forbidden,
+                            discord.NotFound,
+                            discord.HTTPException,
+                        ):
+                            pass
+                    return
 
         # Generate channel name
         taken_channel_names = [
@@ -524,13 +529,14 @@ class AutoRoom(
     #
 
     @staticmethod
-    def get_template_data(member: discord.Member):
+    def get_template_data(member: Union[discord.Member, discord.User]):
         """Return a dict of template data based on a member."""
         data = {"username": member.display_name}
-        for activity in member.activities:
-            if activity.type == ActivityType.playing:
-                data["game"] = activity.name
-                break
+        if isinstance(member, discord.Member):
+            for activity in member.activities:
+                if activity.type == discord.ActivityType.playing:
+                    data["game"] = activity.name or ""
+                    break
         return data
 
     def format_template_room_name(self, template: str, data: dict, num: int = 1):
@@ -682,20 +688,22 @@ class AutoRoom(
             return result, clone_section
         return result, None
 
-    async def get_all_autoroom_source_configs(self, guild: discord.guild):
+    async def get_all_autoroom_source_configs(self, guild: discord.Guild):
         """Return a dict of all autoroom source configs, cleaning up any invalid ones."""
         unsorted_list_of_configs = []
         configs = await self.config.custom(
-            "AUTOROOM_SOURCE", guild.id
+            "AUTOROOM_SOURCE", str(guild.id)
         ).all()  # Does NOT return default values
         for channel_id in configs.keys():
             channel = guild.get_channel(int(channel_id))
+            if not isinstance(channel, discord.VoiceChannel):
+                continue
             config = await self.get_autoroom_source_config(channel)
             if config:
                 unsorted_list_of_configs.append((channel.position, channel_id, config))
             else:
                 await self.config.custom(
-                    "AUTOROOM_SOURCE", guild.id, channel_id
+                    "AUTOROOM_SOURCE", str(guild.id), channel_id
                 ).clear()
         result = {}
         for _, channel_id, config in sorted(
@@ -715,7 +723,7 @@ class AutoRoom(
             return None
         return config
 
-    async def get_autoroom_info(self, autoroom: discord.VoiceChannel):
+    async def get_autoroom_info(self, autoroom: Optional[discord.VoiceChannel]):
         """Get info for an AutoRoom, or None if the voice channel isn't an AutoRoom."""
         if not autoroom:
             return None
@@ -738,7 +746,7 @@ class AutoRoom(
             return True
 
         default_role = channel.guild.default_role
-        base = Permissions(default_role.permissions.value)
+        base = discord.Permissions(default_role.permissions.value)
 
         # Handle the role case first
         if isinstance(member_or_role, discord.Role):

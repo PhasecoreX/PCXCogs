@@ -3,7 +3,7 @@ import asyncio
 import logging
 from abc import ABC
 from datetime import MAXYEAR, datetime, timezone
-from typing import Union
+from typing import Optional, Union
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -153,7 +153,7 @@ class RemindMe(
                     )
                     in_dict = parse_result["in"]
                     if not in_dict:
-                        raise ParseException
+                        raise ParseException("No 'in'")
                     in_delta = relativedelta(**in_dict)
                     created_converted = expires_normalized - in_delta
                     log.debug(
@@ -614,7 +614,10 @@ class RemindMe(
             await ctx_or_user.send(message)
 
     async def update_bg_task(
-        self, user_id: int, user_reminder_id: int = None, partial_reminder: dict = None
+        self,
+        user_id: int,
+        user_reminder_id: Optional[int] = None,
+        partial_reminder: Optional[dict] = None,
     ):
         """Request the background task to consider a new (or updated) reminder.
 

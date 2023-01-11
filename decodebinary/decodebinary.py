@@ -81,6 +81,8 @@ class DecodeBinary(commands.Cog):
     @decodebinaryset.command()
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
+        if not ctx.guild:
+            return
         ignored_channels = await self.config.guild(ctx.guild).ignored_channels()
         channel_section = SettingDisplay("Channel Settings")
         channel_section.add(
@@ -105,6 +107,8 @@ class DecodeBinary(commands.Cog):
     @ignore.command()
     async def channel(self, ctx: commands.Context):
         """Ignore/Unignore the current channel."""
+        if not ctx.guild:
+            return
         async with self.config.guild(ctx.guild).ignored_channels() as ignored_channels:
             if ctx.channel.id in ignored_channels:
                 ignored_channels.remove(ctx.channel.id)

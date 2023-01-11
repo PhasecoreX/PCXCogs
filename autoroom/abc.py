@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 import discord
 from discord.ext.commands import CooldownMapping
@@ -27,7 +27,7 @@ class MixinMeta(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_template_data(member: discord.Member):
+    def get_template_data(member: Union[discord.Member, discord.User]):
         raise NotImplementedError()
 
     @abstractmethod
@@ -55,7 +55,7 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_all_autoroom_source_configs(self, guild: discord.guild):
+    async def get_all_autoroom_source_configs(self, guild: discord.Guild):
         raise NotImplementedError()
 
     @abstractmethod
@@ -63,7 +63,7 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_autoroom_info(self, autoroom: discord.VoiceChannel):
+    async def get_autoroom_info(self, autoroom: Optional[discord.VoiceChannel]):
         raise NotImplementedError()
 
     @staticmethod
@@ -79,5 +79,5 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_bot_roles(self, guild: discord.guild):
+    async def get_bot_roles(self, guild: discord.Guild):
         raise NotImplementedError()

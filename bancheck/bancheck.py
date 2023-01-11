@@ -1,5 +1,5 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 import discord
 from redbot.core import Config, checks, commands
@@ -184,7 +184,7 @@ class BanCheck(commands.Cog):
 
     @banchecksetglobal.command(name="api")
     async def global_api(
-        self, ctx: commands.Context, service: str, api_key: str = None
+        self, ctx: commands.Context, service: str, api_key: Optional[str] = None
     ):
         """Set (or delete) an API key for a global service.
 
@@ -235,6 +235,9 @@ class BanCheck(commands.Cog):
     @bancheckset.command()
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
+        if not ctx.guild:
+            return
+
         embed = discord.Embed(title="BanCheck Settings", color=await ctx.embed_color())
         if ctx.guild.icon:
             embed.set_thumbnail(url=ctx.guild.icon.url)
@@ -350,6 +353,9 @@ class BanCheck(commands.Cog):
     @service.command(name="settings")
     async def service_settings(self, ctx: commands.Context):
         """Display current settings."""
+        if not ctx.guild:
+            return
+
         embed = discord.Embed(
             title="BanCheck Service Settings",
             color=await ctx.embed_color(),
@@ -436,11 +442,13 @@ class BanCheck(commands.Cog):
 
     @service.command(name="api")
     async def service_api(
-        self, ctx: commands.Context, service: str, api_key: str = None
+        self, ctx: commands.Context, service: str, api_key: Optional[str] = None
     ):
         """Set (or delete) an API key for a service."""
         # Try deleting the command as fast as possible, so that others can't see the API key
         await delete(ctx.message)
+        if not ctx.guild:
+            return
         if service not in self.all_supported_services:
             await ctx.send(
                 error(
@@ -486,6 +494,8 @@ class BanCheck(commands.Cog):
     @service.command(name="enable")
     async def service_enable(self, ctx: commands.Context, service: str):
         """Enable a service."""
+        if not ctx.guild:
+            return
         if service not in self.all_supported_services:
             await ctx.send(
                 error(
@@ -513,6 +523,8 @@ class BanCheck(commands.Cog):
     @service.command(name="disable")
     async def service_disable(self, ctx: commands.Context, service: str):
         """Disable a service."""
+        if not ctx.guild:
+            return
         async with self.config.guild(ctx.guild).services() as config_services:
             if not config_services.get(service, {}).get("enabled", False):
                 await ctx.send(
@@ -534,6 +546,8 @@ class BanCheck(commands.Cog):
     @autoban.command(name="enable")
     async def autoban_enable(self, ctx: commands.Context, service: str):
         """Enable a service to ban users automatically."""
+        if not ctx.guild:
+            return
         if service not in self.all_supported_services:
             await ctx.send(
                 error(
@@ -558,6 +572,8 @@ class BanCheck(commands.Cog):
     @autoban.command(name="disable")
     async def autoban_disable(self, ctx: commands.Context, service: str):
         """Disable a service from banning users automatically."""
+        if not ctx.guild:
+            return
         async with self.config.guild(ctx.guild).services() as config_services:
             if not config_services.get(service, {}).get("autoban", False):
                 await ctx.send(
@@ -576,11 +592,16 @@ class BanCheck(commands.Cog):
 
     @autocheck.command(name="set")
     async def set_autocheck(
-        self, ctx: commands.Context, channel: discord.TextChannel = None
+        self, ctx: commands.Context, channel: Optional[discord.TextChannel] = None
     ):
         """Set the channel you want AutoCheck notifications to go to."""
+        if not ctx.guild:
+            return
         if channel is None:
-            channel = ctx.message.channel
+            if isinstance(ctx.channel, discord.TextChannel):
+                channel = ctx.channel
+            else:
+                return
         if await self.send_embed(
             channel,
             self.embed_maker(
@@ -595,6 +616,8 @@ class BanCheck(commands.Cog):
     @autocheck.command(name="disable")
     async def disable_autocheck(self, ctx: commands.Context):
         """Disable automatically checking new users against ban lists."""
+        if not ctx.guild:
+            return
         if await self.config.guild(ctx.guild).notify_channel() is None:
             await ctx.send(info("AutoCheck is already disabled."))
         else:
@@ -605,14 +628,19 @@ class BanCheck(commands.Cog):
     @commands.guild_only()
     @checks.admin_or_permissions(ban_members=True)
     async def bancheck(
-        self, ctx: commands.Context, member: Union[discord.Member, int] = None
+        self,
+        ctx: commands.Context,
+        member: Optional[Union[discord.Member, discord.User, int]] = None,
     ):
         """Check if user is on a ban list."""
+        if not ctx.guild:
+            return
         if not member:
             member = ctx.message.author
         async with ctx.channel.typing():
             embed = await self._user_lookup(ctx.guild, member)
-        await self.send_embed(ctx, embed)
+        if embed:
+            await self.send_embed(ctx, embed)
 
     #
     # Listener methods
@@ -626,19 +654,22 @@ class BanCheck(commands.Cog):
         channel_id = await self.config.guild(member.guild).notify_channel()
         if channel_id:
             channel = member.guild.get_channel(channel_id)
-            if channel:
+            if isinstance(channel, discord.TextChannel):
                 # Only do auto lookup if the user isn't repeatedly leaving and joining the server
                 bucket = self.bucket_member_join_cache.get_bucket(member)
-                repeatedly_joining = bucket.update_rate_limit()
-                if not repeatedly_joining:
-                    embed = await self._user_lookup(member.guild, member, do_ban=True)
-                    if embed:
-                        await self.send_embed(channel, embed)
+                if bucket:
+                    repeatedly_joining = bucket.update_rate_limit()
+                    if not repeatedly_joining:
+                        embed = await self._user_lookup(
+                            member.guild, member, do_ban=True
+                        )
+                        if embed:
+                            await self.send_embed(channel, embed)
 
     async def _user_lookup(
         self,
         guild: discord.Guild,
-        member: Union[discord.Member, int],
+        member: Union[discord.Member, discord.User, int],
         do_ban: bool = False,
     ):
         """Perform user lookup and return results embed. Optionally ban user too."""
@@ -647,7 +678,7 @@ class BanCheck(commands.Cog):
         auto_banned = False
         is_error = False
         checked = []
-        if isinstance(member, discord.Member):
+        if isinstance(member, discord.Member) or isinstance(member, discord.User):
             description = f"**Name:** {member.name}\n**ID:** {member.id}\n\n"
             member_id = member.id
             member_avatar_url = member.display_avatar.url
@@ -814,7 +845,7 @@ class BanCheck(commands.Cog):
             if api_key:
                 return api_key
         # API not required
-        service_class = self.all_supported_services.get(service_name, False)
+        service_class = self.all_supported_services.get(service_name, None)
         if service_class and not service_class().SERVICE_API_KEY_REQUIRED:
             return True
         # Fail
@@ -828,7 +859,10 @@ class BanCheck(commands.Cog):
         return f"`{service}`"
 
     @staticmethod
-    async def send_embed(channel_or_ctx, embed):
+    async def send_embed(
+        channel_or_ctx: Union[commands.Context, discord.abc.MessageableChannel],
+        embed: discord.Embed,
+    ):
         """Send an embed. If the bot can't send it, complains about permissions."""
         if isinstance(channel_or_ctx, commands.Context):
             destination = channel_or_ctx.channel
@@ -836,6 +870,7 @@ class BanCheck(commands.Cog):
             destination = channel_or_ctx
         if (
             hasattr(destination, "guild")
+            and destination.guild
             and not destination.permissions_for(destination.guild.me).embed_links
         ):
             await destination.send(

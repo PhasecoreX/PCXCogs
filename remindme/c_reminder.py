@@ -296,7 +296,7 @@ class ReminderCommands(MixinMeta, ABC):
         if (
             ctx.guild
             and await self.config.guild(ctx.guild).me_too()
-            and ctx.channel.permissions_for(ctx.me).add_reactions
+            and ctx.channel.permissions_for(ctx.guild.me).add_reactions
         ):
             query: discord.Message = await ctx.send(
                 f"If anyone else would like {'these reminders' if parse_result['repeat_delta'] else 'to be reminded'} as well, "

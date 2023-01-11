@@ -1,6 +1,7 @@
 """The autoroomset command."""
 import asyncio
 from abc import ABC
+from typing import Optional
 
 import discord
 from redbot.core import checks, commands
@@ -33,6 +34,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
     @autoroomset.command()
     async def settings(self, ctx: commands.Context):
         """Display current settings."""
+        if not ctx.guild:
+            return
         server_section = SettingDisplay("Server Settings")
         server_section.add(
             "Admin access all AutoRooms",
@@ -52,7 +55,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         avcs = await self.get_all_autoroom_source_configs(ctx.guild)
         for avc_id, avc_settings in avcs.items():
             source_channel = ctx.guild.get_channel(avc_id)
-            if not source_channel:
+            if not isinstance(source_channel, discord.VoiceChannel):
                 continue
             dest_category = ctx.guild.get_channel(avc_settings["dest_category_id"])
             autoroom_section = SettingDisplay(f"AutoRoom - {source_channel.name}")
@@ -101,6 +104,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
     @autoroomset.command(aliases=["perms"])
     async def permissions(self, ctx: commands.Context):
         """Check that the bot has all needed permissions."""
+        if not ctx.guild:
+            return
         required_check, optional_check, details_list = await self._check_all_perms(
             ctx.guild, detailed=True
         )
@@ -116,7 +121,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
 
         if (
             len(details_list) > 1
-            and not ctx.channel.permissions_for(ctx.me).add_reactions
+            and not ctx.channel.permissions_for(ctx.guild.me).add_reactions
         ):
             await ctx.send(
                 error(
@@ -158,8 +163,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
 
         if len(details_list) > 1:
             if (
-                ctx.channel.permissions_for(ctx.me).add_reactions
-                and ctx.channel.permissions_for(ctx.me).read_message_history
+                ctx.channel.permissions_for(ctx.guild.me).add_reactions
+                and ctx.channel.permissions_for(ctx.guild.me).read_message_history
             ):
                 await menu(ctx, details_list, DEFAULT_CONTROLS, timeout=60.0)
             else:
@@ -180,6 +185,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
     @access.command(name="admin")
     async def access_admin(self, ctx: commands.Context):
         """Allow Admins to join locked/private AutoRooms."""
+        if not ctx.guild:
+            return
         admin_access = not await self.config.guild(ctx.guild).admin_access()
         await self.config.guild(ctx.guild).admin_access.set(admin_access)
         await ctx.send(
@@ -191,6 +198,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
     @access.command(name="mod")
     async def access_mod(self, ctx: commands.Context):
         """Allow Moderators to join locked/private AutoRooms."""
+        if not ctx.guild:
+            return
         mod_access = not await self.config.guild(ctx.guild).mod_access()
         await self.config.guild(ctx.guild).mod_access.set(mod_access)
         await ctx.send(
@@ -209,6 +218,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
     @access_bot.command(name="add")
     async def access_bot_add(self, ctx: commands.Context, role: discord.Role):
         """Allow a bot role into every AutoRoom."""
+        if not ctx.guild:
+            return
         bot_role_ids = await self.config.guild(ctx.guild).bot_access()
         if role.id not in bot_role_ids:
             bot_role_ids.append(role.id)
@@ -226,6 +237,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
     @access_bot.command(name="remove", aliases=["delete", "del"])
     async def access_bot_remove(self, ctx: commands.Context, role: discord.Role):
         """Disallow a bot role from joining every AutoRoom."""
+        if not ctx.guild:
+            return
         bot_role_ids = await self.config.guild(ctx.guild).bot_access()
         if role.id in bot_role_ids:
             bot_role_ids.remove(role.id)
@@ -258,6 +271,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         voice channel (AutoRoom) created in the destination category,
         and then be moved into it.
         """
+        if not ctx.guild:
+            return
         good_permissions, details = self.check_perms_source_dest(
             source_voice_channel, dest_category, detailed=True
         )
@@ -366,6 +381,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         autoroom_source: discord.VoiceChannel,
     ):
         """Remove an AutoRoom Source."""
+        if not ctx.guild:
+            return
         await self.config.custom(
             "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
         ).clear()
@@ -387,6 +404,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         dest_category: discord.CategoryChannel,
     ):
         """Set the category that AutoRooms will be created in."""
+        if not ctx.guild:
+            return
         if await self.get_autoroom_source_config(autoroom_source):
             await self.config.custom(
                 "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
@@ -454,6 +473,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         room_type: str,
     ):
         """Save the public/private setting."""
+        if not ctx.guild:
+            return
         if await self.get_autoroom_source_config(autoroom_source):
             await self.config.custom(
                 "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
@@ -527,9 +548,11 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
         room_type: str,
-        template: str = None,
+        template: Optional[str] = None,
     ):
         """Save the room name type."""
+        if not ctx.guild:
+            return
         if await self.get_autoroom_source_config(autoroom_source):
             data = self.get_template_data(ctx.author)
             if template:
@@ -702,7 +725,9 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         for avc_id, avc_settings in avcs.items():
             autoroom_source = guild.get_channel(avc_id)
             category_dest = guild.get_channel(avc_settings["dest_category_id"])
-            if autoroom_source and category_dest:
+            if isinstance(autoroom_source, discord.VoiceChannel) and isinstance(
+                category_dest, discord.CategoryChannel
+            ):
                 if detailed:
                     (
                         required_check,
