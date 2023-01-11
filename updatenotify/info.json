@@ -10,5 +10,6 @@
         "update",
         "utility"
     ],
+    "min_bot_version": "3.5.0.dev306",
     "end_user_data_statement": "This cog does not persistently store data or metadata about users."
 }
