@@ -1,5 +1,6 @@
 """Shared code across multiple cogs."""
 import asyncio
+from contextlib import suppress
 from typing import Any, Mapping, Optional, Union
 
 import discord
@@ -16,7 +17,7 @@ def checkmark(text: str) -> str:
     return f"\N{WHITE HEAVY CHECK MARK} {text}"
 
 
-async def delete(message: discord.Message, *, delay=None) -> bool:
+async def delete(message: discord.Message, *, delay: Optional[float] = None) -> bool:
     """Attempt to delete a message.
 
     Returns True if successful, False otherwise.
@@ -30,7 +31,9 @@ async def delete(message: discord.Message, *, delay=None) -> bool:
     return True
 
 
-async def reply(ctx: commands.Context, content: Any = None, **kwargs: Any):
+async def reply(
+    ctx: commands.Context, content: Optional[str] = None, **kwargs: Any
+) -> None:
     """Safely reply to a command message.
 
     If the command is in a guild, will reply, otherwise will send a message like normal.
@@ -43,11 +46,9 @@ async def reply(ctx: commands.Context, content: Any = None, **kwargs: Any):
         ):
             mention_author = kwargs.pop("mention_author", False)
             kwargs.update(mention_author=mention_author)
-            try:
+            with suppress(discord.HTTPException):
                 await ctx.reply(content=content, **kwargs)
                 return
-            except discord.HTTPException:
-                pass
         allowed_mentions = kwargs.pop(
             "allowed_mentions",
             discord.AllowedMentions(users=False),
@@ -59,7 +60,7 @@ async def reply(ctx: commands.Context, content: Any = None, **kwargs: Any):
 
 
 async def type_message(
-    destination: discord.abc.Messageable, content: str, **kwargs
+    destination: discord.abc.Messageable, content: str, **kwargs: Any
 ) -> Optional[discord.Message]:
     """Simulate typing and sending a message to a destination.
 
@@ -67,18 +68,16 @@ async def type_message(
     of the text (to simulate typing speed), then send the message.
     """
     content = common_filters.filter_urls(content)
-    try:
+    with suppress(discord.HTTPException):
         async with destination.typing():
             await asyncio.sleep(max(0.25, min(2.5, len(content) * 0.01)))
         return await destination.send(content=content, **kwargs)
-    except discord.HTTPException:
-        pass  # Not allowed to send messages to this destination (or, sending the message failed)
 
 
 async def message_splitter(
     message: str, destination: Optional[discord.abc.Messageable] = None
 ) -> list[str]:
-    """Take a message string and split it so that each message in the resulting list is no greater than 1900.
+    r"""Take a message string and split it so that each message in the resulting list is no greater than 1900.
 
     Splits on double newlines (\n\n), and if there are none, just trims the strings down to 1900.
 
@@ -172,7 +171,7 @@ class SettingDisplay:
         self._length = 0
         self._settings: list[tuple] = []
 
-    def add(self, setting: str, value):
+    def add(self, setting: str, value: Any) -> None:
         """Add a setting."""
         setting_colon = setting + ":"
         self._settings.append((setting_colon, value))
@@ -227,9 +226,9 @@ class Perms:
 
     def set(
         self,
-        target: Union[discord.Role, discord.Member],
+        target: Union[discord.Role, discord.Member, discord.Object],
         permission_overwrite: discord.PermissionOverwrite,
-    ):
+    ) -> None:
         """Set the permissions for a target."""
         if not permission_overwrite.is_empty():
             self.__overwrites[target] = discord.PermissionOverwrite().from_pair(
@@ -240,7 +239,7 @@ class Perms:
         self,
         target: Union[discord.Role, discord.Member],
         perm: Mapping[str, Optional[bool]],
-    ):
+    ) -> None:
         """Update the permissions for a target."""
         if target not in self.__overwrites:
             self.__overwrites[target] = discord.PermissionOverwrite()
@@ -249,11 +248,18 @@ class Perms:
             del self.__overwrites[target]
 
     @property
-    def modified(self):
+    def modified(self) -> bool:
         """Check if current overwrites are different from when this object was first initialized."""
         return self.__overwrites != self.__original
 
     @property
-    def overwrites(self):
+    def overwrites(
+        self,
+    ) -> Optional[
+        dict[
+            Union[discord.Role, discord.Member, discord.Object],
+            discord.PermissionOverwrite,
+        ]
+    ]:
         """Get current overwrites."""
         return self.__overwrites
