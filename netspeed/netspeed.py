@@ -1,6 +1,7 @@
 """NetSpeed cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 import discord
 import speedtest
@@ -22,9 +23,7 @@ class NetSpeed(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(
-        self, **kwargs
-    ):  # pylint: disable=unused-argument
+    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:
         """Nothing to delete."""
         return
 
@@ -34,7 +33,7 @@ class NetSpeed(commands.Cog):
 
     @commands.command(aliases=["speedtest"])
     @checks.is_owner()
-    async def netspeed(self, ctx):
+    async def netspeed(self, ctx: commands.Context) -> None:
         """Test the internet speed of the server your bot is hosted on."""
         loop = asyncio.get_event_loop()
         speed_test = speedtest.Speedtest(secure=True)
@@ -57,7 +56,7 @@ class NetSpeed(commands.Cog):
             )
 
     @staticmethod
-    def generate_embed(step: int, results_dict):
+    def generate_embed(step: int, results_dict: dict[str, Any]) -> discord.Embed:
         """Generate the embed."""
         measuring = ":mag: Measuring..."
         waiting = ":hourglass: Waiting..."

@@ -1,5 +1,7 @@
 """Wikipedia cog for Red-DiscordBot ported by PhasecoreX."""
 import re
+from contextlib import suppress
+from typing import Any, Optional
 
 import aiohttp
 import discord
@@ -29,9 +31,7 @@ class Wikipedia(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(
-        self, **kwargs
-    ):  # pylint: disable=unused-argument
+    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:
         """Nothing to delete."""
         return
 
@@ -40,13 +40,19 @@ class Wikipedia(commands.Cog):
     #
 
     @commands.command(aliases=["wiki"])
-    async def wikipedia(self, ctx: commands.Context, *, query: str):
+    async def wikipedia(self, ctx: commands.Context, *, query: str) -> None:
         """Get information from Wikipedia."""
-        can_not_embed_links = not ctx.channel.permissions_for(ctx.me).embed_links
-        can_not_add_reactions = not ctx.channel.permissions_for(ctx.me).add_reactions
-        can_not_read_history = not ctx.channel.permissions_for(
-            ctx.me
-        ).read_message_history
+        can_not_embed_links = False
+        can_not_add_reactions = False
+        can_not_read_history = False
+        if isinstance(ctx.me, discord.Member):
+            can_not_embed_links = not ctx.channel.permissions_for(ctx.me).embed_links
+            can_not_add_reactions = not ctx.channel.permissions_for(
+                ctx.me
+            ).add_reactions
+            can_not_read_history = not ctx.channel.permissions_for(
+                ctx.me
+            ).read_message_history
         only_first_result = (
             can_not_embed_links or can_not_add_reactions or can_not_read_history
         )
@@ -89,10 +95,10 @@ class Wikipedia(commands.Cog):
     # Public methods
     #
 
-    def generate_payload(self, query: str):
+    def generate_payload(self, query: str) -> dict[str, str]:
         """Generate the payload for Wikipedia based on a query string."""
         query_tokens = query.split()
-        payload = {
+        return {
             # Main module
             "action": "query",  # Fetch data from and about MediaWiki
             "format": "json",  # Output data in JSON format
@@ -116,9 +122,10 @@ class Wikipedia(commands.Cog):
             # action:query/prop:revisions options
             "clcategories": self.DISAMBIGUATION_CAT,  # Only list this category
         }
-        return payload
 
-    async def perform_search(self, query, only_first_result: bool = False):
+    async def perform_search(
+        self, query: str, *, only_first_result: bool = False
+    ) -> tuple[list[discord.Embed], Optional[str]]:
         """Query Wikipedia."""
         payload = self.generate_payload(query)
         async with aiohttp.ClientSession() as session:
@@ -135,7 +142,7 @@ class Wikipedia(commands.Cog):
                 key=lambda unsorted_page: unsorted_page["index"]
             )
             for page in result["query"]["pages"]:
-                try:
+                with suppress(KeyError):
                     if (
                         "categories" in page
                         and page["categories"]
@@ -146,11 +153,9 @@ class Wikipedia(commands.Cog):
                     embeds.append(self.generate_embed(page))
                     if only_first_result:
                         return embeds, page["fullurl"]
-                except KeyError:
-                    pass
         return embeds, None
 
-    def generate_embed(self, page_json):
+    def generate_embed(self, page_json: dict[str, Any]) -> discord.Embed:
         """Generate the embed for the json page."""
         title = page_json["title"]
         description: str = page_json["extract"].strip()

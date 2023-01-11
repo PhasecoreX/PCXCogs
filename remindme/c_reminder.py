@@ -1,12 +1,15 @@
 """Commands for the average user."""
 import asyncio
 from abc import ABC
+from contextlib import suppress
 from datetime import datetime, timezone
+from typing import Any, Optional
 
 import discord
 from dateutil.relativedelta import relativedelta
 from pyparsing import ParseException
 from redbot.core import commands
+from redbot.core.config import Group
 from redbot.core.utils.chat_formatting import error
 from redbot.core.utils.predicates import MessagePredicate
 
@@ -18,11 +21,11 @@ class ReminderCommands(MixinMeta, ABC):
     """Commands for the average user."""
 
     @commands.group()
-    async def reminder(self, ctx: commands.Context):
+    async def reminder(self, ctx: commands.Context) -> None:
         """Manage your reminders."""
 
-    @reminder.command(aliases=["get"])
-    async def list(self, ctx: commands.Context, sort: str = "time"):
+    @reminder.command(name="list", aliases=["get"])
+    async def reminder_list(self, ctx: commands.Context, sort: str = "time") -> None:
         """Show a list of all of your reminders.
 
         Sort can either be:
@@ -90,7 +93,9 @@ class ReminderCommands(MixinMeta, ABC):
             await reply(ctx, "I can't DM you...")
 
     @reminder.command(aliases=["add"])
-    async def create(self, ctx: commands.Context, *, time_and_optional_text: str = ""):
+    async def create(
+        self, ctx: commands.Context, *, time_and_optional_text: str = ""
+    ) -> None:
         """Create a reminder with optional reminder text.
 
         Same as `[p]remindme`, so check that for usage help.
@@ -98,11 +103,11 @@ class ReminderCommands(MixinMeta, ABC):
         await self._create_reminder(ctx, time_and_optional_text)
 
     @reminder.group(aliases=["edit"])
-    async def modify(self, ctx: commands.Context):
+    async def modify(self, ctx: commands.Context) -> None:
         """Modify an existing reminder."""
 
     @modify.command()
-    async def time(self, ctx: commands.Context, reminder_id: int, *, time: str):
+    async def time(self, ctx: commands.Context, reminder_id: int, *, time: str) -> None:
         """Modify the time of an existing reminder."""
         config_reminder = await self._get_reminder_config_group(
             ctx, ctx.message.author.id, reminder_id
@@ -139,7 +144,9 @@ class ReminderCommands(MixinMeta, ABC):
         await reply(ctx, message)
 
     @modify.command()
-    async def repeat(self, ctx: commands.Context, reminder_id: int, *, time: str):
+    async def repeat(
+        self, ctx: commands.Context, reminder_id: int, *, time: str
+    ) -> None:
         """Modify the repeating time of an existing reminder. Pass "0" to <time> in order to disable repeating."""
         config_reminder = await self._get_reminder_config_group(
             ctx, ctx.message.author.id, reminder_id
@@ -174,7 +181,7 @@ class ReminderCommands(MixinMeta, ABC):
             )
 
     @modify.command()
-    async def text(self, ctx: commands.Context, reminder_id: int, *, text: str):
+    async def text(self, ctx: commands.Context, reminder_id: int, *, text: str) -> None:
         """Modify the text of an existing reminder."""
         config_reminder = await self._get_reminder_config_group(
             ctx, ctx.message.author.id, reminder_id
@@ -194,7 +201,7 @@ class ReminderCommands(MixinMeta, ABC):
         )
 
     @reminder.command(aliases=["delete", "del"])
-    async def remove(self, ctx: commands.Context, index: str):
+    async def remove(self, ctx: commands.Context, index: str) -> None:
         """Delete a reminder.
 
         <index> can either be:
@@ -207,7 +214,7 @@ class ReminderCommands(MixinMeta, ABC):
     @commands.command()
     async def remindme(
         self, ctx: commands.Context, *, time_and_optional_text: str = ""
-    ):
+    ) -> None:
         """Create a reminder with optional reminder text.
 
         Either of the following formats are allowed:
@@ -233,13 +240,13 @@ class ReminderCommands(MixinMeta, ABC):
         await self._create_reminder(ctx, time_and_optional_text)
 
     @commands.command()
-    async def forgetme(self, ctx: commands.Context):
+    async def forgetme(self, ctx: commands.Context) -> None:
         """Remove all of your upcoming reminders."""
         await self._delete_reminder(ctx, "all")
 
     async def _create_reminder(
         self, ctx: commands.Context, time_and_optional_text: str
-    ):
+    ) -> None:
         """Logic to create a reminder."""
         # Check that user is allowed to make a new reminder
         author = ctx.message.author
@@ -311,7 +318,7 @@ class ReminderCommands(MixinMeta, ABC):
             del self.me_too_reminders[query.id]
             del self.clicked_me_too_reminder[query.id]
 
-    async def _delete_reminder(self, ctx: commands.Context, index: str):
+    async def _delete_reminder(self, ctx: commands.Context, index: str) -> None:
         """Logic to delete reminders."""
         if not index:
             return
@@ -329,10 +336,8 @@ class ReminderCommands(MixinMeta, ABC):
                 ctx,
                 "Are you **sure** you want to remove all of your reminders? (yes/no)",
             )
-            try:
+            with suppress(asyncio.TimeoutError):
                 await ctx.bot.wait_for("message", check=pred, timeout=30)
-            except asyncio.TimeoutError:
-                pass
             if pred.result:
                 pass
             else:
@@ -382,7 +387,7 @@ class ReminderCommands(MixinMeta, ABC):
 
     async def _get_reminder_config_group(
         self, ctx: commands.Context, user_id: int, user_reminder_id: int
-    ):
+    ) -> Optional[Group]:
         config_reminder = self.config.custom(
             "REMINDER", str(user_id), str(user_reminder_id)
         )
@@ -399,8 +404,9 @@ class ReminderCommands(MixinMeta, ABC):
         self,
         ctx: commands.Context,
         time_and_optional_text: str,
+        *,
         validate_text: bool = True,
-    ):
+    ) -> Optional[dict[str, Any]]:
         try:
             parse_result = self.reminder_parser.parse(time_and_optional_text.strip())
         except ParseException:

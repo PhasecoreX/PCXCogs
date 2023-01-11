@@ -1,6 +1,7 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
 from abc import ABC
-from typing import Optional, Union
+from contextlib import suppress
+from typing import Any, Optional, Union
 
 import discord
 from redbot.core import Config, commands
@@ -14,7 +15,7 @@ from .pcx_template import Template
 
 
 class CompositeMetaClass(type(commands.Cog), type(ABC)):
-    """This allows the metaclass used for proper type detection to coexist with discord.py's metaclass."""
+    """Allows the metaclass used for proper type detection to coexist with discord.py's metaclass."""
 
 
 class AutoRoom(
@@ -103,7 +104,7 @@ class AutoRoom(
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **kwargs) -> None:
+    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:
         """Nothing to delete."""
         return
 
@@ -323,9 +324,10 @@ class AutoRoom(
         if await self.bot.cog_disabled_in_guild(self, member.guild):
             return
         # If user left an AutoRoom, do cleanup
-        if isinstance(leaving.channel, discord.VoiceChannel):
-            if await self.get_autoroom_info(leaving.channel):
-                await self._process_autoroom_delete(leaving.channel)
+        if isinstance(
+            leaving.channel, discord.VoiceChannel
+        ) and await self.get_autoroom_info(leaving.channel):
+            await self._process_autoroom_delete(leaving.channel)
         # If user entered an AutoRoom Source channel, create new AutoRoom
         if isinstance(joining.channel, discord.VoiceChannel):
             asc = await self.get_autoroom_source_config(joining.channel)
@@ -337,15 +339,21 @@ class AutoRoom(
     #
 
     async def _process_autoroom_create(
-        self, autoroom_source, autoroom_source_config, member
+        self,
+        autoroom_source: discord.VoiceChannel,
+        autoroom_source_config: dict[str, Any],
+        member: discord.Member,
     ) -> None:
         """Create a voice channel for a member in an AutoRoom Source channel."""
         # Check perms for guild, source, and dest
         guild = autoroom_source.guild
         dest_category = guild.get_channel(autoroom_source_config["dest_category_id"])
-        if not dest_category:
+        if not isinstance(dest_category, discord.CategoryChannel):
             return
-        if not self.check_perms_source_dest(autoroom_source, dest_category):
+        required_check, optional_check, _ = self.check_perms_source_dest(
+            autoroom_source, dest_category
+        )
+        if not required_check or not optional_check:
             return
 
         # Check that user isn't spamming
@@ -356,7 +364,11 @@ class AutoRoom(
                 warn_bucket = self.bucket_autoroom_create_warn.get_bucket(member)
                 if warn_bucket:
                     if not warn_bucket.update_rate_limit():
-                        try:
+                        with suppress(
+                            discord.Forbidden,
+                            discord.NotFound,
+                            discord.HTTPException,
+                        ):
                             await member.send(
                                 "Hello there! It looks like you're trying to make an AutoRoom."
                                 "\n"
@@ -365,12 +377,6 @@ class AutoRoom(
                                 "\n"
                                 f"You can try again in **{humanize_timedelta(seconds=max(retry_after, 1))}**."
                             )
-                        except (
-                            discord.Forbidden,
-                            discord.NotFound,
-                            discord.HTTPException,
-                        ):
-                            pass
                     return
 
         # Generate channel name
@@ -401,7 +407,7 @@ class AutoRoom(
                         failed_checks[name] = None
             if failed_checks:
                 permissions.update(**failed_checks)
-            perms.set(target, permissions)
+            perms.overwrite(target, permissions)
             if member_roles and target in member_roles:
                 # If we have member roles and this target is one, apply AutoRoom type permissions
                 if autoroom_source_config["room_type"] == "private":
@@ -447,7 +453,7 @@ class AutoRoom(
             name=new_channel_name,
             category=dest_category,
             reason="AutoRoom: New AutoRoom needed.",
-            overwrites=perms.overwrites,
+            overwrites=perms.overwrites if perms.overwrites else {},
             bitrate=autoroom_source.bitrate,
             user_limit=autoroom_source.user_limit,
         )
@@ -481,10 +487,10 @@ class AutoRoom(
             not voice_channel.members
             and voice_channel.permissions_for(voice_channel.guild.me).manage_channels
         ):
-            try:
+            with suppress(
+                discord.NotFound
+            ):  # Sometimes this happens when the user manually deletes their channel
                 await voice_channel.delete(reason="AutoRoom: Channel empty.")
-            except discord.NotFound:
-                pass  # Sometimes this happens when the user manually deletes their channel
 
     def _generate_channel_name(
         self,
@@ -505,10 +511,8 @@ class AutoRoom(
         data = self.get_template_data(member)
         new_channel_name = None
         attempt = 1
-        try:
+        with suppress(RuntimeError):
             new_channel_name = self.format_template_room_name(template, data, attempt)
-        except RuntimeError:
-            pass
 
         if not new_channel_name:
             # Either the user screwed with the template, or the template returned nothing. Use a default one instead.
@@ -583,11 +587,11 @@ class AutoRoom(
         self,
         autoroom_source: discord.VoiceChannel,
         category_dest: discord.CategoryChannel,
-        with_manage_roles_guild=False,
-        with_optional_clone_perms=False,
-        split_required_optional_check=False,
-        detailed=False,
-    ):
+        *,
+        with_manage_roles_guild: bool = False,
+        with_optional_clone_perms: bool = False,
+        detailed: bool = False,
+    ) -> tuple[bool, bool, Optional[str]]:
         """Check if the permissions in an AutoRoom Source and a destination category are sufficient."""
         source = autoroom_source.permissions_for(autoroom_source.guild.me)
         dest = category_dest.permissions_for(category_dest.guild.me)
@@ -595,9 +599,9 @@ class AutoRoom(
         result_optional = True
         # Required
         for perm_name in self.perms_bot_source:
-            result_required = result_required and getattr(source, perm_name)
+            result_required = result_required and bool(getattr(source, perm_name))
         for perm_name in self.perms_bot_dest:
-            result_required = result_required and getattr(dest, perm_name)
+            result_required = result_required and bool(getattr(dest, perm_name))
         if with_manage_roles_guild:
             result_required = (
                 result_required
@@ -606,20 +610,13 @@ class AutoRoom(
         # Optional
         clone_section = None
         if with_optional_clone_perms:
-            if detailed:
-                clone_result, clone_section = self._check_perms_source_dest_optional(
-                    autoroom_source, dest, detailed=True
-                )
-            else:
-                clone_result = self._check_perms_source_dest_optional(
-                    autoroom_source, dest
-                )
+            clone_result, clone_section = self._check_perms_source_dest_optional(
+                autoroom_source, dest, detailed=detailed
+            )
             result_optional = result_optional and clone_result
         result = result_required and result_optional
         if not detailed:
-            if split_required_optional_check:
-                return result_required, result_optional
-            return result
+            return result_required, result_optional, None
 
         source_section = SettingDisplay("Required on Source Voice Channel")
         for perm_name in self.perms_bot_source:
@@ -654,17 +651,15 @@ class AutoRoom(
             "\n"
             f"{source_section.display(*autoroom_sections)}"
         )
-        if split_required_optional_check:
-            return result_required, result_optional, result_str
-        else:
-            return result, result_str
+        return result_required, result_optional, result_str
 
     @staticmethod
     def _check_perms_source_dest_optional(
         autoroom_source: discord.VoiceChannel,
         dest_perms: discord.Permissions,
-        detailed=False,
-    ):
+        *,
+        detailed: bool = False,
+    ) -> tuple[bool, Optional[SettingDisplay]]:
         result = True
         checked_perms = {}
         source_overwrites = (
@@ -679,13 +674,13 @@ class AutoRoom(
             # Check each permission for each overwrite target to make sure the bot has it allowed in the dest category
             for name, value in permissions:
                 if value is not None and name not in checked_perms:
-                    check_result = getattr(dest_perms, name)
+                    check_result = bool(getattr(dest_perms, name))
                     if not detailed and not check_result:
-                        return False
+                        return False, None
                     checked_perms[name] = check_result
                     result = result and check_result
         if not detailed:
-            return True
+            return True, None
         clone_section = SettingDisplay(
             "Optional on Destination Category (for source clone)"
         )
@@ -695,7 +690,9 @@ class AutoRoom(
             return result, clone_section
         return result, None
 
-    async def get_all_autoroom_source_configs(self, guild: discord.Guild):
+    async def get_all_autoroom_source_configs(
+        self, guild: discord.Guild
+    ) -> dict[int, dict[str, Any]]:
         """Return a dict of all autoroom source configs, cleaning up any invalid ones."""
         unsorted_list_of_configs = []
         configs = await self.config.custom(
@@ -719,7 +716,9 @@ class AutoRoom(
             result[int(channel_id)] = config
         return result
 
-    async def get_autoroom_source_config(self, autoroom_source: discord.VoiceChannel):
+    async def get_autoroom_source_config(
+        self, autoroom_source: discord.VoiceChannel
+    ) -> Optional[dict[str, Any]]:
         """Return the config for an autoroom source, or None if not set up yet."""
         if not autoroom_source:
             return None
@@ -730,7 +729,9 @@ class AutoRoom(
             return None
         return config
 
-    async def get_autoroom_info(self, autoroom: Optional[discord.VoiceChannel]):
+    async def get_autoroom_info(
+        self, autoroom: Optional[discord.VoiceChannel]
+    ) -> Optional[dict[str, Any]]:
         """Get info for an AutoRoom, or None if the voice channel isn't an AutoRoom."""
         if not autoroom:
             return None
@@ -742,7 +743,7 @@ class AutoRoom(
     def check_if_member_or_role_allowed(
         channel: discord.VoiceChannel,
         member_or_role: Union[discord.Member, discord.Role],
-    ):
+    ) -> bool:
         """Check if a member/role is allowed to connect to a voice channel.
 
         Doesn't matter if they can't see it, it ONLY checks the connect permission.
@@ -763,22 +764,18 @@ class AutoRoom(
                 return True
 
             # Apply @everyone allow/deny first since it's special
-            try:
+            with suppress(KeyError):
                 default_allow, default_deny = channel.overwrites[default_role].pair()
                 base.handle_overwrite(
                     allow=default_allow.value, deny=default_deny.value
                 )
-            except KeyError:
-                pass
 
             if member_or_role.is_default():
                 return base.connect
 
-            try:
+            with suppress(KeyError):
                 role_allow, role_deny = channel.overwrites[member_or_role].pair()
                 base.handle_overwrite(allow=role_allow.value, deny=role_deny.value)
-            except KeyError:
-                pass
 
             return base.connect
 
@@ -794,11 +791,9 @@ class AutoRoom(
             return True
 
         # Apply @everyone allow/deny first since it's special
-        try:
+        with suppress(KeyError):
             default_allow, default_deny = channel.overwrites[default_role].pair()
             base.handle_overwrite(allow=default_allow.value, deny=default_deny.value)
-        except KeyError:
-            pass
 
         allows = 0
         denies = 0
@@ -816,21 +811,20 @@ class AutoRoom(
         base.handle_overwrite(allow=allows, deny=denies)
 
         # Apply member specific permission overwrites
-        try:
+        with suppress(KeyError):
             member_allow, member_deny = channel.overwrites[member_or_role].pair()
             base.handle_overwrite(allow=member_allow.value, deny=member_deny.value)
-        except KeyError:
-            pass
 
-        # Once 2.0 comes out
-        # if member_or_role.is_timed_out():
-        #     # Timeout leads to every permission except VIEW_CHANNEL and READ_MESSAGE_HISTORY
-        #     # being explicitly denied
-        #     return False
+        if member_or_role.is_timed_out():
+            # Timeout leads to every permission except VIEW_CHANNEL and READ_MESSAGE_HISTORY
+            # being explicitly denied
+            return False
 
         return base.connect
 
-    def get_member_roles(self, autoroom_source: discord.VoiceChannel):
+    def get_member_roles(
+        self, autoroom_source: discord.VoiceChannel
+    ) -> list[discord.Role]:
         """Get member roles set on an AutoRoom Source."""
         member_roles = []
         # If @everyone is allowed to connect to the source channel, there are no member roles
@@ -848,7 +842,7 @@ class AutoRoom(
                     member_roles.append(role)
         return member_roles
 
-    async def get_bot_roles(self, guild: discord.Guild):
+    async def get_bot_roles(self, guild: discord.Guild) -> list[discord.Role]:
         """Get the additional bot roles that are added to each AutoRoom."""
         bot_roles = []
         bot_role_ids = []

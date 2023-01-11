@@ -216,21 +216,34 @@ class Perms:
         ] = None,
     ) -> None:
         """Init."""
-        self.__overwrites = {}
-        self.__original = {}
+        self.__overwrites: dict[
+            Union[discord.Role, discord.Member],
+            discord.PermissionOverwrite,
+        ] = {}
+        self.__original: dict[
+            Union[discord.Role, discord.Member],
+            discord.PermissionOverwrite,
+        ] = {}
         if overwrites:
             for key, value in overwrites.items():
-                pair = value.pair()
-                self.__overwrites[key] = discord.PermissionOverwrite().from_pair(*pair)
-                self.__original[key] = discord.PermissionOverwrite().from_pair(*pair)
+                if isinstance(key, (discord.Role, discord.Member)):
+                    pair = value.pair()
+                    self.__overwrites[key] = discord.PermissionOverwrite().from_pair(
+                        *pair
+                    )
+                    self.__original[key] = discord.PermissionOverwrite().from_pair(
+                        *pair
+                    )
 
-    def set(
+    def overwrite(
         self,
         target: Union[discord.Role, discord.Member, discord.Object],
         permission_overwrite: discord.PermissionOverwrite,
     ) -> None:
         """Set the permissions for a target."""
-        if not permission_overwrite.is_empty():
+        if not permission_overwrite.is_empty() and isinstance(
+            target, (discord.Role, discord.Member)
+        ):
             self.__overwrites[target] = discord.PermissionOverwrite().from_pair(
                 *permission_overwrite.pair()
             )
@@ -257,7 +270,7 @@ class Perms:
         self,
     ) -> Optional[
         dict[
-            Union[discord.Role, discord.Member, discord.Object],
+            Union[discord.Role, discord.Member],
             discord.PermissionOverwrite,
         ]
     ]:

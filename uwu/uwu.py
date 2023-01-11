@@ -1,6 +1,7 @@
 """UwU cog for Red-DiscordBot by PhasecoreX."""
 import random
-from typing import Optional
+from contextlib import suppress
+from typing import Any, Optional
 
 import discord
 from redbot.core import commands
@@ -44,9 +45,7 @@ class UwU(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(
-        self, **kwargs
-    ):  # pylint: disable=unused-argument
+    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:
         """Nothing to delete."""
         return
 
@@ -55,16 +54,16 @@ class UwU(commands.Cog):
     #
 
     @commands.command(aliases=["owo"])
-    async def uwu(self, ctx: commands.Context, *, text: Optional[str] = None):
+    async def uwu(self, ctx: commands.Context, *, text: Optional[str] = None) -> None:
         """Uwuize the replied to message, previous message, or your own text."""
         if not text:
             if hasattr(ctx.message, "reference") and ctx.message.reference:
-                try:
+                with suppress(
+                    discord.Forbidden, discord.NotFound, discord.HTTPException
+                ):
                     message_id = ctx.message.reference.message_id
                     if message_id:
                         text = (await ctx.fetch_message(message_id)).content
-                except (discord.Forbidden, discord.NotFound, discord.HTTPException):
-                    pass
             if not text:
                 messages = [message async for message in ctx.channel.history(limit=2)]
                 # [0] is the command, [1] is the message before the command
@@ -81,7 +80,7 @@ class UwU(commands.Cog):
     # Public methods
     #
 
-    def uwuize_string(self, string: str):
+    def uwuize_string(self, string: str) -> str:
         """Uwuize and return a string."""
         converted = ""
         current_word = ""
@@ -97,7 +96,7 @@ class UwU(commands.Cog):
             converted += self.uwuize_word(current_word)
         return converted
 
-    def uwuize_word(self, word: str):
+    def uwuize_word(self, word: str) -> str:
         """Uwuize and return a word.
 
         Thank you to the following for inspiration:
@@ -173,9 +172,6 @@ class UwU(commands.Cog):
                 + protected
             )
 
-        # Add back punctuations
-        uwu += extra_punctuation + final_punctuation
-
         # Add occasional stutter
         if (
             len(uwu) > 2
@@ -185,4 +181,5 @@ class UwU(commands.Cog):
         ):
             uwu = f"{uwu[0]}-{uwu}"
 
-        return uwu
+        # Add back punctuations and return
+        return uwu + extra_punctuation + final_punctuation

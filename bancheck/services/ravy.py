@@ -1,4 +1,6 @@
 """Ban lookup for Ravi."""
+from typing import Union
+
 import aiohttp
 from redbot.core import __version__ as redbot_version
 
@@ -19,7 +21,9 @@ class Ravy:
     BASE_URL = "https://ravy.org/api/v1/users"
 
     @staticmethod
-    async def lookup(user_id: int, api_key: str):
+    async def lookup(
+        user_id: int, api_key: str
+    ) -> Union[LookupResult, list[LookupResult]]:
         """Perform user lookup on Ravy."""
         try:
             async with aiohttp.ClientSession() as session:
@@ -80,8 +84,7 @@ class Ravy:
                                     )
                                 )
                             return results
-                        else:
-                            return LookupResult(Ravy.SERVICE_NAME, "clear")
+                        return LookupResult(Ravy.SERVICE_NAME, "clear")
                     # Otherwise, failed lookup
                     reason = ""
                     if "details" in data:

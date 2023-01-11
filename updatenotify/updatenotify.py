@@ -3,10 +3,13 @@ import asyncio
 import datetime
 import logging
 import os
+from contextlib import suppress
+from typing import Any, Optional
 
 import aiohttp
 from redbot.core import Config, VersionInfo, checks, commands
 from redbot.core import version_info as redbot_version
+from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import box, error, humanize_timedelta
 
 from .pcx_lib import SettingDisplay, checkmark
@@ -32,7 +35,7 @@ class UpdateNotify(commands.Cog):
         "pcx_docker_feature_only": False,
     }
 
-    def __init__(self, bot) -> None:
+    def __init__(self, bot: Red) -> None:
         """Set up the cog."""
         super().__init__()
         self.bot = bot
@@ -54,7 +57,7 @@ class UpdateNotify(commands.Cog):
     # Red methods
     #
 
-    def cog_unload(self):
+    def cog_unload(self) -> None:
         """Clean up when cog shuts down."""
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
@@ -64,9 +67,7 @@ class UpdateNotify(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(
-        self, **kwargs
-    ):  # pylint: disable=unused-argument
+    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:
         """Nothing to delete."""
         return
 
@@ -74,12 +75,12 @@ class UpdateNotify(commands.Cog):
     # Initialization methods
     #
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Perform setup actions before loading cog."""
         await self._migrate_config()
         self.enable_bg_loop()
 
-    async def _migrate_config(self):
+    async def _migrate_config(self) -> None:
         """Perform some configuration migrations."""
         schema_version = await self.config.schema_version()
 
@@ -98,15 +99,15 @@ class UpdateNotify(commands.Cog):
     # Background loop methods
     #
 
-    def enable_bg_loop(self):
+    def enable_bg_loop(self) -> None:
         """Set up the background loop task."""
 
-        def error_handler(fut: asyncio.Future):
+        def error_handler(fut: asyncio.Future) -> None:
             try:
                 fut.result()
             except asyncio.CancelledError:
                 pass
-            except Exception as exc:  # pylint: disable=broad-except
+            except Exception as exc:
                 log.exception(
                     "Unexpected exception occurred in background loop of UpdateNotify: ",
                     exc_info=exc,
@@ -124,7 +125,7 @@ class UpdateNotify(commands.Cog):
         self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
         self.bg_loop_task.add_done_callback(error_handler)
 
-    async def bg_loop(self):
+    async def bg_loop(self) -> None:
         """Background loop."""
         await self.bot.wait_until_ready()
         frequency = await self.config.frequency()
@@ -137,14 +138,12 @@ class UpdateNotify(commands.Cog):
             ) + datetime.timedelta(0, frequency)
             await asyncio.sleep(frequency)
 
-    async def check_for_updates(self):
+    async def check_for_updates(self) -> None:
         """Check for updates and notify the bot owner."""
-        try:
+        with suppress(aiohttp.ClientConnectionError):
             message = await self.update_check()
             if message:
                 await self.bot.send_to_owners(message)
-        except aiohttp.ClientConnectionError:
-            pass
 
     #
     # Command methods: updatenotify
@@ -152,11 +151,11 @@ class UpdateNotify(commands.Cog):
 
     @commands.group()
     @checks.is_owner()
-    async def updatenotify(self, ctx: commands.Context):
+    async def updatenotify(self, ctx: commands.Context) -> None:
         """Manage UpdateNotify settings."""
 
     @updatenotify.command()
-    async def settings(self, ctx: commands.Context):
+    async def settings(self, ctx: commands.Context) -> None:
         """Display current settings."""
         global_section = SettingDisplay("Global Settings")
         global_section.add(
@@ -195,7 +194,7 @@ class UpdateNotify(commands.Cog):
             maximum=datetime.timedelta(days=30),
             default_unit="minutes",  # noqa: F821
         ),
-    ):
+    ) -> None:
         """Set the frequency that UpdateNotify should check for updates."""
         await self.config.frequency.set(frequency.total_seconds())
         await ctx.send(
@@ -206,14 +205,14 @@ class UpdateNotify(commands.Cog):
         self.enable_bg_loop()
 
     @updatenotify.command()
-    async def check(self, ctx: commands.Context):
+    async def check(self, ctx: commands.Context) -> None:
         """Perform a manual update check."""
         async with ctx.typing():
             message = await self.update_check(manual=True)
         await ctx.send(message)
 
     @updatenotify.command(name="toggle")
-    async def redbot_toggle(self, ctx: commands.Context):
+    async def redbot_toggle(self, ctx: commands.Context) -> None:
         """Toggle checking for Red-DiscordBot updates.
 
         Useful if you only want to check for Docker image updates.
@@ -228,11 +227,11 @@ class UpdateNotify(commands.Cog):
         )
 
     @updatenotify.group()
-    async def docker(self, ctx: commands.Context):
+    async def docker(self, ctx: commands.Context) -> None:
         """Options for checking for phasecorex/red-discordbot Docker image updates."""
 
     @docker.command(name="toggle")
-    async def docker_toggle(self, ctx: commands.Context):
+    async def docker_toggle(self, ctx: commands.Context) -> None:
         """Toggle checking for phasecorex/red-discordbot Docker image updates."""
         state = await self.config.check_pcx_docker()
         state = not state
@@ -244,7 +243,7 @@ class UpdateNotify(commands.Cog):
         )
 
     @docker.command(name="type")
-    async def docker_type(self, ctx: commands.Context):
+    async def docker_type(self, ctx: commands.Context) -> None:
         """Toggle checking for feature updates or all updates."""
         state = await self.config.pcx_docker_feature_only()
         state = not state
@@ -265,7 +264,7 @@ class UpdateNotify(commands.Cog):
             )
 
     @docker.command()
-    async def debug(self, ctx: commands.Context):
+    async def debug(self, ctx: commands.Context) -> None:
         """Print out debug version numbers."""
         if not self.docker_commit:
             await ctx.send(
@@ -301,7 +300,7 @@ class UpdateNotify(commands.Cog):
                 )
 
     @staticmethod
-    async def get_latest_redbot_version():
+    async def get_latest_redbot_version() -> Optional[VersionInfo]:
         """Check PyPI for the latest update to Red-DiscordBot."""
         url = "https://pypi.org/pypi/Red-DiscordBot/json"
         async with aiohttp.ClientSession() as session:
@@ -318,7 +317,7 @@ class UpdateNotify(commands.Cog):
                 )
 
     @staticmethod
-    async def get_latest_github_actions_build():
+    async def get_latest_github_actions_build() -> Optional[dict[str, str]]:
         """Check GitHub for the latest update to phasecorex/red-discordbot."""
         url = (
             "https://api.github.com/repos/phasecorex/docker-red-discordbot/actions/runs"
@@ -350,7 +349,7 @@ class UpdateNotify(commands.Cog):
                     "If this keeps happening, and GitHub is indeed up, consider opening a bug report for this."
                 )
 
-    async def update_check(self, manual: bool = False):
+    async def update_check(self, *, manual: bool = False) -> str:
         """Check for all updates."""
         if manual:
             self.notified_version = redbot_version

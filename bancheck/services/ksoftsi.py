@@ -20,7 +20,7 @@ class KSoftSi:
     HIDDEN = True
 
     @staticmethod
-    async def lookup(user_id: int, api_key: str):
+    async def lookup(user_id: int, api_key: str) -> LookupResult:
         """Perform user lookup on KSoft.Si (via Ravy)."""
         try:
             async with aiohttp.ClientSession() as session:
@@ -69,8 +69,7 @@ class KSoftSi:
                                 reason=data["reason"],
                                 proof_url=data["proof"] if "proof" in data else None,
                             )
-                        else:
-                            return LookupResult(KSoftSi.SERVICE_NAME, "clear")
+                        LookupResult(KSoftSi.SERVICE_NAME, "clear")
                     # Otherwise, failed lookup
                     reason = ""
                     if "details" in data:

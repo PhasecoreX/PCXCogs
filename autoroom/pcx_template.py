@@ -1,6 +1,7 @@
 """A simple template engine, safe for untrusted user templates."""
 
-from typing import Any
+from contextlib import suppress
+from typing import Any, Optional
 
 from pyparsing import (
     Keyword,
@@ -20,7 +21,10 @@ __author__ = "PhasecoreX"
 
 
 class Template:
+    """A simple template engine, safe for untrusted user templates."""
+
     def __init__(self) -> None:
+        """Set up the parser."""
         ParserElement.enablePackrat()
 
         expression_l = Suppress("{{")
@@ -91,20 +95,18 @@ class Template:
         self.template_parser = template.parseWithTabs()
 
     @staticmethod
-    def _get_value(key, data):
+    def _get_value(key: Any, data: dict[str, Any]) -> Any:
         if not isinstance(key, str):
             return key
         if len(key) > 1 and key[0] in ('"', "'") and key[0] == key[-1]:
             return key[1:-1]
-        try:
+        with suppress(KeyError):
             for attr in key.split("."):
                 data = data[attr]
             return data
-        except KeyError:
-            pass
         return ""
 
-    def _evaluate(self, condition, data):
+    def _evaluate(self, condition: Any, data: dict[str, Any]) -> Any:
         # Base case
         if not isinstance(condition, ParseResults):
             return self._get_value(condition, data)
@@ -119,9 +121,8 @@ class Template:
             return lhs or self._evaluate(condition[2], data)
         # rhs is now required
         rhs = self._evaluate(condition[2], data)
-        if not lhs:
-            if isinstance(rhs, (int, float)):
-                lhs = 0
+        if not lhs and isinstance(rhs, (int, float)):
+            lhs = 0
         if condition[1] == "==":
             return lhs == rhs
         if condition[1] == ">=":
@@ -137,7 +138,7 @@ class Template:
         return False
 
     @staticmethod
-    def _statement_result_append(result, to_append):
+    def _statement_result_append(result: Optional[str], to_append: str) -> str:
         if not result:
             result = ""
         if (
@@ -162,7 +163,8 @@ class Template:
             to_append = to_append[2:] if to_append.startswith("\r\n") else to_append[1:]
         return result + to_append
 
-    def render(self, template="", data=None):
+    def render(self, template: str = "", data: Optional[dict[str, Any]] = None) -> str:
+        """Render a template with the given data."""
         if data is None:
             data = {}
         result = ""
@@ -194,9 +196,8 @@ class Template:
                 stack.append(("if", self._evaluate(token[0][1], data) and stack[-1][1]))
             elif token[0][0] == "elif":
                 if stack[-1][0] == "base":
-                    raise RuntimeError(
-                        f"{token[0][0]!r} unexpected at position {token[1]}-{token[2]} (not in an if statement)"
-                    )
+                    error_message = f"{token[0][0]!r} unexpected at position {token[1]}-{token[2]} (not in an if statement)"
+                    raise RuntimeError(error_message)
                 if not stack[-1][1]:
                     stack[-1] = (
                         "elif",
@@ -204,16 +205,14 @@ class Template:
                     )
             elif token[0][0] == "else":
                 if stack[-1][0] == "base":
-                    raise RuntimeError(
-                        f"{token[0][0]!r} unexpected at position {token[1]}-{token[2]} (not in an if statement)"
-                    )
+                    error_message = f"{token[0][0]!r} unexpected at position {token[1]}-{token[2]} (not in an if statement)"
+                    raise RuntimeError(error_message)
                 if not stack[-1][1]:
                     stack[-1] = ("else", stack[-2][1])
             elif token[0][0] == "endif":
                 if stack[-1][0] == "base":
-                    raise RuntimeError(
-                        f"{token[0][0]!r} unexpected at position {token[1]}-{token[2]} (not in an if statement)"
-                    )
+                    error_message = f"{token[0][0]!r} unexpected at position {token[1]}-{token[2]} (not in an if statement)"
+                    raise RuntimeError(error_message)
                 del stack[-1]
             current_index = token[2]
         if current_index != len(template):

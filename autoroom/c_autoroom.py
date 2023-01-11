@@ -1,7 +1,7 @@
 """The autoroom command."""
 import datetime
 from abc import ABC
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import discord
 from redbot.core import commands
@@ -16,7 +16,7 @@ class AutoRoomCommands(MixinMeta, ABC):
 
     @commands.group()
     @commands.guild_only()
-    async def autoroom(self, ctx: commands.Context):
+    async def autoroom(self, ctx: commands.Context) -> None:
         """Manage your AutoRoom.
 
         For a quick rundown on how to manage your AutoRoom,
@@ -24,7 +24,7 @@ class AutoRoomCommands(MixinMeta, ABC):
         """
 
     @autoroom.command(name="settings", aliases=["about", "info"])
-    async def autoroom_settings(self, ctx: commands.Context):
+    async def autoroom_settings(self, ctx: commands.Context) -> None:
         """Display current settings."""
         if not ctx.guild:
             return
@@ -54,7 +54,7 @@ class AutoRoomCommands(MixinMeta, ABC):
             access_text = ""
             if member_roles:
                 for role in member_roles:
-                    autoroom_type = self.get_autoroom_type(autoroom_channel, role)
+                    autoroom_type = self._get_autoroom_type(autoroom_channel, role)
                     if not access_text:
                         access_text = autoroom_type
                     elif access_text != autoroom_type:
@@ -62,7 +62,7 @@ class AutoRoomCommands(MixinMeta, ABC):
                         access_text = "custom"
                         break
             else:
-                access_text = self.get_autoroom_type(
+                access_text = self._get_autoroom_type(
                     autoroom_channel, autoroom_channel.guild.default_role
                 )
             access_text = access_text.capitalize()
@@ -126,7 +126,7 @@ class AutoRoomCommands(MixinMeta, ABC):
         await ctx.send(str(room_settings.display(access_settings)))
 
     @autoroom.command(name="name")
-    async def autoroom_name(self, ctx: commands.Context, *, name: str):
+    async def autoroom_name(self, ctx: commands.Context, *, name: str) -> None:
         """Change the name of your AutoRoom."""
         if not ctx.guild:
             return
@@ -166,7 +166,7 @@ class AutoRoomCommands(MixinMeta, ABC):
         await delete(ctx.message, delay=5)
 
     @autoroom.command(name="bitrate", aliases=["kbps"])
-    async def autoroom_bitrate(self, ctx: commands.Context, kbps: int):
+    async def autoroom_bitrate(self, ctx: commands.Context, kbps: int) -> None:
         """Change the bitrate of your AutoRoom."""
         if not ctx.guild:
             return
@@ -183,7 +183,7 @@ class AutoRoomCommands(MixinMeta, ABC):
         await delete(ctx.message, delay=5)
 
     @autoroom.command(name="users", aliases=["userlimit"])
-    async def autoroom_users(self, ctx: commands.Context, user_limit: int):
+    async def autoroom_users(self, ctx: commands.Context, user_limit: int) -> None:
         """Change the user limit of your AutoRoom."""
         autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(ctx)
         if not autoroom_channel or not autoroom_info:
@@ -198,24 +198,24 @@ class AutoRoomCommands(MixinMeta, ABC):
         await delete(ctx.message, delay=5)
 
     @autoroom.command()
-    async def public(self, ctx: commands.Context):
+    async def public(self, ctx: commands.Context) -> None:
         """Make your AutoRoom public."""
         await self._process_allow_deny(ctx, self.perms_public)
 
     @autoroom.command()
-    async def locked(self, ctx: commands.Context):
+    async def locked(self, ctx: commands.Context) -> None:
         """Lock your AutoRoom (visible, but no one can join)."""
         await self._process_allow_deny(ctx, self.perms_locked)
 
     @autoroom.command()
-    async def private(self, ctx: commands.Context):
+    async def private(self, ctx: commands.Context) -> None:
         """Make your AutoRoom private."""
         await self._process_allow_deny(ctx, self.perms_private)
 
     @autoroom.command(aliases=["add"])
     async def allow(
         self, ctx: commands.Context, member_or_role: Union[discord.Role, discord.Member]
-    ):
+    ) -> None:
         """Allow a user (or role) into your AutoRoom."""
         await self._process_allow_deny(
             ctx, self.perms_public, member_or_role=member_or_role
@@ -224,7 +224,7 @@ class AutoRoomCommands(MixinMeta, ABC):
     @autoroom.command(aliases=["ban", "block"])
     async def deny(
         self, ctx: commands.Context, member_or_role: Union[discord.Role, discord.Member]
-    ):
+    ) -> None:
         """Deny a user (or role) from accessing your AutoRoom.
 
         If the user is already in your AutoRoom, they will be disconnected.
@@ -356,13 +356,13 @@ class AutoRoomCommands(MixinMeta, ABC):
             await delete(hint, delay=10)
             return False
 
-        perms = Perms(dict(autoroom_channel.overwrites))
+        perms = Perms(autoroom_channel.overwrites)
         for target in to_modify:
             if isinstance(target, (discord.Member, discord.Role)):
                 perms.update(target, perm_overwrite)
         if perms.modified:
             await autoroom_channel.edit(
-                overwrites=perms.overwrites,
+                overwrites=perms.overwrites if perms.overwrites else {},
                 reason="AutoRoom: Permission change",
             )
         await ctx.tick()
@@ -370,7 +370,9 @@ class AutoRoomCommands(MixinMeta, ABC):
         return True
 
     @staticmethod
-    def _get_current_voice_channel(member: Union[discord.Member, discord.User]):
+    def _get_current_voice_channel(
+        member: Union[discord.Member, discord.User]
+    ) -> Optional[discord.VoiceChannel]:
         """Get the members current voice channel, or None if not in a voice channel."""
         if (
             isinstance(member, discord.Member)
@@ -381,8 +383,8 @@ class AutoRoomCommands(MixinMeta, ABC):
         return None
 
     async def _get_autoroom_channel_and_info(
-        self, ctx: commands.Context, check_owner: bool = True
-    ):
+        self, ctx: commands.Context, *, check_owner: bool = True
+    ) -> tuple[Optional[discord.VoiceChannel], Optional[dict[str, Any]]]:
         autoroom_channel = self._get_current_voice_channel(ctx.message.author)
         autoroom_info = await self.get_autoroom_info(autoroom_channel)
         if not autoroom_info:
@@ -407,7 +409,7 @@ class AutoRoomCommands(MixinMeta, ABC):
         return autoroom_channel, autoroom_info
 
     @staticmethod
-    def get_autoroom_type(autoroom: discord.VoiceChannel, role: discord.Role):
+    def _get_autoroom_type(autoroom: discord.VoiceChannel, role: discord.Role) -> str:
         """Get the type of access a role has in an AutoRoom (public, locked, private, etc)."""
         view_channel = role.permissions.view_channel
         connect = role.permissions.connect

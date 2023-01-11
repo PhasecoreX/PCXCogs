@@ -3,12 +3,13 @@ import asyncio
 import logging
 from abc import ABC
 from datetime import MAXYEAR, datetime, timezone
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import discord
 from dateutil.relativedelta import relativedelta
 from pyparsing import ParseException
 from redbot.core import Config, commands
+from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import humanize_list
 
 from .c_reminder import ReminderCommands
@@ -20,7 +21,7 @@ log = logging.getLogger("red.pcxcogs.remindme")
 
 
 class CompositeMetaClass(type(commands.Cog), type(ABC)):
-    """This allows the metaclass used for proper type detection to coexist with discord.py's metaclass."""
+    """Allows the metaclass used for proper type detection to coexist with discord.py's metaclass."""
 
 
 class RemindMe(
@@ -51,7 +52,7 @@ class RemindMe(
     }
     SEND_DELAY_SECONDS = 30
 
-    def __init__(self, bot) -> None:
+    def __init__(self, bot: Red) -> None:
         """Set up the cog."""
         super().__init__()
         self.bot = bot
@@ -77,7 +78,7 @@ class RemindMe(
     # Red methods
     #
 
-    def cog_unload(self):
+    def cog_unload(self) -> None:
         """Clean up when cog shuts down."""
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
@@ -87,9 +88,7 @@ class RemindMe(
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(
-        self, *, requester, user_id: int
-    ):  # pylint: disable=unused-argument
+    async def red_delete_data_for_user(self, *, _requester: str, user_id: int) -> None:
         """There's already a [p]forgetme command, so..."""
         await self.config.custom("REMINDER", str(user_id)).clear()
 
@@ -97,12 +96,12 @@ class RemindMe(
     # Initialization methods
     #
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Perform setup actions before loading cog."""
         await self._migrate_config()
         self._enable_bg_loop()
 
-    async def _migrate_config(self):
+    async def _migrate_config(self) -> None:
         """Perform some configuration migrations."""
         schema_version = await self.config.schema_version()
 
@@ -153,14 +152,14 @@ class RemindMe(
                     )
                     in_dict = parse_result["in"]
                     if not in_dict:
-                        raise ParseException("No 'in'")
+                        raise LookupError
                     in_delta = relativedelta(**in_dict)
                     created_converted = expires_normalized - in_delta
                     log.debug(
                         "Successfully converted to relativedelta object: %s",
                         self.humanize_relativedelta(in_delta),
                     )
-                except (OverflowError, ParseException, ValueError):
+                except (OverflowError, ParseException, ValueError, LookupError):
                     log.warning(
                         'Failed to convert to datetime object for migration: %s, using "1 second" ago as created time',
                         reminder["FUTURE_TEXT"],
@@ -194,7 +193,7 @@ class RemindMe(
     @commands.Cog.listener()
     async def on_raw_reaction_add(
         self, payload: discord.raw_models.RawReactionActionEvent
-    ):
+    ) -> None:
         """Watches for bell reactions on reminder messages."""
         if str(payload.emoji) != self.reminder_emoji:
             return
@@ -208,6 +207,8 @@ class RemindMe(
         if not await self.config.guild(guild).me_too():
             return
         member = guild.get_member(payload.user_id)
+        if not member:
+            return
         if member.bot:
             return
 
@@ -244,15 +245,15 @@ class RemindMe(
     # Background loop methods
     #
 
-    def _enable_bg_loop(self):
+    def _enable_bg_loop(self) -> None:
         """Set up the background loop task."""
 
-        def error_handler(fut: asyncio.Future):
+        def error_handler(fut: asyncio.Future) -> None:
             try:
                 fut.result()
             except asyncio.CancelledError:
                 pass
-            except Exception as exc:  # pylint: disable=broad-except
+            except Exception as exc:
                 log.exception(
                     "Unexpected exception occurred in background loop of RemindMe: ",
                     exc_info=exc,
@@ -268,7 +269,7 @@ class RemindMe(
         self.bg_loop_task = self.bot.loop.create_task(self._bg_loop())
         self.bg_loop_task.add_done_callback(error_handler)
 
-    async def _bg_loop(self):
+    async def _bg_loop(self) -> None:
         """Background loop."""
         await self.bot.wait_until_ready()
         self.search_for_next_reminder = True
@@ -361,7 +362,7 @@ class RemindMe(
     # Private methods
     #
 
-    async def _send_reminder(self, full_reminder: dict):
+    async def _send_reminder(self, full_reminder: dict) -> None:
         """Send reminders that have expired."""
         delete = False
         user = self.bot.get_user(full_reminder["user_id"])
@@ -432,7 +433,9 @@ class RemindMe(
         # Search for next reminder, in case this was a successful retry reminder
         self.search_for_next_reminder = True
 
-    async def _generate_reminder_embed(self, user: int, full_reminder: dict):
+    async def _generate_reminder_embed(
+        self, user: discord.User, full_reminder: dict
+    ) -> discord.Embed:
         """Generate the reminder embed."""
         # Determine any delay
         current_time = datetime.now(timezone.utc)
@@ -499,7 +502,7 @@ class RemindMe(
         user_id: int,
         user_reminder_id: int,
         partial_reminder: dict,
-    ):
+    ) -> dict[str, Any]:
         """Construct a full reminder from a partial reminder.
 
         This reminder object will be the same as the partial_reminder passed in,
@@ -527,7 +530,7 @@ class RemindMe(
     #
 
     @staticmethod
-    def humanize_relativedelta(relative_delta: Union[relativedelta, dict]):
+    def humanize_relativedelta(relative_delta: Union[relativedelta, dict]) -> str:
         """Convert relativedelta (or a dict of its keyword arguments) into a humanized string."""
         if isinstance(relative_delta, dict):
             relative_delta = relativedelta(**relative_delta)
@@ -552,7 +555,7 @@ class RemindMe(
             strings.append("0 seconds")
         return humanize_list(strings)
 
-    async def insert_reminder(self, user_id: int, reminder: dict):
+    async def insert_reminder(self, user_id: int, reminder: dict) -> bool:
         """Insert a new reminder into the config.
 
         Will handle generating a user_reminder_id and reminder limits.
@@ -581,9 +584,9 @@ class RemindMe(
         return True
 
     @staticmethod
-    def relativedelta_to_dict(relative_delta: relativedelta):
+    def relativedelta_to_dict(relative_delta: relativedelta) -> dict[str, int]:
         """Convert a relativedelta to a dict representation (for storing)."""
-        periods = [
+        periods: list[tuple[str, int]] = [
             ("years", relative_delta.years),
             ("months", relative_delta.months),
             ("days", relative_delta.days),
@@ -591,7 +594,7 @@ class RemindMe(
             ("minutes", relative_delta.minutes),
             ("seconds", relative_delta.seconds),
         ]
-        result = {}
+        result: dict[str, int] = {}
         for key, value in periods:
             if value == 0:
                 continue
@@ -599,8 +602,10 @@ class RemindMe(
         return result
 
     async def send_too_many_message(
-        self, ctx_or_user: Union[commands.Context, discord.User], maximum: int = -1
-    ):
+        self,
+        ctx_or_user: Union[commands.Context, discord.Member, discord.User],
+        maximum: int = -1,
+    ) -> None:
         """Send a message to the user telling them they have too many reminders."""
         if maximum < 0:
             maximum = await self.config.max_user_reminders()
@@ -619,7 +624,7 @@ class RemindMe(
         user_id: int,
         user_reminder_id: Optional[int] = None,
         partial_reminder: Optional[dict] = None,
-    ):
+    ) -> None:
         """Request the background task to consider a new (or updated) reminder.
 
         user_id is always required, user_reminder_id and partial_reminder are usually required,
@@ -631,7 +636,6 @@ class RemindMe(
         if self.search_for_next_reminder:
             # If the bg task is already going to perform a search soon
             log.debug("Background task will be searching for new reminders soon")
-            return
         elif not self.next_reminder_to_send:
             # If the bg task isn't waiting on any reminders currently
             self.search_for_next_reminder = True

@@ -1,4 +1,6 @@
 """A parser for remindme commands."""
+from typing import Any
+
 from pyparsing import (
     CaselessLiteral,
     Group,
@@ -18,35 +20,46 @@ __author__ = "PhasecoreX"
 
 
 class ReminderParser:
+    """A parser for remindme commands."""
+
     def __init__(self) -> None:
+        """Set up the parser."""
         ParserElement.enablePackrat()
 
         unit_years = (
             CaselessLiteral("years") | CaselessLiteral("year") | CaselessLiteral("y")
         )
         years = (
-            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])("years")
+            Word(nums).setParseAction(lambda token_list: [int(str(token_list[0]))])(
+                "years"
+            )
             + unit_years
         )
         unit_months = (
             CaselessLiteral("months") | CaselessLiteral("month") | CaselessLiteral("mo")
         )
         months = (
-            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])("months")
+            Word(nums).setParseAction(lambda token_list: [int(str(token_list[0]))])(
+                "months"
+            )
             + unit_months
         )
         unit_weeks = (
             CaselessLiteral("weeks") | CaselessLiteral("week") | CaselessLiteral("w")
         )
         weeks = (
-            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])("weeks")
+            Word(nums).setParseAction(lambda token_list: [int(str(token_list[0]))])(
+                "weeks"
+            )
             + unit_weeks
         )
         unit_days = (
             CaselessLiteral("days") | CaselessLiteral("day") | CaselessLiteral("d")
         )
         days = (
-            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])("days")
+            Word(nums).setParseAction(lambda token_list: [int(str(token_list[0]))])(
+                "days"
+            )
             + unit_days
         )
         unit_hours = (
@@ -57,7 +70,9 @@ class ReminderParser:
             | CaselessLiteral("h")
         )
         hours = (
-            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])("hours")
+            Word(nums).setParseAction(lambda token_list: [int(str(token_list[0]))])(
+                "hours"
+            )
             + unit_hours
         )
         unit_minutes = (
@@ -68,7 +83,7 @@ class ReminderParser:
             | CaselessLiteral("m")
         )
         minutes = (
-            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])(
+            Word(nums).setParseAction(lambda token_list: [int(str(token_list[0]))])(
                 "minutes"
             )
             + unit_minutes
@@ -81,7 +96,7 @@ class ReminderParser:
             | CaselessLiteral("s")
         )
         seconds = (
-            Word(nums).setParseAction(lambda token_list: [int(token_list[0])])(
+            Word(nums).setParseAction(lambda token_list: [int(str(token_list[0]))])(
                 "seconds"
             )
             + unit_seconds
@@ -130,8 +145,7 @@ class ReminderParser:
 
         self.parser = template
 
-    def parse(self, text: str):
+    def parse(self, text: str) -> dict[str, Any]:
         """Parse text into a reminder config dict."""
         parsed = self.parser.parseString(text, parseAll=True)
-        result = parsed.asDict()
-        return result
+        return parsed.asDict()

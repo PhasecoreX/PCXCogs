@@ -22,22 +22,22 @@ class MixinMeta(ABC):
 
     @staticmethod
     @abstractmethod
-    def humanize_relativedelta(relative_delta: Union[relativedelta, dict]):
+    def humanize_relativedelta(relative_delta: Union[relativedelta, dict]) -> str:
         raise NotImplementedError()
 
     @abstractmethod
-    async def insert_reminder(self, user_id: int, reminder: dict):
+    async def insert_reminder(self, user_id: int, reminder: dict) -> bool:
         raise NotImplementedError()
 
     @staticmethod
     @abstractmethod
-    def relativedelta_to_dict(relative_delta: relativedelta):
+    def relativedelta_to_dict(relative_delta: relativedelta) -> dict[str, int]:
         raise NotImplementedError()
 
     @abstractmethod
     async def send_too_many_message(
         self, ctx_or_user: Union[commands.Context, discord.User], maximum: int = -1
-    ):
+    ) -> None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -46,5 +46,5 @@ class MixinMeta(ABC):
         user_id: int,
         user_reminder_id: Optional[int] = None,
         partial_reminder: Optional[dict] = None,
-    ):
+    ) -> None:
         raise NotImplementedError()
