@@ -391,7 +391,7 @@ class ReactChannel(commands.Cog):
     async def set_filter(self, ctx: commands.Context) -> None:
         """Only react to certain messages in a ReactChannel."""
 
-    @filter.group()
+    @set_filter.group()
     async def source(self, ctx: commands.Context) -> None:
         """Control who is reacted to."""
 
@@ -489,7 +489,7 @@ class ReactChannel(commands.Cog):
                 )
             )
 
-    @filter.group()
+    @set_filter.group()
     async def role(self, ctx: commands.Context) -> None:
         """Filter what user roles will be reacted to."""
 
@@ -620,7 +620,7 @@ class ReactChannel(commands.Cog):
                     )
                 )
 
-    @filter.group()
+    @set_filter.group()
     async def content(self, ctx: commands.Context) -> None:
         """Filter what type of messages will be reacted to."""
 
