@@ -45,7 +45,7 @@ class DecodeBinary(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:
+    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
         """Nothing to delete."""
         return
 

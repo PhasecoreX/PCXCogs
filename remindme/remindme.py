@@ -253,7 +253,7 @@ class RemindMe(
                 fut.result()
             except asyncio.CancelledError:
                 pass
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 log.exception(
                     "Unexpected exception occurred in background loop of RemindMe: ",
                     exc_info=exc,

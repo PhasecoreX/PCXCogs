@@ -153,7 +153,9 @@ class ReactChannel(commands.Cog):
                         ):
                             await self.config.custom(
                                 "REACT_CHANNEL", guild_id, channel_id
-                            ).react_to.bots.set(True)
+                            ).react_to.bots.set(
+                                True  # noqa: FBT003
+                            )
                     elif isinstance(channel_type, list):
                         emoji_tuple_list = []
                         for emoji in channel_type:

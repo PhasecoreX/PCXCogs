@@ -6,9 +6,8 @@ from datetime import timedelta
 from typing import Any, Optional
 
 import aiohttp
-from redbot.core import Config
+from redbot.core import Config, checks, commands
 from redbot.core import __version__ as redbot_version
-from redbot.core import checks, commands
 from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import error, humanize_timedelta
 
@@ -62,7 +61,7 @@ class Heartbeat(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:
+    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
         """Nothing to delete."""
         return
 
@@ -86,7 +85,7 @@ class Heartbeat(commands.Cog):
                 fut.result()
             except asyncio.CancelledError:
                 pass
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 log.exception(
                     "Unexpected exception occurred in background loop of Heartbeat: ",
                     exc_info=exc,
@@ -195,7 +194,7 @@ class Heartbeat(commands.Cog):
                 self.enable_bg_loop(skip_first=True)
                 await ctx.send(checkmark("Heartbeat URL has been set and enabled."))
                 return
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             error_message = str(ex)
         previous_url_text = (
             "I will continue to use the previous URL instead."

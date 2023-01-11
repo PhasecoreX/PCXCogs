@@ -32,7 +32,7 @@ async def delete(message: discord.Message, *, delay: Optional[float] = None) -> 
 
 
 async def reply(
-    ctx: commands.Context, content: Optional[str] = None, **kwargs: Any
+    ctx: commands.Context, content: Optional[str] = None, **kwargs: Any  # noqa: ANN401
 ) -> None:
     """Safely reply to a command message.
 
@@ -60,7 +60,7 @@ async def reply(
 
 
 async def type_message(
-    destination: discord.abc.Messageable, content: str, **kwargs: Any
+    destination: discord.abc.Messageable, content: str, **kwargs: Any  # noqa: ANN401
 ) -> Optional[discord.Message]:
     """Simulate typing and sending a message to a destination.
 
@@ -171,7 +171,7 @@ class SettingDisplay:
         self._length = 0
         self._settings: list[tuple] = []
 
-    def add(self, setting: str, value: Any) -> None:
+    def add(self, setting: str, value: Any) -> None:  # noqa: ANN401
         """Add a setting."""
         setting_colon = setting + ":"
         self._settings.append((setting_colon, value))
@@ -188,7 +188,7 @@ class SettingDisplay:
             msg += f"{setting[0].ljust(self._length, ' ')} [{setting[1]}]\n"
         return msg.strip()
 
-    def display(self, *additional) -> str:
+    def display(self, *additional) -> str:  # noqa: ANN002 (Self)
         """Generate a ready-to-send formatted box of settings.
 
         If additional SettingDisplays are provided, merges their output into one.

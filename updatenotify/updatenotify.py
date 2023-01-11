@@ -67,7 +67,7 @@ class UpdateNotify(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:
+    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
         """Nothing to delete."""
         return
 
@@ -107,7 +107,7 @@ class UpdateNotify(commands.Cog):
                 fut.result()
             except asyncio.CancelledError:
                 pass
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 log.exception(
                     "Unexpected exception occurred in background loop of UpdateNotify: ",
                     exc_info=exc,

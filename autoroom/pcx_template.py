@@ -95,7 +95,7 @@ class Template:
         self.template_parser = template.parseWithTabs()
 
     @staticmethod
-    def _get_value(key: Any, data: dict[str, Any]) -> Any:
+    def _get_value(key: Any, data: dict[str, Any]) -> Any:  # noqa: ANN401
         if not isinstance(key, str):
             return key
         if len(key) > 1 and key[0] in ('"', "'") and key[0] == key[-1]:
@@ -106,7 +106,7 @@ class Template:
             return data
         return ""
 
-    def _evaluate(self, condition: Any, data: dict[str, Any]) -> Any:
+    def _evaluate(self, condition: Any, data: dict[str, Any]) -> Any:  # noqa: ANN401
         # Base case
         if not isinstance(condition, ParseResults):
             return self._get_value(condition, data)
