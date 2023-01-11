@@ -864,7 +864,7 @@ class BanCheck(commands.Cog):
 
     @staticmethod
     async def send_embed(
-        channel_or_ctx: Union[commands.Context, discord.abc.MessageableChannel],
+        channel_or_ctx: Union[commands.Context, discord.TextChannel],
         embed: discord.Embed,
     ) -> bool:
         """Send an embed. If the bot can't send it, complains about permissions."""
