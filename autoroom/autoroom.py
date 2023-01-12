@@ -466,19 +466,15 @@ class AutoRoom(
             new_voice_channel, reason="AutoRoom: Move user to new AutoRoom."
         )
 
-        # TODO Once discord.py supports sending messages to the text chat in a voice channel, this can be enabled
-
-        # # Send text chat hint if enabled
-        # if autoroom_source_config["text_channel_hint"]:
-        #     try:
-        #         hint = self.template.render(
-        #             autoroom_source_config["text_channel_hint"],
-        #             self.get_template_data(member),
-        #         )
-        #         if hint:
-        #             await new_voice_channel.send(hint)
-        #     except RuntimeError:
-        #         pass  # User manually screwed with the template
+        # Send text chat hint if enabled
+        if autoroom_source_config["text_channel_hint"]:
+            with suppress(RuntimeError):
+                hint = self.template.render(
+                    autoroom_source_config["text_channel_hint"],
+                    self.get_template_data(member),
+                )
+                if hint:
+                    await new_voice_channel.send(hint)
 
     @staticmethod
     async def _process_autoroom_delete(voice_channel: discord.VoiceChannel) -> None:

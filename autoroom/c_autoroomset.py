@@ -609,87 +609,89 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 )
             )
 
-    # TODO Once discord.py supports sending messages to the text chat in a voice channel, this can be enabled
+    @modify.group(name="text")
+    async def modify_text(
+        self,
+        ctx: commands.Context,
+    ) -> None:
+        """Configure sending an introductory message to the AutoRoom text channel."""
 
-    # @modify.group(name="text")
-    # async def modify_text(
-    #     self,
-    #     ctx: commands.Context,
-    # ):
-    #     """Configure sending an introductory message to the AutoRoom text channel."""
-    #
-    # @modify_text.command(name="set")
-    # async def modify_text_set(
-    #     self,
-    #     ctx: commands.Context,
-    #     autoroom_source: discord.VoiceChannel,
-    #     *,
-    #     hint_text: str,
-    # ):
-    #     """Send a message to the newly generated AutoRoom text channel.
-    #
-    #     This can have template variables and statements, which you can learn more
-    #     about by looking at `[p]autoroomset modify name custom`, or by looking at
-    #     [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md).
-    #     """
-    #     if await self.get_autoroom_source_config(autoroom_source):
-    #         data = self.get_template_data(ctx.author)
-    #         try:
-    #             # Validate template
-    #             hint_text_formatted = self.template.render(hint_text, data)
-    #         except RuntimeError as rte:
-    #             await ctx.send(
-    #                 error(
-    #                     "Hmm... that doesn't seem to be a valid template:"
-    #                     "\n\n"
-    #                     f"`{str(rte)}`"
-    #                     "\n\n"
-    #                     "If you need some help, take a look at "
-    #                     "[the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)."
-    #                 )
-    #             )
-    #             return
-    #
-    #         await self.config.custom(
-    #             "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
-    #         ).text_channel_hint.set(hint_text)
-    #
-    #         await ctx.send(
-    #             checkmark(
-    #                 f"New AutoRooms created by **{autoroom_source.mention}** will have the following message sent in them:"
-    #                 "\n\n"
-    #                 f"{hint_text_formatted}"
-    #             )
-    #         )
-    #     else:
-    #         await ctx.send(
-    #             error(
-    #                 f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-    #             )
-    #         )
-    #
-    # @modify_text.command(name="disable")
-    # async def modify_text_disable(
-    #     self,
-    #     ctx: commands.Context,
-    #     autoroom_source: discord.VoiceChannel,
-    # ):
-    #     """Disable sending a message to the newly generated AutoRoom text channel."""
-    #     if await self.get_autoroom_source_config(autoroom_source):
-    #         await self.config.custom(
-    #             "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
-    #         ).text_channel_hint.clear()
-    #         await ctx.send(
-    #             checkmark(
-    #                 f"New AutoRooms created by **{autoroom_source.mention}** will no longer have a message sent in them."
-    #             )
-    #         )
-    #     else:
-    #         await ctx.send(
-    #             error(
-    #                 f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
-    #             )
-    #         )
+    @modify_text.command(name="set")
+    async def modify_text_set(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+        *,
+        hint_text: str,
+    ) -> None:
+        """Send a message to the newly generated AutoRoom text channel.
+
+        This can have template variables and statements, which you can learn more
+        about by looking at `[p]autoroomset modify name custom`, or by looking at
+        [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md).
+        """
+        if not ctx.guild:
+            return
+        if await self.get_autoroom_source_config(autoroom_source):
+            data = self.get_template_data(ctx.author)
+            try:
+                # Validate template
+                hint_text_formatted = self.template.render(hint_text, data)
+            except RuntimeError as rte:
+                await ctx.send(
+                    error(
+                        "Hmm... that doesn't seem to be a valid template:"
+                        "\n\n"
+                        f"`{str(rte)}`"
+                        "\n\n"
+                        "If you need some help, take a look at "
+                        "[the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)."
+                    )
+                )
+                return
+
+            await self.config.custom(
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+            ).text_channel_hint.set(hint_text)
+
+            await ctx.send(
+                checkmark(
+                    f"New AutoRooms created by **{autoroom_source.mention}** will have the following message sent in them:"
+                    "\n\n"
+                    f"{hint_text_formatted}"
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @modify_text.command(name="disable")
+    async def modify_text_disable(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+    ) -> None:
+        """Disable sending a message to the newly generated AutoRoom text channel."""
+        if not ctx.guild:
+            return
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+            ).text_channel_hint.clear()
+            await ctx.send(
+                checkmark(
+                    f"New AutoRooms created by **{autoroom_source.mention}** will no longer have a message sent in them."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
 
     @modify.command(
         name="defaults", aliases=["bitrate", "memberrole", "other", "perms", "users"]
