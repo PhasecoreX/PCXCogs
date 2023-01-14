@@ -13,7 +13,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX"
-    __version__ = "2.0.0"
+    __version__ = "2.1.0"
 
     KAOMOJI_JOY = [
         " (\\* ^ ω ^)",

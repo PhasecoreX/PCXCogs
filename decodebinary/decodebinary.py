@@ -21,7 +21,7 @@ class DecodeBinary(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "1.1.0"
+    __version__ = "1.2.0"
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {"ignored_channels": []}

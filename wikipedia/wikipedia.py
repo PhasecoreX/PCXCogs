@@ -16,7 +16,7 @@ class Wikipedia(commands.Cog):
     """Look up stuff on Wikipedia."""
 
     __author__ = "PhasecoreX"
-    __version__ = "3.0.0"
+    __version__ = "3.1.0"
 
     DISAMBIGUATION_CAT = "Category:All disambiguation pages"
     WHITESPACE = re.compile(r"[\n\s]{4,}")

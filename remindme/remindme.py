@@ -33,7 +33,7 @@ class RemindMe(
     """Never forget anything anymore."""
 
     __author__ = "PhasecoreX"
-    __version__ = "3.0.4"
+    __version__ = "3.1.0"
 
     default_global_settings = {
         "schema_version": 0,

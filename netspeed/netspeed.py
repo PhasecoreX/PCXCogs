@@ -12,7 +12,7 @@ class NetSpeed(commands.Cog):
     """Test the internet speed of the server your bot is hosted on."""
 
     __author__ = "PhasecoreX"
-    __version__ = "1.0.0"
+    __version__ = "1.1.0"
 
     #
     # Red methods

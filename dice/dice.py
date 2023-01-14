@@ -17,7 +17,7 @@ class Dice(commands.Cog):
     """Perform complex dice rolling."""
 
     __author__ = "PhasecoreX"
-    __version__ = "2.0.0"
+    __version__ = "2.1.0"
 
     default_global_settings = {"max_dice_rolls": 10000, "max_die_sides": 10000}
     DROPPED_EXPLODED_RE = re.compile(r"-\*(\d+)\*-")

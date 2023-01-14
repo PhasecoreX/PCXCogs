@@ -29,7 +29,7 @@ class Heartbeat(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "1.3.0"
+    __version__ = "1.4.0"
 
     default_global_settings = {"url": "", "frequency": 60}
 
