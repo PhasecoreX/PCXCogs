@@ -169,8 +169,8 @@ class Template:
             data = {}
         result = ""
         current_index = 0
-        stack: list[tuple[str, Any]] = [("base", True)]
         # stack keeps track of if the previous check was true, and thus are printing
+        stack: list[tuple[str, Any]] = [("base", True)]
         target_stack_height = len(stack)
         potential_standalone = False
         tokens = self.template_parser.scanString(template)
