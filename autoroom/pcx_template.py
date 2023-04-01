@@ -170,16 +170,26 @@ class Template:
         result = ""
         current_index = 0
         stack: list[tuple[str, Any]] = [("base", True)]
+        # stack keeps track of if the previous check was true, and thus are printing
+        target_stack_height = len(stack)
         potential_standalone = False
         tokens = self.template_parser.scanString(template)
         for token in tokens:
-            printing = stack[-1][1]
+            if len(stack) != target_stack_height:
+                # If we are in an if statement and already found what part to print (the true part),
+                # the target_stack_height will be lowered by 1. Don't print anything until we get the
+                # stack height back to this value.
+                stack[-1] = (stack[-1][0], False)
+
+            # Print logic
+            printing = stack[-1][1]  # last inserted element, second arg
             if token[1] != current_index and printing:
                 to_append = template[current_index : token[1]]
                 result = self._statement_result_append(result, to_append)
             potential_standalone = not result.rstrip(" \t") or result.rstrip(" \t")[
                 -1
             ] in ("\r", "\n")
+
             if "comment" in token:
                 pass
             elif "identifier" in token[0] and printing:
@@ -193,26 +203,39 @@ class Template:
                 result += identifier_value
                 potential_standalone = False
             elif token[0][0] == "if":
-                stack.append(("if", self._evaluate(token[0][1], data) and stack[-1][1]))
+                if len(stack) == target_stack_height:
+                    target_stack_height += 1
+                evaluate_result = self._evaluate(token[0][1], data)
+                stack.append(("if", evaluate_result))
             elif token[0][0] == "elif":
-                if stack[-1][0] == "base":
+                if stack[-1][0] not in ("if", "elif"):
                     error_message = f"{token[0][0]!r} unexpected at position {token[1]}-{token[2]} (not in an if statement)"
                     raise RuntimeError(error_message)
-                if not stack[-1][1]:
-                    stack[-1] = (
-                        "elif",
-                        self._evaluate(token[0][1], data) and stack[-2][1],
-                    )
+                if len(stack) == target_stack_height:
+                    if stack[-1][
+                        1
+                    ]:  # Previous part of this if statement was true, so we are done with this if statement
+                        target_stack_height -= 1
+                    else:
+                        evaluate_result = self._evaluate(token[0][1], data)
+                        stack[-1] = ("elif", evaluate_result)
             elif token[0][0] == "else":
-                if stack[-1][0] == "base":
+                if stack[-1][0] not in ("if", "elif"):
                     error_message = f"{token[0][0]!r} unexpected at position {token[1]}-{token[2]} (not in an if statement)"
                     raise RuntimeError(error_message)
-                if not stack[-1][1]:
-                    stack[-1] = ("else", stack[-2][1])
+                if len(stack) == target_stack_height:
+                    if stack[-1][
+                        1
+                    ]:  # Previous part of this if statement was true, so we are done with this if statement
+                        target_stack_height -= 1
+                    else:
+                        stack[-1] = ("else", True)
             elif token[0][0] == "endif":
-                if stack[-1][0] == "base":
+                if stack[-1][0] not in ("if", "elif", "else"):
                     error_message = f"{token[0][0]!r} unexpected at position {token[1]}-{token[2]} (not in an if statement)"
                     raise RuntimeError(error_message)
+                if len(stack) == target_stack_height:
+                    target_stack_height -= 1
                 del stack[-1]
             current_index = token[2]
         if current_index != len(template):
