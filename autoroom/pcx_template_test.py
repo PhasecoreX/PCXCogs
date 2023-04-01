@@ -430,6 +430,24 @@ class IfNotStatement(unittest.TestCase):
         self.assertEqual(expected, result)
 
 
+class ElseStatement(unittest.TestCase):
+    def test_else(self):
+        template = "{% if 1 > 2 %}Bad...{% else %}Good!{% endif %}"
+        data = {}
+        result = renderer.render(template, data)
+        expected = "Good!"
+        assert expected == result
+
+
+class ElifStatement(unittest.TestCase):
+    def test_elif(self):
+        template = "{% if 1 > 2 %}Bad if...{% elif 2 == 3 %}Bad elif 1...{% elif 1 == 1 %}Good!{% elif 1 == 2 %}Bad elif 2...{% else %}Bad else...{% endif %}"
+        data = {}
+        result = renderer.render(template, data)
+        expected = "Good!"
+        assert expected == result
+
+
 class Comment(unittest.TestCase):
     def test_inline(self):
         template = "12345{# Comment Block! #}67890"
