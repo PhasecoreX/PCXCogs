@@ -1,9 +1,6 @@
 """A user lookup result."""
 
 
-from typing import Optional
-
-
 class LookupResult:
     """A user lookup result."""
 
@@ -12,8 +9,8 @@ class LookupResult:
         service: str,
         result: str,
         *,
-        reason: Optional[str] = None,
-        proof_url: Optional[str] = None,
+        reason: str | None = None,
+        proof_url: str | None = None,
     ) -> None:
         """Create the base lookup result."""
         self.service = service

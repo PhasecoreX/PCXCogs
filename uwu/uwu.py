@@ -1,7 +1,7 @@
 """UwU cog for Red-DiscordBot by PhasecoreX."""
 import random
 from contextlib import suppress
-from typing import Any, Optional
+from typing import Any
 
 import discord
 from redbot.core import commands
@@ -54,7 +54,7 @@ class UwU(commands.Cog):
     #
 
     @commands.command(aliases=["owo"])
-    async def uwu(self, ctx: commands.Context, *, text: Optional[str] = None) -> None:
+    async def uwu(self, ctx: commands.Context, *, text: str | None = None) -> None:
         """Uwuize the replied to message, previous message, or your own text."""
         if not text:
             if hasattr(ctx.message, "reference") and ctx.message.reference:
@@ -143,20 +143,10 @@ class UwU(commands.Cog):
         else:
             # Protect specific word endings from changes
             protected = ""
-            if (
-                uwu.endswith("le")
-                or uwu.endswith("ll")
-                or uwu.endswith("er")
-                or uwu.endswith("re")
-            ):
+            if uwu.endswith(("le", "ll", "er", "re")):
                 protected = uwu[-2:]
                 uwu = uwu[:-2]
-            elif (
-                uwu.endswith("les")
-                or uwu.endswith("lls")
-                or uwu.endswith("ers")
-                or uwu.endswith("res")
-            ):
+            elif uwu.endswith(("les", "lls", "ers", "res")):
                 protected = uwu[-3:]
                 uwu = uwu[:-3]
             # l -> w, r -> w, n<vowel> -> ny<vowel>, ove -> uv

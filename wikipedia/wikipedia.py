@@ -1,7 +1,7 @@
 """Wikipedia cog for Red-DiscordBot ported by PhasecoreX."""
 import re
 from contextlib import suppress
-from typing import Any, Optional
+from typing import Any
 
 import aiohttp
 import discord
@@ -125,7 +125,7 @@ class Wikipedia(commands.Cog):
 
     async def perform_search(
         self, query: str, *, only_first_result: bool = False
-    ) -> tuple[list[discord.Embed], Optional[str]]:
+    ) -> tuple[list[discord.Embed], str | None]:
         """Query Wikipedia."""
         payload = self.generate_payload(query)
         async with aiohttp.ClientSession() as session:

@@ -1,7 +1,8 @@
 """Shared code across multiple cogs."""
 import asyncio
+from collections.abc import Mapping
 from contextlib import suppress
-from typing import Any, Mapping, Optional, Union
+from typing import Any
 
 import discord
 from redbot.core import __version__ as redbot_version
@@ -11,13 +12,17 @@ from redbot.core.utils.chat_formatting import box
 
 headers = {"user-agent": "Red-DiscordBot/" + redbot_version}
 
+MAX_EMBED_SIZE = 5900
+MAX_EMBED_FIELDS = 20
+MAX_EMBED_FIELD_SIZE = 1024
+
 
 def checkmark(text: str) -> str:
     """Get text prefixed with a checkmark emoji."""
     return f"\N{WHITE HEAVY CHECK MARK} {text}"
 
 
-async def delete(message: discord.Message, *, delay: Optional[float] = None) -> bool:
+async def delete(message: discord.Message, *, delay: float | None = None) -> bool:
     """Attempt to delete a message.
 
     Returns True if successful, False otherwise.
@@ -32,7 +37,7 @@ async def delete(message: discord.Message, *, delay: Optional[float] = None) -> 
 
 
 async def reply(
-    ctx: commands.Context, content: Optional[str] = None, **kwargs: Any  # noqa: ANN401
+    ctx: commands.Context, content: str | None = None, **kwargs: Any  # noqa: ANN401
 ) -> None:
     """Safely reply to a command message.
 
@@ -61,7 +66,7 @@ async def reply(
 
 async def type_message(
     destination: discord.abc.Messageable, content: str, **kwargs: Any  # noqa: ANN401
-) -> Optional[discord.Message]:
+) -> discord.Message | None:
     """Simulate typing and sending a message to a destination.
 
     Will send a typing indicator, wait a variable amount of time based on the length
@@ -75,7 +80,7 @@ async def type_message(
 
 
 async def message_splitter(
-    message: str, destination: Optional[discord.abc.Messageable] = None
+    message: str, destination: discord.abc.Messageable | None = None
 ) -> list[str]:
     r"""Take a message string and split it so that each message in the resulting list is no greater than 1900.
 
@@ -111,7 +116,7 @@ async def message_splitter(
 
 
 async def embed_splitter(
-    embed: discord.Embed, destination: Optional[discord.abc.Messageable] = None
+    embed: discord.Embed, destination: discord.abc.Messageable | None = None
 ) -> list[discord.Embed]:
     """Take an embed and split it so that each embed has at most 20 fields and a length of 5900.
 
@@ -125,15 +130,15 @@ async def embed_splitter(
     modified = False
     if "fields" in embed_dict:
         for field in embed_dict["fields"]:
-            if len(field["value"]) > 1024:
-                field["value"] = field["value"][:1021] + "..."
+            if len(field["value"]) > MAX_EMBED_FIELD_SIZE:
+                field["value"] = field["value"][: MAX_EMBED_FIELD_SIZE - 3] + "..."
                 modified = True
     if modified:
         embed = discord.Embed.from_dict(embed_dict)
 
     # Short circuit
-    if len(embed) < 5901 and (
-        "fields" not in embed_dict or len(embed_dict["fields"]) < 21
+    if len(embed) <= MAX_EMBED_SIZE and (
+        "fields" not in embed_dict or len(embed_dict["fields"]) <= MAX_EMBED_FIELDS
     ):
         if destination:
             await destination.send(embed=embed)
@@ -147,7 +152,10 @@ async def embed_splitter(
     for field in fields:
         embed_dict["fields"].append(field)
         current_embed = discord.Embed.from_dict(embed_dict)
-        if len(current_embed) > 5900 or len(embed_dict["fields"]) > 20:
+        if (
+            len(current_embed) > MAX_EMBED_SIZE
+            or len(embed_dict["fields"]) > MAX_EMBED_FIELDS
+        ):
             embed_dict["fields"].pop()
             current_embed = discord.Embed.from_dict(embed_dict)
             split_embeds.append(current_embed.copy())
@@ -165,7 +173,7 @@ async def embed_splitter(
 class SettingDisplay:
     """A formatted list of settings."""
 
-    def __init__(self, header: Optional[str] = None) -> None:
+    def __init__(self, header: str | None = None) -> None:
         """Init."""
         self.header = header
         self._length = 0
@@ -208,25 +216,23 @@ class Perms:
 
     def __init__(
         self,
-        overwrites: Optional[
-            dict[
-                Union[discord.Role, discord.Member, discord.Object],
-                discord.PermissionOverwrite,
-            ]
-        ] = None,
+        overwrites: dict[
+            discord.Role | discord.Member | discord.Object, discord.PermissionOverwrite
+        ]
+        | None = None,
     ) -> None:
         """Init."""
         self.__overwrites: dict[
-            Union[discord.Role, discord.Member],
+            discord.Role | discord.Member,
             discord.PermissionOverwrite,
         ] = {}
         self.__original: dict[
-            Union[discord.Role, discord.Member],
+            discord.Role | discord.Member,
             discord.PermissionOverwrite,
         ] = {}
         if overwrites:
             for key, value in overwrites.items():
-                if isinstance(key, (discord.Role, discord.Member)):
+                if isinstance(key, discord.Role | discord.Member):
                     pair = value.pair()
                     self.__overwrites[key] = discord.PermissionOverwrite().from_pair(
                         *pair
@@ -237,12 +243,12 @@ class Perms:
 
     def overwrite(
         self,
-        target: Union[discord.Role, discord.Member, discord.Object],
+        target: discord.Role | discord.Member | discord.Object,
         permission_overwrite: discord.PermissionOverwrite,
     ) -> None:
         """Set the permissions for a target."""
         if not permission_overwrite.is_empty() and isinstance(
-            target, (discord.Role, discord.Member)
+            target, discord.Role | discord.Member
         ):
             self.__overwrites[target] = discord.PermissionOverwrite().from_pair(
                 *permission_overwrite.pair()
@@ -250,8 +256,8 @@ class Perms:
 
     def update(
         self,
-        target: Union[discord.Role, discord.Member],
-        perm: Mapping[str, Optional[bool]],
+        target: discord.Role | discord.Member,
+        perm: Mapping[str, bool | None],
     ) -> None:
         """Update the permissions for a target."""
         if target not in self.__overwrites:
@@ -268,11 +274,6 @@ class Perms:
     @property
     def overwrites(
         self,
-    ) -> Optional[
-        dict[
-            Union[discord.Role, discord.Member],
-            discord.PermissionOverwrite,
-        ]
-    ]:
+    ) -> dict[discord.Role | discord.Member, discord.PermissionOverwrite] | None:
         """Get current overwrites."""
         return self.__overwrites

@@ -1,7 +1,6 @@
 """The autoroomset command."""
 import asyncio
 from abc import ABC
-from typing import Optional
 
 import discord
 from redbot.core import checks, commands
@@ -550,7 +549,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         ctx: commands.Context,
         autoroom_source: discord.VoiceChannel,
         room_type: str,
-        template: Optional[str] = None,
+        template: str | None = None,
     ) -> None:
         """Save the room name type."""
         if not ctx.guild:

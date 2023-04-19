@@ -4,7 +4,7 @@ import datetime
 import logging
 import os
 from contextlib import suppress
-from typing import Any, Optional
+from typing import Any
 
 import aiohttp
 from redbot.core import Config, VersionInfo, checks, commands
@@ -50,7 +50,7 @@ class UpdateNotify(commands.Cog):
         self.notified_docker_build = self.docker_build
         self.notified_version = redbot_version
 
-        self.next_check = datetime.datetime.now(datetime.timezone.utc)
+        self.next_check = datetime.datetime.now(datetime.UTC)
         self.bg_loop_task = None
 
     #
@@ -107,7 +107,7 @@ class UpdateNotify(commands.Cog):
                 fut.result()
             except asyncio.CancelledError:
                 pass
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.exception(
                     "Unexpected exception occurred in background loop of UpdateNotify: ",
                     exc_info=exc,
@@ -133,9 +133,9 @@ class UpdateNotify(commands.Cog):
             frequency = 300.0
         while True:
             await self.check_for_updates()
-            self.next_check = datetime.datetime.now(
-                datetime.timezone.utc
-            ) + datetime.timedelta(0, frequency)
+            self.next_check = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
+                0, frequency
+            )
             await asyncio.sleep(frequency)
 
     async def check_for_updates(self) -> None:
@@ -165,7 +165,7 @@ class UpdateNotify(commands.Cog):
         global_section.add(
             "Next check in",
             humanize_timedelta(
-                timedelta=self.next_check - datetime.datetime.now(datetime.timezone.utc)
+                timedelta=self.next_check - datetime.datetime.now(datetime.UTC)
             ),
         )
         global_section.add(
@@ -192,7 +192,7 @@ class UpdateNotify(commands.Cog):
         frequency: commands.TimedeltaConverter(
             minimum=datetime.timedelta(minutes=5),
             maximum=datetime.timedelta(days=30),
-            default_unit="minutes",  # noqa: F821
+            default_unit="minutes",
         ),
     ) -> None:
         """Set the frequency that UpdateNotify should check for updates."""
@@ -300,7 +300,7 @@ class UpdateNotify(commands.Cog):
                 )
 
     @staticmethod
-    async def get_latest_redbot_version() -> Optional[VersionInfo]:
+    async def get_latest_redbot_version() -> VersionInfo | None:
         """Check PyPI for the latest update to Red-DiscordBot."""
         url = "https://pypi.org/pypi/Red-DiscordBot/json"
         async with aiohttp.ClientSession() as session:
@@ -317,7 +317,7 @@ class UpdateNotify(commands.Cog):
                 )
 
     @staticmethod
-    async def get_latest_github_actions_build() -> Optional[dict[str, str]]:
+    async def get_latest_github_actions_build() -> dict[str, str] | None:
         """Check GitHub for the latest update to phasecorex/red-discordbot."""
         url = (
             "https://api.github.com/repos/phasecorex/docker-red-discordbot/actions/runs"

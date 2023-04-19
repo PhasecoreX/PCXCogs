@@ -1,5 +1,5 @@
 default_language_version:
-  python: python3.9
+  python: python3.11
 repos:
   - repo: https://github.com/psf/black
     rev: '23.1.0'
@@ -10,7 +10,7 @@ repos:
     hooks:
       - id: black-disable-checker
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.218
+    rev: v0.0.262
     hooks:
       - id: ruff
         args:

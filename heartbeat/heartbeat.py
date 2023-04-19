@@ -3,7 +3,7 @@ import asyncio
 import datetime
 import logging
 from datetime import timedelta
-from typing import Any, Optional
+from typing import Any
 
 import aiohttp
 from redbot.core import Config, checks, commands
@@ -17,6 +17,8 @@ user_agent = (
     f"Red-DiscordBot/{redbot_version} Heartbeat (https://github.com/PhasecoreX/PCXCogs)"
 )
 log = logging.getLogger("red.pcxcogs.heartbeat")
+
+MIN_HEARTBEAT_SECONDS = 60.0
 
 
 class Heartbeat(commands.Cog):
@@ -43,7 +45,7 @@ class Heartbeat(commands.Cog):
         self.config.register_global(**self.default_global_settings)
         self.session = aiohttp.ClientSession()
         self.current_error = None
-        self.next_heartbeat = datetime.datetime.now(datetime.timezone.utc)
+        self.next_heartbeat = datetime.datetime.now(datetime.UTC)
         self.bg_loop_task = None
 
     #
@@ -85,7 +87,7 @@ class Heartbeat(commands.Cog):
                 fut.result()
             except asyncio.CancelledError:
                 pass
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.exception(
                     "Unexpected exception occurred in background loop of Heartbeat: ",
                     exc_info=exc,
@@ -113,18 +115,18 @@ class Heartbeat(commands.Cog):
         if not url:
             return
         frequency = await self.config.frequency()
-        if frequency < 60:
-            frequency = 60.0
+        if frequency < MIN_HEARTBEAT_SECONDS:
+            frequency = MIN_HEARTBEAT_SECONDS
         if not skip_first:
             self.current_error = await self.send_heartbeat(url)
         while True:
             self.next_heartbeat = datetime.datetime.now(
-                datetime.timezone.utc
+                datetime.UTC
             ) + datetime.timedelta(0, frequency)
             await asyncio.sleep(frequency)
             self.current_error = await self.send_heartbeat(url)
 
-    async def send_heartbeat(self, url: str) -> Optional[str]:
+    async def send_heartbeat(self, url: str) -> str | None:
         """Send a heartbeat ping.
 
         Returns error message if error, None otherwise
@@ -174,8 +176,7 @@ class Heartbeat(commands.Cog):
             global_section.add(
                 "Next heartbeat in",
                 humanize_timedelta(
-                    timedelta=self.next_heartbeat
-                    - datetime.datetime.now(datetime.timezone.utc)
+                    timedelta=self.next_heartbeat - datetime.datetime.now(datetime.UTC)
                 )
                 or "0 seconds",
             )
@@ -221,7 +222,7 @@ class Heartbeat(commands.Cog):
         frequency: commands.TimedeltaConverter(
             minimum=timedelta(seconds=60),
             maximum=timedelta(days=30),
-            default_unit="seconds",  # noqa: F821
+            default_unit="seconds",
         ),
     ) -> None:
         """Set the frequency Heartbeat will send pings."""

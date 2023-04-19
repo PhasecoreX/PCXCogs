@@ -1,7 +1,7 @@
 """The autoroom command."""
 import datetime
 from abc import ABC
-from typing import Any, Optional, Union
+from typing import Any
 
 import discord
 from redbot.core import commands
@@ -78,7 +78,7 @@ class AutoRoomCommands(MixinMeta, ABC):
         room_settings.add(
             "Channel Age",
             humanize_timedelta(
-                timedelta=datetime.datetime.now(datetime.timezone.utc)
+                timedelta=datetime.datetime.now(datetime.UTC)
                 - autoroom_channel.created_at
             ),
         )
@@ -214,7 +214,7 @@ class AutoRoomCommands(MixinMeta, ABC):
 
     @autoroom.command(aliases=["add"])
     async def allow(
-        self, ctx: commands.Context, member_or_role: Union[discord.Role, discord.Member]
+        self, ctx: commands.Context, member_or_role: discord.Role | discord.Member
     ) -> None:
         """Allow a user (or role) into your AutoRoom."""
         await self._process_allow_deny(
@@ -223,7 +223,7 @@ class AutoRoomCommands(MixinMeta, ABC):
 
     @autoroom.command(aliases=["ban", "block"])
     async def deny(
-        self, ctx: commands.Context, member_or_role: Union[discord.Role, discord.Member]
+        self, ctx: commands.Context, member_or_role: discord.Role | discord.Member
     ) -> None:
         """Deny a user (or role) from accessing your AutoRoom.
 
@@ -250,7 +250,7 @@ class AutoRoomCommands(MixinMeta, ABC):
         ctx: commands.Context,
         perm_overwrite: dict[str, bool],
         *,
-        member_or_role: Optional[Union[discord.Role, discord.Member]] = None,
+        member_or_role: discord.Role | discord.Member | None = None,
     ) -> bool:
         """Actually do channel edit for allow/deny."""
         if not ctx.guild:
@@ -358,7 +358,7 @@ class AutoRoomCommands(MixinMeta, ABC):
 
         perms = Perms(autoroom_channel.overwrites)
         for target in to_modify:
-            if isinstance(target, (discord.Member, discord.Role)):
+            if isinstance(target, discord.Member | discord.Role):
                 perms.update(target, perm_overwrite)
         if perms.modified:
             await autoroom_channel.edit(
@@ -371,8 +371,8 @@ class AutoRoomCommands(MixinMeta, ABC):
 
     @staticmethod
     def _get_current_voice_channel(
-        member: Union[discord.Member, discord.User]
-    ) -> Optional[discord.VoiceChannel]:
+        member: discord.Member | discord.User,
+    ) -> discord.VoiceChannel | None:
         """Get the members current voice channel, or None if not in a voice channel."""
         if (
             isinstance(member, discord.Member)
@@ -384,7 +384,7 @@ class AutoRoomCommands(MixinMeta, ABC):
 
     async def _get_autoroom_channel_and_info(
         self, ctx: commands.Context, *, check_owner: bool = True
-    ) -> tuple[Optional[discord.VoiceChannel], Optional[dict[str, Any]]]:
+    ) -> tuple[discord.VoiceChannel | None, dict[str, Any] | None]:
         autoroom_channel = self._get_current_voice_channel(ctx.message.author)
         autoroom_info = await self.get_autoroom_info(autoroom_channel)
         if not autoroom_info:

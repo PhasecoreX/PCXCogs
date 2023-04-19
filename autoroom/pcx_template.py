@@ -1,7 +1,7 @@
 """A simple template engine, safe for untrusted user templates."""
 
 from contextlib import suppress
-from typing import Any, Optional
+from typing import Any
 
 from pyparsing import (
     Keyword,
@@ -121,7 +121,7 @@ class Template:
             return lhs or self._evaluate(condition[2], data)
         # rhs is now required
         rhs = self._evaluate(condition[2], data)
-        if not lhs and isinstance(rhs, (int, float)):
+        if not lhs and isinstance(rhs, int | float):
             lhs = 0
         if condition[1] == "==":
             return lhs == rhs
@@ -138,7 +138,7 @@ class Template:
         return False
 
     @staticmethod
-    def _statement_result_append(result: Optional[str], to_append: str) -> str:
+    def _statement_result_append(result: str | None, to_append: str) -> str:
         if not result:
             result = ""
         if (
@@ -163,7 +163,7 @@ class Template:
             to_append = to_append[2:] if to_append.startswith("\r\n") else to_append[1:]
         return result + to_append
 
-    def render(self, template: str = "", data: Optional[dict[str, Any]] = None) -> str:
+    def render(self, template: str = "", data: dict[str, Any] | None = None) -> str:
         """Render a template with the given data."""
         if data is None:
             data = {}

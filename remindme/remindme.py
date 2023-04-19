@@ -3,7 +3,7 @@ import asyncio
 import logging
 from abc import ABC
 from datetime import MAXYEAR, datetime, timezone
-from typing import Any, Optional, Union
+from typing import Any
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -253,7 +253,7 @@ class RemindMe(
                 fut.result()
             except asyncio.CancelledError:
                 pass
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.exception(
                     "Unexpected exception occurred in background loop of RemindMe: ",
                     exc_info=exc,
@@ -530,7 +530,7 @@ class RemindMe(
     #
 
     @staticmethod
-    def humanize_relativedelta(relative_delta: Union[relativedelta, dict]) -> str:
+    def humanize_relativedelta(relative_delta: relativedelta | dict) -> str:
         """Convert relativedelta (or a dict of its keyword arguments) into a humanized string."""
         if isinstance(relative_delta, dict):
             relative_delta = relativedelta(**relative_delta)
@@ -603,7 +603,7 @@ class RemindMe(
 
     async def send_too_many_message(
         self,
-        ctx_or_user: Union[commands.Context, discord.Member, discord.User],
+        ctx_or_user: commands.Context | discord.Member | discord.User,
         maximum: int = -1,
     ) -> None:
         """Send a message to the user telling them they have too many reminders."""
@@ -622,8 +622,8 @@ class RemindMe(
     async def update_bg_task(
         self,
         user_id: int,
-        user_reminder_id: Optional[int] = None,
-        partial_reminder: Optional[dict] = None,
+        user_reminder_id: int | None = None,
+        partial_reminder: dict | None = None,
     ) -> None:
         """Request the background task to consider a new (or updated) reminder.
 

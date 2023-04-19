@@ -1,7 +1,7 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
 from abc import ABC
 from contextlib import suppress
-from typing import Any, Optional, Union
+from typing import Any
 
 import discord
 from redbot.core import Config, commands
@@ -531,9 +531,7 @@ class AutoRoom(
     #
 
     @staticmethod
-    def get_template_data(
-        member: Union[discord.Member, discord.User]
-    ) -> dict[str, str]:
+    def get_template_data(member: discord.Member | discord.User) -> dict[str, str]:
         """Return a dict of template data based on a member."""
         data = {"username": member.display_name}
         if isinstance(member, discord.Member):
@@ -551,9 +549,7 @@ class AutoRoom(
             data={**nums, **data},
         )[:100].strip()
 
-    async def is_admin_or_admin_role(
-        self, who: Union[discord.Role, discord.Member]
-    ) -> bool:
+    async def is_admin_or_admin_role(self, who: discord.Role | discord.Member) -> bool:
         """Check if a member (or role) is an admin (role).
 
         Also takes into account if the setting is enabled.
@@ -565,9 +561,7 @@ class AutoRoom(
                 return await self.bot.is_admin(who)
         return False
 
-    async def is_mod_or_mod_role(
-        self, who: Union[discord.Role, discord.Member]
-    ) -> bool:
+    async def is_mod_or_mod_role(self, who: discord.Role | discord.Member) -> bool:
         """Check if a member (or role) is a mod (role).
 
         Also takes into account if the setting is enabled.
@@ -587,7 +581,7 @@ class AutoRoom(
         with_manage_roles_guild: bool = False,
         with_optional_clone_perms: bool = False,
         detailed: bool = False,
-    ) -> tuple[bool, bool, Optional[str]]:
+    ) -> tuple[bool, bool, str | None]:
         """Check if the permissions in an AutoRoom Source and a destination category are sufficient."""
         source = autoroom_source.permissions_for(autoroom_source.guild.me)
         dest = category_dest.permissions_for(category_dest.guild.me)
@@ -655,7 +649,7 @@ class AutoRoom(
         dest_perms: discord.Permissions,
         *,
         detailed: bool = False,
-    ) -> tuple[bool, Optional[SettingDisplay]]:
+    ) -> tuple[bool, SettingDisplay | None]:
         result = True
         checked_perms = {}
         source_overwrites = (
@@ -714,7 +708,7 @@ class AutoRoom(
 
     async def get_autoroom_source_config(
         self, autoroom_source: discord.VoiceChannel
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Return the config for an autoroom source, or None if not set up yet."""
         if not autoroom_source:
             return None
@@ -726,8 +720,8 @@ class AutoRoom(
         return config
 
     async def get_autoroom_info(
-        self, autoroom: Optional[discord.VoiceChannel]
-    ) -> Optional[dict[str, Any]]:
+        self, autoroom: discord.VoiceChannel | None
+    ) -> dict[str, Any] | None:
         """Get info for an AutoRoom, or None if the voice channel isn't an AutoRoom."""
         if not autoroom:
             return None
@@ -738,7 +732,7 @@ class AutoRoom(
     @staticmethod
     def check_if_member_or_role_allowed(
         channel: discord.VoiceChannel,
-        member_or_role: Union[discord.Member, discord.Role],
+        member_or_role: discord.Member | discord.Role,
     ) -> bool:
         """Check if a member/role is allowed to connect to a voice channel.
 

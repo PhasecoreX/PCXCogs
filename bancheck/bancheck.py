@@ -1,6 +1,6 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
 from contextlib import suppress
-from typing import Any, Optional, Union
+from typing import Any
 
 import discord
 from redbot.core import Config, checks, commands
@@ -181,7 +181,7 @@ class BanCheck(commands.Cog):
 
     @banchecksetglobal.command(name="api")
     async def global_api(
-        self, ctx: commands.Context, service: str, api_key: Optional[str] = None
+        self, ctx: commands.Context, service: str, api_key: str | None = None
     ) -> None:
         """Set (or delete) an API key for a global service.
 
@@ -292,7 +292,7 @@ class BanCheck(commands.Cog):
     @staticmethod
     def _get_autocheck_status(
         embed: discord.Embed,
-        notify_channel: Optional[discord.abc.GuildChannel],
+        notify_channel: discord.abc.GuildChannel | None,
         *,
         any_enabled: bool,
     ) -> None:
@@ -325,7 +325,7 @@ class BanCheck(commands.Cog):
     @staticmethod
     def _get_autoban_status(
         embed: discord.Embed,
-        notify_channel: Optional[discord.abc.GuildChannel],
+        notify_channel: discord.abc.GuildChannel | None,
         autoban_service_count: int,
         *,
         ban_members_permission: bool,
@@ -445,7 +445,7 @@ class BanCheck(commands.Cog):
 
     @service.command(name="api")
     async def service_api(
-        self, ctx: commands.Context, service: str, api_key: Optional[str] = None
+        self, ctx: commands.Context, service: str, api_key: str | None = None
     ) -> None:
         """Set (or delete) an API key for a service."""
         # Try deleting the command as fast as possible, so that others can't see the API key
@@ -595,7 +595,7 @@ class BanCheck(commands.Cog):
 
     @autocheck.command(name="set")
     async def set_autocheck(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel] = None
+        self, ctx: commands.Context, channel: discord.TextChannel | None = None
     ) -> None:
         """Set the channel you want AutoCheck notifications to go to."""
         if not ctx.guild:
@@ -633,7 +633,7 @@ class BanCheck(commands.Cog):
     async def bancheck(
         self,
         ctx: commands.Context,
-        member: Optional[Union[discord.Member, discord.User, int]] = None,
+        member: discord.Member | discord.User | int | None = None,
     ) -> None:
         """Check if user is on a ban list."""
         if not ctx.guild:
@@ -672,17 +672,17 @@ class BanCheck(commands.Cog):
     async def _user_lookup(
         self,
         guild: discord.Guild,
-        member: Union[discord.Member, discord.User, int],
+        member: discord.Member | discord.User | int,
         *,
         do_ban: bool = False,
-    ) -> Optional[discord.Embed]:
+    ) -> discord.Embed | None:
         """Perform user lookup and return results embed. Optionally ban user too."""
         config_services = await self.config.guild(guild).services()
         banned_services: dict[str, str] = {}
         auto_banned = False
         is_error = False
         checked = []
-        if isinstance(member, (discord.Member, discord.User)):
+        if isinstance(member, discord.Member | discord.User):
             description = f"**Name:** {member.name}\n**ID:** {member.id}\n\n"
             member_id = member.id
             member_avatar_url = member.display_avatar.url
@@ -824,8 +824,8 @@ class BanCheck(commands.Cog):
         return result
 
     async def get_api_key(
-        self, service_name: str, guild_service_config: Optional[dict[str, Any]] = None
-    ) -> Union[bool, str]:
+        self, service_name: str, guild_service_config: dict[str, Any] | None = None
+    ) -> bool | str:
         """Get the API key for this service.
 
         Returns the first:
@@ -864,7 +864,7 @@ class BanCheck(commands.Cog):
 
     @staticmethod
     async def send_embed(
-        channel_or_ctx: Union[commands.Context, discord.TextChannel],
+        channel_or_ctx: commands.Context | discord.TextChannel,
         embed: discord.Embed,
     ) -> bool:
         """Send an embed. If the bot can't send it, complains about permissions."""
@@ -887,10 +887,10 @@ class BanCheck(commands.Cog):
 
     @staticmethod
     def embed_maker(
-        title: Optional[str],
-        color: Optional[discord.Colour],
-        description: Optional[str],
-        avatar: Optional[str] = None,
+        title: str | None,
+        color: discord.Colour | None,
+        description: str | None,
+        avatar: str | None = None,
     ) -> discord.Embed:
         """Create a nice embed."""
         embed = discord.Embed(title=title, color=color, description=description)

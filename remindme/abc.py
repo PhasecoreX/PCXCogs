@@ -1,6 +1,5 @@
 """ABC for the RemindMe Cog."""
 from abc import ABC, abstractmethod
-from typing import Optional, Union
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -23,29 +22,29 @@ class MixinMeta(ABC):
 
     @staticmethod
     @abstractmethod
-    def humanize_relativedelta(relative_delta: Union[relativedelta, dict]) -> str:
-        raise NotImplementedError()
+    def humanize_relativedelta(relative_delta: relativedelta | dict) -> str:
+        raise NotImplementedError
 
     @abstractmethod
     async def insert_reminder(self, user_id: int, reminder: dict) -> bool:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @staticmethod
     @abstractmethod
     def relativedelta_to_dict(relative_delta: relativedelta) -> dict[str, int]:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def send_too_many_message(
-        self, ctx_or_user: Union[commands.Context, discord.User], maximum: int = -1
+        self, ctx_or_user: commands.Context | discord.User, maximum: int = -1
     ) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def update_bg_task(
         self,
         user_id: int,
-        user_reminder_id: Optional[int] = None,
-        partial_reminder: Optional[dict] = None,
+        user_reminder_id: int | None = None,
+        partial_reminder: dict | None = None,
     ) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError

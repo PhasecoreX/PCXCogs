@@ -1,7 +1,6 @@
 """ReactChannel cog for Red-DiscordBot by PhasecoreX."""
 import datetime
 from contextlib import suppress
-from typing import Optional, Union
 
 import discord
 from redbot.core import Config, checks, commands
@@ -284,14 +283,14 @@ class ReactChannel(commands.Cog):
 
     @enable.command()
     async def checklist(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel] = None
+        self, ctx: commands.Context, channel: discord.TextChannel | None = None
     ) -> None:
         """All messages will have a checkmark. Clicking it will delete the message."""
         await self._save_channel(ctx, channel, "checklist")
 
     @enable.command()
     async def vote(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel] = None
+        self, ctx: commands.Context, channel: discord.TextChannel | None = None
     ) -> None:
         """All user messages will have an up and down arrow. Clicking them will affect a user's karma total."""
         await self._save_channel(ctx, channel, "vote")
@@ -307,8 +306,8 @@ class ReactChannel(commands.Cog):
     async def _save_channel(
         self,
         ctx: commands.Context,
-        channel: Optional[discord.TextChannel],
-        reaction_template: Union[str, list],
+        channel: discord.TextChannel | None,
+        reaction_template: str | list,
     ) -> None:
         """Actually save the ReactChannel settings."""
         if channel is None:
@@ -369,7 +368,7 @@ class ReactChannel(commands.Cog):
 
     @reactchannelset.command()
     async def disable(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel] = None
+        self, ctx: commands.Context, channel: discord.TextChannel | None = None
     ) -> None:
         """Disable ReactChannel functionality in a channel."""
         if channel is None:
@@ -397,7 +396,7 @@ class ReactChannel(commands.Cog):
 
     @source.command(aliases=["user"])
     async def users(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel]
+        self, ctx: commands.Context, channel: discord.TextChannel | None
     ) -> None:
         """Toggle reacting to user messages."""
         if channel is None:
@@ -425,7 +424,7 @@ class ReactChannel(commands.Cog):
 
     @source.command(aliases=["bot"])
     async def bots(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel]
+        self, ctx: commands.Context, channel: discord.TextChannel | None
     ) -> None:
         """Toggle reacting to other bot messages."""
         if channel is None:
@@ -458,7 +457,7 @@ class ReactChannel(commands.Cog):
 
     @source.command(aliases=["me"])
     async def myself(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel]
+        self, ctx: commands.Context, channel: discord.TextChannel | None
     ) -> None:
         """Toggle reacting to my own messages."""
         if channel is None:
@@ -498,7 +497,7 @@ class ReactChannel(commands.Cog):
         self,
         ctx: commands.Context,
         role: discord.Role,
-        channel: Optional[discord.TextChannel],
+        channel: discord.TextChannel | None,
     ) -> None:
         """Add a role to the role filter."""
         if channel is None:
@@ -537,7 +536,7 @@ class ReactChannel(commands.Cog):
         self,
         ctx: commands.Context,
         role: discord.Role,
-        channel: Optional[discord.TextChannel],
+        channel: discord.TextChannel | None,
     ) -> None:
         """Remove a role from the role filter."""
         if channel is None:
@@ -580,7 +579,7 @@ class ReactChannel(commands.Cog):
 
     @role.command(name="toggle")
     async def role_toggle(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel]
+        self, ctx: commands.Context, channel: discord.TextChannel | None
     ) -> None:
         """Toggle between allowing or denying these roles."""
         if channel is None:
@@ -626,7 +625,7 @@ class ReactChannel(commands.Cog):
 
     @content.command()
     async def text(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel]
+        self, ctx: commands.Context, channel: discord.TextChannel | None
     ) -> None:
         """Toggle reacting to text-only messages."""
         if channel is None:
@@ -654,7 +653,7 @@ class ReactChannel(commands.Cog):
 
     @content.command(name="commands", aliases=["command"])
     async def content_commands(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel]
+        self, ctx: commands.Context, channel: discord.TextChannel | None
     ) -> None:
         """Toggle reacting to command messages."""
         if channel is None:
@@ -682,7 +681,7 @@ class ReactChannel(commands.Cog):
 
     @content.command(aliases=["image"])
     async def images(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel]
+        self, ctx: commands.Context, channel: discord.TextChannel | None
     ) -> None:
         """Toggle reacting to images."""
         if channel is None:
@@ -722,20 +721,20 @@ class ReactChannel(commands.Cog):
 
     @emoji.command(name="upvote")
     async def set_upvote(
-        self, ctx: commands.Context, emoji: Union[discord.Emoji, str]
+        self, ctx: commands.Context, emoji: discord.Emoji | str
     ) -> None:
         """Set the upvote emoji used. Use "none" to remove the emoji and disable upvotes."""
         await self._save_emoji(ctx, emoji, "upvote")
 
     @emoji.command(name="downvote")
     async def set_downvote(
-        self, ctx: commands.Context, emoji: Union[discord.Emoji, str]
+        self, ctx: commands.Context, emoji: discord.Emoji | str
     ) -> None:
         """Set the downvote emoji used. Use "none" to remove the emoji and disable downvotes."""
         await self._save_emoji(ctx, emoji, "downvote")
 
     async def _save_emoji(
-        self, ctx: commands.Context, emoji: Union[discord.Emoji, str], emoji_type: str
+        self, ctx: commands.Context, emoji: discord.Emoji | str, emoji_type: str
     ) -> None:
         """Actually save the emoji."""
         if not ctx.guild:
@@ -776,7 +775,7 @@ class ReactChannel(commands.Cog):
     @commands.command()
     @commands.guild_only()
     async def karma(
-        self, ctx: commands.Context, member: Optional[discord.Member] = None
+        self, ctx: commands.Context, member: discord.Member | None = None
     ) -> None:
         """View your (or another users) total karma for messages in this server."""
         prefix = f"{ctx.message.author.mention}, you have"
@@ -1055,7 +1054,7 @@ class ReactChannel(commands.Cog):
 
     async def _get_emoji(
         self, guild: discord.Guild, emoji_type: str, *, refresh: bool = False
-    ) -> Optional[discord.Emoji]:
+    ) -> discord.Emoji | None:
         """Get an emoji, ready for sending/reacting."""
         if guild.id not in self.emoji_cache:
             self.emoji_cache[guild.id] = {}
@@ -1075,7 +1074,7 @@ class ReactChannel(commands.Cog):
             total_karma += delta
             await member_config.karma.set(total_karma)
             if await member_config.created_at() == 0:
-                time = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+                time = int(datetime.datetime.now(datetime.UTC).timestamp())
                 await member_config.created_at.set(time)
 
     @staticmethod

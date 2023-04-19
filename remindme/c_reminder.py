@@ -3,7 +3,7 @@ import asyncio
 from abc import ABC
 from contextlib import suppress
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -387,7 +387,7 @@ class ReminderCommands(MixinMeta, ABC):
 
     async def _get_reminder_config_group(
         self, ctx: commands.Context, user_id: int, user_reminder_id: int
-    ) -> Optional[Group]:
+    ) -> Group | None:
         config_reminder = self.config.custom(
             "REMINDER", str(user_id), str(user_reminder_id)
         )
@@ -406,7 +406,7 @@ class ReminderCommands(MixinMeta, ABC):
         time_and_optional_text: str,
         *,
         validate_text: bool = True,
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         try:
             parse_result = self.reminder_parser.parse(time_and_optional_text.strip())
         except ParseException:
