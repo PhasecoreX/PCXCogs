@@ -1,6 +1,7 @@
 """The autoroomset command."""
 import asyncio
 from abc import ABC
+from contextlib import suppress
 
 import discord
 from redbot.core import checks, commands
@@ -293,7 +294,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 )
             )
             return
-        new_source = {"dest_category_id": dest_category.id}
+        new_source: dict[str, str | int] = {"dest_category_id": dest_category.id}
 
         # Room type
         options = ["public", "locked", "private", "server"]
@@ -319,12 +320,15 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             "\n\n"
             "What would you like these created AutoRooms to be by default? (`public`/`locked`/`private`/`server`)"
         )
-        try:
+        answer = None
+        with suppress(asyncio.TimeoutError):
             await ctx.bot.wait_for("message", check=pred, timeout=60)
-        except asyncio.TimeoutError:
+            answer = pred.result
+        if answer in options:
+            new_source["room_type"] = options[answer]
+        else:
             await ctx.send("No valid answer was received, canceling setup process.")
             return
-        new_source["room_type"] = options[pred.result]
 
         # Check perms room type
         perms_required, perms_optional, details = self.check_perms_source_dest(
@@ -356,12 +360,15 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             f'`username` - Shows up as "{ctx.author.display_name}\'s Room"\n'
             "`game    ` - AutoRoom Owner's playing game, otherwise `username`"
         )
-        try:
+        answer = None
+        with suppress(asyncio.TimeoutError):
             await ctx.bot.wait_for("message", check=pred, timeout=60)
-        except asyncio.TimeoutError:
+            answer = pred.result
+        if answer in options:
+            new_source["channel_name_type"] = options[answer]
+        else:
             await ctx.send("No valid answer was received, canceling setup process.")
             return
-        new_source["channel_name_type"] = options[pred.result]
 
         # Save new source
         await self.config.custom(
@@ -504,7 +511,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
 
         Custom format example:
         `{{username}}'s Room{% if dupenum > 1 %} ({{dupenum}}){% endif %}`
-        """
+        """  # noqa: D401
         await self._save_room_name(ctx, autoroom_source, "username")
 
     @modify_name.command(name="game")
@@ -515,7 +522,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
 
         Custom format example:
         `{{game}}{% if not game %}{{username}}'s Room{% endif %}{% if dupenum > 1 %} ({{dupenum}}){% endif %}`
-        """
+        """  # noqa: D401
         await self._save_room_name(ctx, autoroom_source, "game")
 
     @modify_name.command(name="custom")
@@ -541,7 +548,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         - Another example: `{% if not game %}User isn't playing a game!{% endif %}`
 
         It's kinda like Jinja2, but way simpler. Check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md) for more info.
-        """
+        """  # noqa: D401
         await self._save_room_name(ctx, autoroom_source, "custom", template)
 
     async def _save_room_name(
@@ -748,7 +755,6 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 result_optional = result_optional and optional_check
                 if detailed:
                     result_list.append(detail)
-                else:
-                    if not result_required and not result_optional:
-                        break
+                elif not result_required and not result_optional:
+                    break
         return result_required, result_optional, result_list

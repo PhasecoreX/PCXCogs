@@ -1,8 +1,8 @@
 """Commands for the average user."""
 import asyncio
+import datetime
 from abc import ABC
 from contextlib import suppress
-from datetime import datetime, timezone
 from typing import Any
 
 import discord
@@ -190,7 +190,7 @@ class ReminderCommands(MixinMeta, ABC):
             return
 
         text = text.strip()
-        if len(text) > 800:
+        if len(text) > self.MAX_REMINDER_LENGTH:
             await reply(ctx, "Your reminder text is too long.")
             return
 
@@ -418,7 +418,7 @@ class ReminderCommands(MixinMeta, ABC):
             )
             return None
 
-        created_datetime = datetime.now(timezone.utc)
+        created_datetime = datetime.datetime.now(datetime.UTC)
         created_timestamp_int = int(created_datetime.timestamp())
 
         repeat_dict = parse_result["every"] if "every" in parse_result else None
@@ -455,7 +455,7 @@ class ReminderCommands(MixinMeta, ABC):
         expires_timestamp_int = int(expires_datetime.timestamp())
 
         reminder_text = parse_result["text"] if "text" in parse_result else ""
-        if validate_text and len(reminder_text) > 800:
+        if validate_text and len(reminder_text) > self.MAX_REMINDER_LENGTH:
             await reply(ctx, "Your reminder text is too long.")
             return None
 

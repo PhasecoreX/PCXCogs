@@ -3,7 +3,6 @@ import asyncio
 import datetime
 import logging
 from datetime import timedelta
-from typing import Any
 
 import aiohttp
 from redbot.core import Config, checks, commands
@@ -56,14 +55,14 @@ class Heartbeat(commands.Cog):
         """Clean up when cog shuts down."""
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
-        asyncio.create_task(self.session.close())
+        _ = asyncio.create_task(self.session.close())
 
     def format_help_for_context(self, ctx: commands.Context) -> str:
         """Show version in help."""
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
+    async def red_delete_data_for_user(self, *, _requester: str, _user_id: int) -> None:
         """Nothing to delete."""
         return
 
@@ -92,7 +91,7 @@ class Heartbeat(commands.Cog):
                     "Unexpected exception occurred in background loop of Heartbeat: ",
                     exc_info=exc,
                 )
-                asyncio.create_task(
+                _ = asyncio.create_task(
                     self.bot.send_to_owners(
                         "An unexpected exception occurred in the background loop of Heartbeat:\n"
                         f"```{str(exc)}```"
@@ -141,12 +140,13 @@ class Heartbeat(commands.Cog):
                     url,
                     headers={"user-agent": user_agent},
                 )
-                return None
             except (
                 aiohttp.ClientConnectionError,
                 asyncio.TimeoutError,
             ) as exc:
                 last_exception = exc
+            else:
+                return None
             retries -= 1
         return str(last_exception)
 

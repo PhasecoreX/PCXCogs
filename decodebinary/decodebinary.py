@@ -1,6 +1,5 @@
 """DecodeBinary cog for Red-DiscordBot by PhasecoreX."""
 import re
-from typing import Any
 
 import discord
 from redbot.core import Config, checks, commands
@@ -45,7 +44,7 @@ class DecodeBinary(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
+    async def red_delete_data_for_user(self, *, _requester: str, _user_id: int) -> None:
         """Nothing to delete."""
         return
 
@@ -200,6 +199,7 @@ class DecodeBinary(commands.Cog):
         """Check if a string is fully ascii characters."""
         try:
             string.encode("ascii")
-            return True
         except UnicodeEncodeError:
             return False
+        else:
+            return True

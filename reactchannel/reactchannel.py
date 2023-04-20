@@ -10,6 +10,8 @@ from redbot.core.utils.chat_formatting import box, error, warning
 
 from .pcx_lib import checkmark, delete, message_splitter
 
+KARMATOP_LIMIT = 10
+
 
 class ReactChannel(commands.Cog):
     """Per-channel auto reaction tools.
@@ -113,7 +115,7 @@ class ReactChannel(commands.Cog):
             await self.config.clear_raw("version")
             await self.config.schema_version.set(1)
 
-        if schema_version < 2:
+        if schema_version < 2:  # noqa: PLR2004
             # Migrate to REACT_CHANNEL custom config group
             guild_dict = await self.config.all_guilds()
             for guild_id in guild_dict:
@@ -132,7 +134,7 @@ class ReactChannel(commands.Cog):
                 await self.config.guild_from_id(guild_id).clear_raw("channels")
             await self.config.schema_version.set(2)
 
-        if schema_version < 3:
+        if schema_version < 3:  # noqa: PLR2004
             # Migrate to new react filters
             all_react_channels = await self.config.custom("REACT_CHANNEL").all()
             for guild_id, guild_react_channels in all_react_channels.items():
@@ -171,7 +173,7 @@ class ReactChannel(commands.Cog):
                     ).clear_raw("ignore_bots")
             await self.config.schema_version.set(3)
 
-        if schema_version < 4:
+        if schema_version < 4:  # noqa: PLR2004
             # Add "myself" react to option
             all_react_channels = await self.config.custom("REACT_CHANNEL").all()
             for guild_id, guild_react_channels in all_react_channels.items():
@@ -751,7 +753,8 @@ class ReactChannel(commands.Cog):
             return
         try:
             if isinstance(emoji, discord.PartialEmoji):
-                raise LookupError
+                await ctx.send(error("That is not a valid emoji I can use!"))
+                return
             await ctx.message.add_reaction(emoji)
             await ctx.message.remove_reaction(emoji, ctx.guild.me)
             save = emoji
@@ -765,7 +768,7 @@ class ReactChannel(commands.Cog):
                 )
             )
             await self._get_emoji(ctx.guild, emoji_type, refresh=True)
-        except discord.HTTPException | LookupError:
+        except (discord.HTTPException, TypeError):
             await ctx.send(error("That is not a valid emoji I can use!"))
 
     #
@@ -781,11 +784,10 @@ class ReactChannel(commands.Cog):
         prefix = f"{ctx.message.author.mention}, you have"
         if member and member != ctx.message.author:
             prefix = f"{member.display_name} has"
+        elif isinstance(ctx.message.author, discord.Member):
+            member = ctx.message.author
         else:
-            if isinstance(ctx.message.author, discord.Member):
-                member = ctx.message.author
-            else:
-                return
+            return
         member_config = self.config.member(member)
         total_karma = await member_config.karma()
         await ctx.send(f"{prefix} **{total_karma}** message karma")
@@ -809,7 +811,7 @@ class ReactChannel(commands.Cog):
             if member:
                 added += 1
                 message += f"{str(added).rjust(3)}  | {member.display_name[:32].ljust(32)} | {data[1]['karma']}\n"
-                if added > 14:
+                if added >= KARMATOP_LIMIT:
                     break
         await ctx.send(box(message))
 
@@ -868,11 +870,10 @@ class ReactChannel(commands.Cog):
                 "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
             ).react_to.bots():
                 return
-        else:
-            if not await self.config.custom(
-                "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
-            ).react_to.users():
-                return
+        elif not await self.config.custom(
+            "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
+        ).react_to.users():
+            return
         # react_roles check
         react_role_ids = await self.config.custom(
             "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
@@ -908,12 +909,11 @@ class ReactChannel(commands.Cog):
                 "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
             ).react_filter.images():
                 return
-        else:
+        elif not await self.config.custom(
+            "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
+        ).react_filter.text():
             # text
-            if not await self.config.custom(
-                "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)
-            ).react_filter.text():
-                return
+            return
         # Actually do reactions now!
         reaction_template = await self.config.custom(
             "REACT_CHANNEL", str(message.guild.id), str(message.channel.id)

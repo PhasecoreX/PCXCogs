@@ -1,8 +1,8 @@
 """RemindMe cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
 import asyncio
+import datetime
 import logging
 from abc import ABC
-from datetime import MAXYEAR, datetime, timezone
 from typing import Any
 
 import discord
@@ -51,6 +51,7 @@ class RemindMe(
         "repeat": {},  # relativedelta dict
     }
     SEND_DELAY_SECONDS = 30
+    MAX_REMINDER_LENGTH = 800
 
     def __init__(self, bot: Red) -> None:
         """Set up the cog."""
@@ -126,7 +127,7 @@ class RemindMe(
             schema_1_migration_reminders = new_reminders
             await self.config.schema_version.set(1)
 
-        if schema_version < 2:
+        if schema_version < 2:  # noqa: PLR2004
             # Migrate to REMINDER custom config group
             current_reminders = schema_1_migration_reminders
             if not current_reminders:
@@ -134,12 +135,12 @@ class RemindMe(
             for reminder in current_reminders:
                 # Get normalized expires datetime
                 try:
-                    expires_normalized = datetime.fromtimestamp(
-                        reminder["FUTURE"], timezone.utc
+                    expires_normalized = datetime.datetime.fromtimestamp(
+                        reminder["FUTURE"], datetime.UTC
                     )
                 except (OverflowError, ValueError):
-                    expires_normalized = datetime(
-                        MAXYEAR, 12, 31, 23, 59, 59, 0, tzinfo=timezone.utc
+                    expires_normalized = datetime.datetime(
+                        datetime.MAXYEAR, 12, 31, 23, 59, 59, 0, tzinfo=datetime.UTC
                     )
                 # Try and convert the future text over to an actual point in time
                 created_converted = expires_normalized - relativedelta(seconds=1)
@@ -151,15 +152,13 @@ class RemindMe(
                         reminder["FUTURE_TEXT"].strip()
                     )
                     in_dict = parse_result["in"]
-                    if not in_dict:
-                        raise LookupError
                     in_delta = relativedelta(**in_dict)
                     created_converted = expires_normalized - in_delta
                     log.debug(
                         "Successfully converted to relativedelta object: %s",
                         self.humanize_relativedelta(in_delta),
                     )
-                except (OverflowError, ParseException, ValueError, LookupError):
+                except (OverflowError, ParseException, ValueError, TypeError):
                     log.warning(
                         'Failed to convert to datetime object for migration: %s, using "1 second" ago as created time',
                         reminder["FUTURE_TEXT"],
@@ -220,8 +219,8 @@ class RemindMe(
             clicked_set.add(member.id)
             if await self.insert_reminder(member.id, reminder):
                 expires_delta = relativedelta(
-                    datetime.fromtimestamp(reminder["expires"], timezone.utc),
-                    datetime.fromtimestamp(reminder["created"], timezone.utc),
+                    datetime.datetime.fromtimestamp(reminder["expires"], datetime.UTC),
+                    datetime.datetime.fromtimestamp(reminder["created"], datetime.UTC),
                 )
                 repeat_delta = None
                 if "repeat" in reminder and reminder["repeat"]:
@@ -258,7 +257,7 @@ class RemindMe(
                     "Unexpected exception occurred in background loop of RemindMe: ",
                     exc_info=exc,
                 )
-                asyncio.create_task(
+                _ = asyncio.create_task(
                     self.bot.send_to_owners(
                         "An unexpected exception occurred in the background loop of RemindMe.\n"
                         "Reminders will not be sent out until the cog is reloaded.\n"
@@ -274,7 +273,7 @@ class RemindMe(
         await self.bot.wait_until_ready()
         self.search_for_next_reminder = True
         while True:
-            current_time_seconds = int(datetime.now(timezone.utc).timestamp())
+            current_time_seconds = int(datetime.datetime.now(datetime.UTC).timestamp())
             # Check if we need to send the current reminder
             if (
                 not self.next_reminder_to_send
@@ -347,11 +346,11 @@ class RemindMe(
                         self.next_reminder_to_send["user_reminder_id"],
                         self.humanize_relativedelta(
                             relativedelta(
-                                datetime.fromtimestamp(
+                                datetime.datetime.fromtimestamp(
                                     self.next_reminder_to_send["expires"],
-                                    timezone.utc,
+                                    datetime.UTC,
                                 ),
-                                datetime.now(timezone.utc),
+                                datetime.datetime.now(datetime.UTC),
                             )
                         ),
                     )
@@ -408,15 +407,15 @@ class RemindMe(
         # Handle repeats and deletes
         if not delete and full_reminder["repeat"]:
             # Make sure repeat interval is at least a day
-            now = datetime.now(timezone.utc)
+            now = datetime.datetime.now(datetime.UTC)
             if now + relativedelta(**full_reminder["repeat"]) < now + relativedelta(
                 days=1
             ):
                 full_reminder["repeat"] = {"days": 1}
                 await config_reminder.repeat.set(full_reminder["repeat"])
             # Calculate next reminder
-            next_reminder_time = datetime.fromtimestamp(
-                full_reminder["expires"], timezone.utc
+            next_reminder_time = datetime.datetime.fromtimestamp(
+                full_reminder["expires"], datetime.UTC
             )
             repeat_time = relativedelta(**full_reminder["repeat"])
             try:
@@ -438,7 +437,7 @@ class RemindMe(
     ) -> discord.Embed:
         """Generate the reminder embed."""
         # Determine any delay
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.datetime.now(datetime.UTC)
         current_time_seconds = int(current_time.timestamp())
         delay = current_time_seconds - full_reminder["expires"]
         if delay < self.SEND_DELAY_SECONDS:
@@ -467,22 +466,28 @@ class RemindMe(
                 self.humanize_relativedelta(
                     relativedelta(
                         current_time,
-                        datetime.fromtimestamp(full_reminder["created"], timezone.utc),
+                        datetime.datetime.fromtimestamp(
+                            full_reminder["created"], datetime.UTC
+                        ),
                     )
                 )
                 if delay
                 else self.humanize_relativedelta(
                     relativedelta(
-                        datetime.fromtimestamp(full_reminder["expires"], timezone.utc),
-                        datetime.fromtimestamp(full_reminder["created"], timezone.utc),
+                        datetime.datetime.fromtimestamp(
+                            full_reminder["expires"], datetime.UTC
+                        ),
+                        datetime.datetime.fromtimestamp(
+                            full_reminder["created"], datetime.UTC
+                        ),
                     )
                 )
             )
             field_value = f"From {time_ago} ago:"
         # Field value - reminder text
         field_value += f"\n\n{full_reminder['text']}"
-        if len(field_value) > 800:
-            field_value = field_value[:797] + "..."
+        if len(field_value) > self.MAX_REMINDER_LENGTH:
+            field_value = field_value[: self.MAX_REMINDER_LENGTH - 3] + "..."
         # Field value - jump link and timestamp
         footer_part = ""
         if full_reminder["jump_link"]:

@@ -2,7 +2,6 @@
 import asyncio
 import re
 from contextlib import suppress
-from typing import Any
 
 import pyhedrals
 from redbot.core import Config, checks, commands
@@ -11,6 +10,9 @@ from redbot.core.utils.chat_formatting import error, question
 from redbot.core.utils.predicates import MessagePredicate
 
 from .pcx_lib import SettingDisplay, checkmark
+
+MAX_ROLLS_NOTIFY = 1000000
+MAX_MESSAGE_LENGTH = 2000
 
 
 class Dice(commands.Cog):
@@ -42,7 +44,7 @@ class Dice(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
+    async def red_delete_data_for_user(self, *, _requester: str, _user_id: int) -> None:
         """Nothing to delete."""
         return
 
@@ -80,7 +82,7 @@ class Dice(commands.Cog):
         action = "is already set at"
         if maximum == await self.config.max_dice_rolls():
             pass
-        elif maximum > 1000000:
+        elif maximum > MAX_ROLLS_NOTIFY:
             pred = MessagePredicate.yes_or_no(ctx)
             await ctx.send(
                 question(
@@ -151,15 +153,21 @@ class Dice(commands.Cog):
             )
             result = dice_roller.parse(roll)
             roll_message = f"\N{GAME DIE} {ctx.message.author.mention} rolled {roll} and got **{result.result}**"
-            if len(roll_message) > 2000:
-                error_message = "Resulting roll message is too big to send in Discord"
-                raise ValueError(error_message)
+            if len(roll_message) > MAX_MESSAGE_LENGTH:
+                roll_message = f"\N{GAME DIE} {ctx.message.author.mention} rolled that and got **{result.result}**"
+            if len(roll_message) > MAX_MESSAGE_LENGTH:
+                await ctx.send(
+                    error(
+                        f"{ctx.message.author.mention}, I can't give you the result of that roll as it doesn't fit in a Discord message"
+                    )
+                )
+                return
             roll_log = "\n".join(result.strings())
             roll_log = self.DROPPED_EXPLODED_RE.sub(r"~~**\1!**~~", roll_log)
             roll_log = self.EXPLODED_RE.sub(r"**\1!**", roll_log)
             roll_log = self.DROPPED_RE.sub(r"~~\1~~", roll_log)
             roll_log = roll_log.replace(",", ", ")
-            if len(roll_message) + len(roll_log) > 2000:
+            if len(roll_message) + len(roll_log) > MAX_MESSAGE_LENGTH:
                 roll_log = "*(Roll log too long to display)*"
             await ctx.send(f"{roll_message}\n{roll_log}")
         except (

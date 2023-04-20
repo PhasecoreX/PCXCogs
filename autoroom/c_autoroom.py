@@ -10,6 +10,8 @@ from redbot.core.utils.chat_formatting import error, humanize_timedelta
 from .abc import MixinMeta
 from .pcx_lib import Perms, SettingDisplay, delete
 
+MAX_CHANNEL_NAME_LENGTH = 100
+
 
 class AutoRoomCommands(MixinMeta, ABC):
     """The autoroom command."""
@@ -134,8 +136,8 @@ class AutoRoomCommands(MixinMeta, ABC):
         if not autoroom_channel or not autoroom_info:
             return
 
-        if len(name) > 100:
-            name = name[:100]
+        if len(name) > MAX_CHANNEL_NAME_LENGTH:
+            name = name[:MAX_CHANNEL_NAME_LENGTH]
         if name != autoroom_channel.name:
             bucket = self.bucket_autoroom_name.get_bucket(autoroom_channel)
             if bucket:
@@ -324,30 +326,26 @@ class AutoRoomCommands(MixinMeta, ABC):
                 and member_or_role.position < lowest_member_role
             ):
                 denied_message = "this AutoRoom is using member roles, so I can't allow a lower hierarchy role."
-        else:
-            # Deny a specific user
-            # - check that they aren't a mod/admin/owner/autoroom owner/bot itself, then deny user
-            # Deny a specific role
-            # - Check that it isn't a mod/admin role, then deny role
-            if member_or_role == ctx.guild.me:
-                denied_message = "why would I deny myself from entering your AutoRoom?"
-            elif member_or_role == ctx.message.author:
-                denied_message = "don't be so hard on yourself! This is your AutoRoom!"
-            elif member_or_role == ctx.guild.owner:
-                denied_message = (
-                    "I don't know if you know this, but that's the server owner... "
-                    "I can't deny them from entering your AutoRoom."
-                )
-            elif await self.is_admin_or_admin_role(member_or_role):
-                role_suffix = (
-                    " role" if isinstance(member_or_role, discord.Role) else ""
-                )
-                denied_message = f"that's an admin{role_suffix}, so I can't deny them from entering your AutoRoom."
-            elif await self.is_mod_or_mod_role(member_or_role):
-                role_suffix = (
-                    " role" if isinstance(member_or_role, discord.Role) else ""
-                )
-                denied_message = f"that's a moderator{role_suffix}, so I can't deny them from entering your AutoRoom."
+        # Deny a specific user
+        # - check that they aren't a mod/admin/owner/autoroom owner/bot itself, then deny user
+        # Deny a specific role
+        # - Check that it isn't a mod/admin role, then deny role
+        elif member_or_role == ctx.guild.me:
+            denied_message = "why would I deny myself from entering your AutoRoom?"
+        elif member_or_role == ctx.message.author:
+            denied_message = "don't be so hard on yourself! This is your AutoRoom!"
+        elif member_or_role == ctx.guild.owner:
+            denied_message = (
+                "I don't know if you know this, but that's the server owner... "
+                "I can't deny them from entering your AutoRoom."
+            )
+        elif await self.is_admin_or_admin_role(member_or_role):
+            role_suffix = " role" if isinstance(member_or_role, discord.Role) else ""
+            denied_message = f"that's an admin{role_suffix}, so I can't deny them from entering your AutoRoom."
+        elif await self.is_mod_or_mod_role(member_or_role):
+            role_suffix = " role" if isinstance(member_or_role, discord.Role) else ""
+            denied_message = f"that's a moderator{role_suffix}, so I can't deny them from entering your AutoRoom."
+
         if denied_message:
             hint = await ctx.send(
                 error(f"{ctx.message.author.mention}, {denied_message}")

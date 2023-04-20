@@ -1,7 +1,7 @@
 """UwU cog for Red-DiscordBot by PhasecoreX."""
+# ruff: noqa: S311
 import random
 from contextlib import suppress
-from typing import Any
 
 import discord
 from redbot.core import commands
@@ -45,7 +45,7 @@ class UwU(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
+    async def red_delete_data_for_user(self, *, _requester: str, _user_id: int) -> None:
         """Nothing to delete."""
         return
 
@@ -164,7 +164,7 @@ class UwU(commands.Cog):
 
         # Add occasional stutter
         if (
-            len(uwu) > 2
+            len(uwu) > 2  # noqa: PLR2004
             and uwu[0].isalpha()
             and "-" not in uwu
             and not random.randint(0, 6)

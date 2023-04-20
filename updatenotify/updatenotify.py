@@ -4,7 +4,6 @@ import datetime
 import logging
 import os
 from contextlib import suppress
-from typing import Any
 
 import aiohttp
 from redbot.core import Config, VersionInfo, checks, commands
@@ -15,6 +14,8 @@ from redbot.core.utils.chat_formatting import box, error, humanize_timedelta
 from .pcx_lib import SettingDisplay, checkmark
 
 log = logging.getLogger("red.pcxcogs.updatenotify")
+
+MIN_CHECK_SECONDS = 300.0
 
 
 class UpdateNotify(commands.Cog):
@@ -67,7 +68,7 @@ class UpdateNotify(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
+    async def red_delete_data_for_user(self, *, _requester: str, _user_id: int) -> None:
         """Nothing to delete."""
         return
 
@@ -112,7 +113,7 @@ class UpdateNotify(commands.Cog):
                     "Unexpected exception occurred in background loop of UpdateNotify: ",
                     exc_info=exc,
                 )
-                asyncio.create_task(
+                _ = asyncio.create_task(
                     self.bot.send_to_owners(
                         "An unexpected exception occurred in the background loop of UpdateNotify.\n"
                         "Updates will not be checked until UpdateNotify is reloaded.\n"
@@ -129,8 +130,8 @@ class UpdateNotify(commands.Cog):
         """Background loop."""
         await self.bot.wait_until_ready()
         frequency = await self.config.frequency()
-        if not frequency or frequency < 300.0:
-            frequency = 300.0
+        if not frequency or frequency < MIN_CHECK_SECONDS:
+            frequency = MIN_CHECK_SECONDS
         while True:
             await self.check_for_updates()
             self.next_check = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
@@ -199,7 +200,7 @@ class UpdateNotify(commands.Cog):
         await self.config.frequency.set(frequency.total_seconds())
         await ctx.send(
             checkmark(
-                f"Update check frequency has been set to {humanize_timedelta(timedelta=frequency)}."
+                f"Update check frequency has been set to {humanize_timedelta(timedelta=frequency)}."  # noqa: S608
             )
         )
         self.enable_bg_loop()
@@ -303,11 +304,9 @@ class UpdateNotify(commands.Cog):
     async def get_latest_redbot_version() -> VersionInfo | None:
         """Check PyPI for the latest update to Red-DiscordBot."""
         url = "https://pypi.org/pypi/Red-DiscordBot/json"
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(raise_for_status=True) as session:
             try:
                 async with session.get(url) as resp:
-                    if resp.status != 200:
-                        raise aiohttp.ServerConnectionError
                     data = await resp.json()
                     return VersionInfo.from_str(data["info"]["version"])
             except aiohttp.ServerConnectionError:
@@ -322,11 +321,9 @@ class UpdateNotify(commands.Cog):
         url = (
             "https://api.github.com/repos/phasecorex/docker-red-discordbot/actions/runs"
         )
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(raise_for_status=True) as session:
             try:
                 async with session.get(url) as resp:
-                    if resp.status != 200:
-                        raise aiohttp.ServerConnectionError
                     data = await resp.json()
                     for run in data["workflow_runs"]:
                         if (

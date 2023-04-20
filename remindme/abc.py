@@ -19,6 +19,7 @@ class MixinMeta(ABC):
     me_too_reminders: dict[int, dict]
     clicked_me_too_reminder: dict[int, set[int]]
     reminder_emoji: str
+    MAX_REMINDER_LENGTH: int
 
     @staticmethod
     @abstractmethod

@@ -104,7 +104,7 @@ class AutoRoom(
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
+    async def red_delete_data_for_user(self, *, _requester: str, _user_id: int) -> None:
         """Nothing to delete."""
         return
 
@@ -140,14 +140,14 @@ class AutoRoom(
                     )
             await self.config.schema_version.set(1)
 
-        if schema_version < 2:
+        if schema_version < 2:  # noqa: PLR2004
             # Migrate member_role -> per auto_voice_channel member_roles
             guild_dict = await self.config.all_guilds()
             for guild_id in guild_dict:
                 await self.config.guild_from_id(guild_id).clear_raw("member_role")
             await self.config.schema_version.set(2)
 
-        if schema_version < 4:
+        if schema_version < 4:  # noqa: PLR2004
             # Migrate to AUTOROOM_SOURCE custom config group
             guild_dict = await self.config.all_guilds()
             for guild_id in guild_dict:
@@ -172,7 +172,7 @@ class AutoRoom(
                 )
             await self.config.schema_version.set(4)
 
-        if schema_version < 5:
+        if schema_version < 5:  # noqa: PLR2004
             # Upgrade room templates
             all_autoroom_sources = await self.config.custom("AUTOROOM_SOURCE").all()
             for guild_id, guild_autoroom_sources in all_autoroom_sources.items():
@@ -202,21 +202,20 @@ class AutoRoom(
                             else:
                                 # Always show number, default format
                                 new_template += " ({{dupenum}})"
-                        else:
+                        elif "increment_format" in autoroom_source_config:
                             # Show numbers > 1, custom format
-                            if "increment_format" in autoroom_source_config:
-                                new_template += (
-                                    "{% if dupenum > 1 %}"
-                                    + autoroom_source_config[
-                                        "increment_format"
-                                    ].replace("{number}", "{{dupenum}}")
-                                    + "{% endif %}"
+                            new_template += (
+                                "{% if dupenum > 1 %}"
+                                + autoroom_source_config["increment_format"].replace(
+                                    "{number}", "{{dupenum}}"
                                 )
-                            else:
-                                # Show numbers > 1, default format
-                                new_template += (
-                                    "{% if dupenum > 1 %} ({{dupenum}}){% endif %}"
-                                )
+                                + "{% endif %}"
+                            )
+                        else:
+                            # Show numbers > 1, default format
+                            new_template += (
+                                "{% if dupenum > 1 %} ({{dupenum}}){% endif %}"
+                            )
                         await self.config.custom(
                             "AUTOROOM_SOURCE", guild_id, avc_id
                         ).channel_name_format.set(new_template)
@@ -228,7 +227,7 @@ class AutoRoom(
                         ).clear_raw("increment_format")
             await self.config.schema_version.set(5)
 
-        if schema_version < 6:
+        if schema_version < 6:  # noqa: PLR2004
             # Remove member roles
             all_autoroom_sources = await self.config.custom("AUTOROOM_SOURCE").all()
             for guild_id, guild_autoroom_sources in all_autoroom_sources.items():
@@ -238,7 +237,7 @@ class AutoRoom(
                     ).clear_raw("member_roles")
             await self.config.schema_version.set(6)
 
-        if schema_version < 7:
+        if schema_version < 7:  # noqa: PLR2004
             # Remove auto text channels
             guild_dict = await self.config.all_guilds()
             for guild_id in guild_dict:
@@ -418,15 +417,12 @@ class AutoRoom(
                     perms.update(target, self.perms_public)
 
         # Update overwrites for default role to account for AutoRoom type
-        if member_roles:
+        if member_roles or autoroom_source_config["room_type"] == "private":
             perms.update(guild.default_role, self.perms_private)
+        elif autoroom_source_config["room_type"] == "locked":
+            perms.update(guild.default_role, self.perms_locked)
         else:
-            if autoroom_source_config["room_type"] == "private":
-                perms.update(guild.default_role, self.perms_private)
-            elif autoroom_source_config["room_type"] == "locked":
-                perms.update(guild.default_role, self.perms_locked)
-            else:
-                perms.update(guild.default_role, self.perms_public)
+            perms.update(guild.default_role, self.perms_public)
 
         # Bot overwrites
         perms.update(guild.me, self.perms_bot_dest)

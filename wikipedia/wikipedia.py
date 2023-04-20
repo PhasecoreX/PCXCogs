@@ -11,6 +11,8 @@ from redbot.core import commands
 from redbot.core.utils.chat_formatting import error, warning
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 
+MAX_DESCRIPTION_LENGTH = 1000
+
 
 class Wikipedia(commands.Cog):
     """Look up stuff on Wikipedia."""
@@ -31,7 +33,7 @@ class Wikipedia(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
+    async def red_delete_data_for_user(self, *, _requester: str, _user_id: int) -> None:
         """Nothing to delete."""
         return
 
@@ -180,8 +182,8 @@ class Wikipedia(commands.Cog):
         if whitespace_location:
             description = description[:whitespace_location].strip()
         description = self.NEWLINES.sub("\n\n", description)
-        if len(description) > 1000 or whitespace_location:
-            description = description[:1000].strip()
+        if len(description) > MAX_DESCRIPTION_LENGTH or whitespace_location:
+            description = description[:MAX_DESCRIPTION_LENGTH].strip()
             description += f"... [(read more)]({url})"
 
         embed = discord.Embed(

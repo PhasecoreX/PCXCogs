@@ -59,7 +59,7 @@ class BanCheck(commands.Cog):
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
-    async def red_delete_data_for_user(self, **_kwargs: Any) -> None:  # noqa: ANN401
+    async def red_delete_data_for_user(self, *, _requester: str, _user_id: int) -> None:
         """Nothing to delete."""
         return
 
@@ -702,9 +702,7 @@ class BanCheck(commands.Cog):
             api_key = await self.get_api_key(service_name, config_services)
             if not api_key:
                 continue
-            try:
-                service_class().lookup
-            except AttributeError:
+            if not hasattr(service_class(), "lookup"):
                 continue  # This service does not support lookup
 
             responses = await service_class().lookup(member_id, api_key)
