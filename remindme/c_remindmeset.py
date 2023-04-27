@@ -12,11 +12,11 @@ class RemindMeSetCommands(MixinMeta, ABC):
 
     @commands.group()
     @checks.admin_or_permissions(manage_guild=True)
-    async def remindmeset(self, ctx: commands.Context):
+    async def remindmeset(self, ctx: commands.Context) -> None:
         """Manage RemindMe settings."""
 
     @remindmeset.command()
-    async def settings(self, ctx: commands.Context):
+    async def settings(self, ctx: commands.Context) -> None:
         """Display current settings."""
         server_section = SettingDisplay("Server Settings")
         if ctx.guild:
@@ -67,11 +67,13 @@ class RemindMeSetCommands(MixinMeta, ABC):
 
     @remindmeset.command()
     @commands.guild_only()
-    async def metoo(self, ctx: commands.Context):
+    async def metoo(self, ctx: commands.Context) -> None:
         """Toggle the bot asking if others want to be reminded in this server.
 
         If the bot doesn't have the Add Reactions permission in the channel, it won't ask regardless.
         """
+        if not ctx.guild:
+            return
         me_too = not await self.config.guild(ctx.guild).me_too()
         await self.config.guild(ctx.guild).me_too.set(me_too)
         await ctx.send(
@@ -80,9 +82,9 @@ class RemindMeSetCommands(MixinMeta, ABC):
             )
         )
 
-    @remindmeset.command()
+    @remindmeset.command(name="max")
     @checks.is_owner()
-    async def max(self, ctx: commands.Context, maximum: int):
+    async def set_max(self, ctx: commands.Context, maximum: int) -> None:
         """Global: Set the maximum number of reminders a user can create at one time."""
         await self.config.max_user_reminders.set(maximum)
         await ctx.send(

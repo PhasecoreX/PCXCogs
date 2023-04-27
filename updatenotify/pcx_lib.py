@@ -1,6 +1,8 @@
 """Shared code across multiple cogs."""
 import asyncio
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+from collections.abc import Mapping
+from contextlib import suppress
+from typing import Any
 
 import discord
 from redbot.core import __version__ as redbot_version
@@ -10,13 +12,17 @@ from redbot.core.utils.chat_formatting import box
 
 headers = {"user-agent": "Red-DiscordBot/" + redbot_version}
 
+MAX_EMBED_SIZE = 5900
+MAX_EMBED_FIELDS = 20
+MAX_EMBED_FIELD_SIZE = 1024
+
 
 def checkmark(text: str) -> str:
     """Get text prefixed with a checkmark emoji."""
     return f"\N{WHITE HEAVY CHECK MARK} {text}"
 
 
-async def delete(message: discord.Message, *, delay=None) -> bool:
+async def delete(message: discord.Message, *, delay: float | None = None) -> bool:
     """Attempt to delete a message.
 
     Returns True if successful, False otherwise.
@@ -30,7 +36,9 @@ async def delete(message: discord.Message, *, delay=None) -> bool:
     return True
 
 
-async def reply(ctx: commands.Context, content: Any = None, **kwargs: Any):
+async def reply(
+    ctx: commands.Context, content: str | None = None, **kwargs: Any  # noqa: ANN401
+) -> None:
     """Safely reply to a command message.
 
     If the command is in a guild, will reply, otherwise will send a message like normal.
@@ -43,11 +51,9 @@ async def reply(ctx: commands.Context, content: Any = None, **kwargs: Any):
         ):
             mention_author = kwargs.pop("mention_author", False)
             kwargs.update(mention_author=mention_author)
-            try:
+            with suppress(discord.HTTPException):
                 await ctx.reply(content=content, **kwargs)
                 return
-            except discord.HTTPException:
-                pass
         allowed_mentions = kwargs.pop(
             "allowed_mentions",
             discord.AllowedMentions(users=False),
@@ -59,26 +65,24 @@ async def reply(ctx: commands.Context, content: Any = None, **kwargs: Any):
 
 
 async def type_message(
-    destination: discord.abc.Messageable, content: str, **kwargs
-) -> discord.Message:
+    destination: discord.abc.Messageable, content: str, **kwargs: Any  # noqa: ANN401
+) -> discord.Message | None:
     """Simulate typing and sending a message to a destination.
 
     Will send a typing indicator, wait a variable amount of time based on the length
     of the text (to simulate typing speed), then send the message.
     """
     content = common_filters.filter_urls(content)
-    try:
+    with suppress(discord.HTTPException):
         async with destination.typing():
             await asyncio.sleep(max(0.25, min(2.5, len(content) * 0.01)))
         return await destination.send(content=content, **kwargs)
-    except discord.HTTPException:
-        pass  # Not allowed to send messages to this destination (or, sending the message failed)
 
 
 async def message_splitter(
-    message: str, destination: discord.abc.Messageable = None
-) -> List[str]:
-    """Take a message string and split it so that each message in the resulting list is no greater than 1900.
+    message: str, destination: discord.abc.Messageable | None = None
+) -> list[str]:
+    r"""Take a message string and split it so that each message in the resulting list is no greater than 1900.
 
     Splits on double newlines (\n\n), and if there are none, just trims the strings down to 1900.
 
@@ -90,7 +94,7 @@ async def message_splitter(
             await destination.send(message)
         return [message]
 
-    split_messages: List[str] = []
+    split_messages: list[str] = []
     message_buffer = ""
     for message_chunk in message.split("\n\n"):
         test_message = (message_buffer + "\n\n" + message_chunk).strip()
@@ -112,8 +116,8 @@ async def message_splitter(
 
 
 async def embed_splitter(
-    embed: discord.Embed, destination: discord.abc.Messageable = None
-) -> List[discord.Embed]:
+    embed: discord.Embed, destination: discord.abc.Messageable | None = None
+) -> list[discord.Embed]:
     """Take an embed and split it so that each embed has at most 20 fields and a length of 5900.
 
     Each field value will also be checked to have a length no greater than 1024.
@@ -126,29 +130,32 @@ async def embed_splitter(
     modified = False
     if "fields" in embed_dict:
         for field in embed_dict["fields"]:
-            if len(field["value"]) > 1024:
-                field["value"] = field["value"][:1021] + "..."
+            if len(field["value"]) > MAX_EMBED_FIELD_SIZE:
+                field["value"] = field["value"][: MAX_EMBED_FIELD_SIZE - 3] + "..."
                 modified = True
     if modified:
         embed = discord.Embed.from_dict(embed_dict)
 
     # Short circuit
-    if len(embed) < 5901 and (
-        "fields" not in embed_dict or len(embed_dict["fields"]) < 21
+    if len(embed) <= MAX_EMBED_SIZE and (
+        "fields" not in embed_dict or len(embed_dict["fields"]) <= MAX_EMBED_FIELDS
     ):
         if destination:
             await destination.send(embed=embed)
         return [embed]
 
     # Nah, we're really doing this
-    split_embeds: List[discord.Embed] = []
-    fields = embed_dict["fields"]
+    split_embeds: list[discord.Embed] = []
+    fields = embed_dict["fields"] if "fields" in embed_dict else []
     embed_dict["fields"] = []
 
     for field in fields:
         embed_dict["fields"].append(field)
         current_embed = discord.Embed.from_dict(embed_dict)
-        if len(current_embed) > 5900 or len(embed_dict["fields"]) > 20:
+        if (
+            len(current_embed) > MAX_EMBED_SIZE
+            or len(embed_dict["fields"]) > MAX_EMBED_FIELDS
+        ):
             embed_dict["fields"].pop()
             current_embed = discord.Embed.from_dict(embed_dict)
             split_embeds.append(current_embed.copy())
@@ -166,13 +173,13 @@ async def embed_splitter(
 class SettingDisplay:
     """A formatted list of settings."""
 
-    def __init__(self, header: str = None):
+    def __init__(self, header: str | None = None) -> None:
         """Init."""
         self.header = header
         self._length = 0
-        self._settings: List[Tuple] = []
+        self._settings: list[tuple] = []
 
-    def add(self, setting: str, value):
+    def add(self, setting: str, value: Any) -> None:  # noqa: ANN401
         """Add a setting."""
         setting_colon = setting + ":"
         self._settings.append((setting_colon, value))
@@ -189,7 +196,7 @@ class SettingDisplay:
             msg += f"{setting[0].ljust(self._length, ' ')} [{setting[1]}]\n"
         return msg.strip()
 
-    def display(self, *additional) -> str:
+    def display(self, *additional) -> str:  # noqa: ANN002 (Self)
         """Generate a ready-to-send formatted box of settings.
 
         If additional SettingDisplays are provided, merges their output into one.
@@ -209,35 +216,49 @@ class Perms:
 
     def __init__(
         self,
-        overwrites: Dict[
-            Union[discord.Role, discord.Member], discord.PermissionOverwrite
-        ] = None,
-    ):
+        overwrites: dict[
+            discord.Role | discord.Member | discord.Object, discord.PermissionOverwrite
+        ]
+        | None = None,
+    ) -> None:
         """Init."""
-        self.__overwrites = {}
-        self.__original = {}
+        self.__overwrites: dict[
+            discord.Role | discord.Member,
+            discord.PermissionOverwrite,
+        ] = {}
+        self.__original: dict[
+            discord.Role | discord.Member,
+            discord.PermissionOverwrite,
+        ] = {}
         if overwrites:
             for key, value in overwrites.items():
-                pair = value.pair()
-                self.__overwrites[key] = discord.PermissionOverwrite().from_pair(*pair)
-                self.__original[key] = discord.PermissionOverwrite().from_pair(*pair)
+                if isinstance(key, discord.Role | discord.Member):
+                    pair = value.pair()
+                    self.__overwrites[key] = discord.PermissionOverwrite().from_pair(
+                        *pair
+                    )
+                    self.__original[key] = discord.PermissionOverwrite().from_pair(
+                        *pair
+                    )
 
-    def set(
+    def overwrite(
         self,
-        target: Union[discord.Role, discord.Member],
+        target: discord.Role | discord.Member | discord.Object,
         permission_overwrite: discord.PermissionOverwrite,
-    ):
+    ) -> None:
         """Set the permissions for a target."""
-        if not permission_overwrite.is_empty():
+        if not permission_overwrite.is_empty() and isinstance(
+            target, discord.Role | discord.Member
+        ):
             self.__overwrites[target] = discord.PermissionOverwrite().from_pair(
                 *permission_overwrite.pair()
             )
 
     def update(
         self,
-        target: Union[discord.Role, discord.Member],
-        perm: Mapping[str, Optional[bool]],
-    ):
+        target: discord.Role | discord.Member,
+        perm: Mapping[str, bool | None],
+    ) -> None:
         """Update the permissions for a target."""
         if target not in self.__overwrites:
             self.__overwrites[target] = discord.PermissionOverwrite()
@@ -246,11 +267,13 @@ class Perms:
             del self.__overwrites[target]
 
     @property
-    def modified(self):
+    def modified(self) -> bool:
         """Check if current overwrites are different from when this object was first initialized."""
         return self.__overwrites != self.__original
 
     @property
-    def overwrites(self):
+    def overwrites(
+        self,
+    ) -> dict[discord.Role | discord.Member, discord.PermissionOverwrite] | None:
         """Get current overwrites."""
         return self.__overwrites

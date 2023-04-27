@@ -19,7 +19,7 @@ class Antiraid:
     BASE_URL = "https://api.antiraid.win"
 
     @staticmethod
-    async def lookup(user_id: int, api_key: str):
+    async def lookup(user_id: int, _api_key: str) -> LookupResult:
         """Perform user lookup on Antiraid."""
         try:
             async with aiohttp.ClientSession() as session:
@@ -53,8 +53,7 @@ class Antiraid:
                                 reason=data["reason"],
                                 proof_url=data["proof"] if "proof" in data else None,
                             )
-                        else:
-                            return LookupResult(Antiraid.SERVICE_NAME, "clear")
+                        LookupResult(Antiraid.SERVICE_NAME, "clear")
                     # Otherwise, failed lookup
                     return LookupResult(Antiraid.SERVICE_NAME, "error")
 

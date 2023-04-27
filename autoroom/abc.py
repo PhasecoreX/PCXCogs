@@ -1,5 +1,6 @@
+"""ABC for the AutoRoom Cog."""
 from abc import ABC, abstractmethod
-from typing import Dict, Union
+from typing import Any
 
 import discord
 from discord.ext.commands import CooldownMapping
@@ -21,63 +22,71 @@ class MixinMeta(ABC):
     bucket_autoroom_name: CooldownMapping
     extra_channel_name_change_delay: int
 
-    perms_public: Dict[str, bool]
-    perms_locked: Dict[str, bool]
-    perms_private: Dict[str, bool]
+    perms_public: dict[str, bool]
+    perms_locked: dict[str, bool]
+    perms_private: dict[str, bool]
 
     @staticmethod
     @abstractmethod
-    def get_template_data(member: discord.Member):
-        raise NotImplementedError()
+    def get_template_data(member: discord.Member | discord.User) -> dict[str, str]:
+        raise NotImplementedError
 
     @abstractmethod
-    def format_template_room_name(self, template: str, data: dict, num: int = 1):
-        raise NotImplementedError()
+    def format_template_room_name(self, template: str, data: dict, num: int = 1) -> str:
+        raise NotImplementedError
 
     @abstractmethod
-    async def is_admin_or_admin_role(self, who: Union[discord.Role, discord.Member]):
-        raise NotImplementedError()
+    async def is_admin_or_admin_role(self, who: discord.Role | discord.Member) -> bool:
+        raise NotImplementedError
 
     @abstractmethod
-    async def is_mod_or_mod_role(self, who: Union[discord.Role, discord.Member]):
-        raise NotImplementedError()
+    async def is_mod_or_mod_role(self, who: discord.Role | discord.Member) -> bool:
+        raise NotImplementedError
 
     @abstractmethod
     def check_perms_source_dest(
         self,
         autoroom_source: discord.VoiceChannel,
         category_dest: discord.CategoryChannel,
-        with_manage_roles_guild=False,
-        with_optional_clone_perms=False,
-        split_required_optional_check=False,
-        detailed=False,
-    ):
-        raise NotImplementedError()
+        *,
+        with_manage_roles_guild: bool = False,
+        with_optional_clone_perms: bool = False,
+        detailed: bool = False,
+    ) -> tuple[bool, bool, str | None]:
+        raise NotImplementedError
 
     @abstractmethod
-    async def get_all_autoroom_source_configs(self, guild: discord.guild):
-        raise NotImplementedError()
+    async def get_all_autoroom_source_configs(
+        self, guild: discord.Guild
+    ) -> dict[int, dict[str, Any]]:
+        raise NotImplementedError
 
     @abstractmethod
-    async def get_autoroom_source_config(self, autoroom_source: discord.VoiceChannel):
-        raise NotImplementedError()
+    async def get_autoroom_source_config(
+        self, autoroom_source: discord.VoiceChannel
+    ) -> dict[str, Any] | None:
+        raise NotImplementedError
 
     @abstractmethod
-    async def get_autoroom_info(self, autoroom: discord.VoiceChannel):
-        raise NotImplementedError()
+    async def get_autoroom_info(
+        self, autoroom: discord.VoiceChannel | None
+    ) -> dict[str, Any] | None:
+        raise NotImplementedError
 
     @staticmethod
     @abstractmethod
     def check_if_member_or_role_allowed(
         channel: discord.VoiceChannel,
-        member_or_role: Union[discord.Member, discord.Role],
-    ):
-        raise NotImplementedError()
+        member_or_role: discord.Member | discord.Role,
+    ) -> bool:
+        raise NotImplementedError
 
     @abstractmethod
-    def get_member_roles(self, autoroom_source: discord.VoiceChannel):
-        raise NotImplementedError()
+    def get_member_roles(
+        self, autoroom_source: discord.VoiceChannel
+    ) -> list[discord.Role]:
+        raise NotImplementedError
 
     @abstractmethod
-    async def get_bot_roles(self, guild: discord.guild):
-        raise NotImplementedError()
+    async def get_bot_roles(self, guild: discord.Guild) -> list[discord.Role]:
+        raise NotImplementedError

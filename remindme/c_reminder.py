@@ -1,12 +1,15 @@
 """Commands for the average user."""
 import asyncio
+import datetime
 from abc import ABC
-from datetime import datetime, timezone
+from contextlib import suppress
+from typing import Any
 
 import discord
 from dateutil.relativedelta import relativedelta
 from pyparsing import ParseException
 from redbot.core import commands
+from redbot.core.config import Group
 from redbot.core.utils.chat_formatting import error
 from redbot.core.utils.predicates import MessagePredicate
 
@@ -18,11 +21,11 @@ class ReminderCommands(MixinMeta, ABC):
     """Commands for the average user."""
 
     @commands.group()
-    async def reminder(self, ctx: commands.Context):
+    async def reminder(self, ctx: commands.Context) -> None:
         """Manage your reminders."""
 
-    @reminder.command(aliases=["get"])
-    async def list(self, ctx: commands.Context, sort: str = "time"):
+    @reminder.command(name="list", aliases=["get"])
+    async def reminder_list(self, ctx: commands.Context, sort: str = "time") -> None:
         """Show a list of all of your reminders.
 
         Sort can either be:
@@ -66,7 +69,7 @@ class ReminderCommands(MixinMeta, ABC):
             title=f"Reminders for {author.display_name}",
             color=await ctx.embed_color(),
         )
-        embed.set_thumbnail(url=author.avatar_url)
+        embed.set_thumbnail(url=author.display_avatar.url)
         for reminder in user_reminders:  # TODO make this look nicer.
             reminder_title = (
                 f"ID# {reminder['user_reminder_id']} — <t:{reminder['expires']}:f>"
@@ -90,7 +93,9 @@ class ReminderCommands(MixinMeta, ABC):
             await reply(ctx, "I can't DM you...")
 
     @reminder.command(aliases=["add"])
-    async def create(self, ctx: commands.Context, *, time_and_optional_text: str = ""):
+    async def create(
+        self, ctx: commands.Context, *, time_and_optional_text: str = ""
+    ) -> None:
         """Create a reminder with optional reminder text.
 
         Same as `[p]remindme`, so check that for usage help.
@@ -98,11 +103,11 @@ class ReminderCommands(MixinMeta, ABC):
         await self._create_reminder(ctx, time_and_optional_text)
 
     @reminder.group(aliases=["edit"])
-    async def modify(self, ctx: commands.Context):
+    async def modify(self, ctx: commands.Context) -> None:
         """Modify an existing reminder."""
 
     @modify.command()
-    async def time(self, ctx: commands.Context, reminder_id: int, *, time: str):
+    async def time(self, ctx: commands.Context, reminder_id: int, *, time: str) -> None:
         """Modify the time of an existing reminder."""
         config_reminder = await self._get_reminder_config_group(
             ctx, ctx.message.author.id, reminder_id
@@ -139,7 +144,9 @@ class ReminderCommands(MixinMeta, ABC):
         await reply(ctx, message)
 
     @modify.command()
-    async def repeat(self, ctx: commands.Context, reminder_id: int, *, time: str):
+    async def repeat(
+        self, ctx: commands.Context, reminder_id: int, *, time: str
+    ) -> None:
         """Modify the repeating time of an existing reminder. Pass "0" to <time> in order to disable repeating."""
         config_reminder = await self._get_reminder_config_group(
             ctx, ctx.message.author.id, reminder_id
@@ -174,7 +181,7 @@ class ReminderCommands(MixinMeta, ABC):
             )
 
     @modify.command()
-    async def text(self, ctx: commands.Context, reminder_id: int, *, text: str):
+    async def text(self, ctx: commands.Context, reminder_id: int, *, text: str) -> None:
         """Modify the text of an existing reminder."""
         config_reminder = await self._get_reminder_config_group(
             ctx, ctx.message.author.id, reminder_id
@@ -183,7 +190,7 @@ class ReminderCommands(MixinMeta, ABC):
             return
 
         text = text.strip()
-        if len(text) > 800:
+        if len(text) > self.MAX_REMINDER_LENGTH:
             await reply(ctx, "Your reminder text is too long.")
             return
 
@@ -194,7 +201,7 @@ class ReminderCommands(MixinMeta, ABC):
         )
 
     @reminder.command(aliases=["delete", "del"])
-    async def remove(self, ctx: commands.Context, index: str):
+    async def remove(self, ctx: commands.Context, index: str) -> None:
         """Delete a reminder.
 
         <index> can either be:
@@ -207,7 +214,7 @@ class ReminderCommands(MixinMeta, ABC):
     @commands.command()
     async def remindme(
         self, ctx: commands.Context, *, time_and_optional_text: str = ""
-    ):
+    ) -> None:
         """Create a reminder with optional reminder text.
 
         Either of the following formats are allowed:
@@ -221,7 +228,8 @@ class ReminderCommands(MixinMeta, ABC):
         You can also add `every <repeat_time>` to the command for repeating reminders.
         `<repeat_time>` accepts days and weeks only, but otherwise is the same as `<time>`.
 
-        Examples:
+        Examples
+        --------
         `[p]remindme in 8min45sec to do that thing`
         `[p]remindme to water my plants in 2 hours`
         `[p]remindme in 3 days`
@@ -232,13 +240,13 @@ class ReminderCommands(MixinMeta, ABC):
         await self._create_reminder(ctx, time_and_optional_text)
 
     @commands.command()
-    async def forgetme(self, ctx: commands.Context):
+    async def forgetme(self, ctx: commands.Context) -> None:
         """Remove all of your upcoming reminders."""
         await self._delete_reminder(ctx, "all")
 
     async def _create_reminder(
         self, ctx: commands.Context, time_and_optional_text: str
-    ):
+    ) -> None:
         """Logic to create a reminder."""
         # Check that user is allowed to make a new reminder
         author = ctx.message.author
@@ -296,7 +304,7 @@ class ReminderCommands(MixinMeta, ABC):
         if (
             ctx.guild
             and await self.config.guild(ctx.guild).me_too()
-            and ctx.channel.permissions_for(ctx.me).add_reactions
+            and ctx.channel.permissions_for(ctx.guild.me).add_reactions
         ):
             query: discord.Message = await ctx.send(
                 f"If anyone else would like {'these reminders' if parse_result['repeat_delta'] else 'to be reminded'} as well, "
@@ -310,7 +318,7 @@ class ReminderCommands(MixinMeta, ABC):
             del self.me_too_reminders[query.id]
             del self.clicked_me_too_reminder[query.id]
 
-    async def _delete_reminder(self, ctx: commands.Context, index: str):
+    async def _delete_reminder(self, ctx: commands.Context, index: str) -> None:
         """Logic to delete reminders."""
         if not index:
             return
@@ -328,10 +336,8 @@ class ReminderCommands(MixinMeta, ABC):
                 ctx,
                 "Are you **sure** you want to remove all of your reminders? (yes/no)",
             )
-            try:
+            with suppress(asyncio.TimeoutError):
                 await ctx.bot.wait_for("message", check=pred, timeout=30)
-            except asyncio.TimeoutError:
-                pass
             if pred.result:
                 pass
             else:
@@ -381,7 +387,7 @@ class ReminderCommands(MixinMeta, ABC):
 
     async def _get_reminder_config_group(
         self, ctx: commands.Context, user_id: int, user_reminder_id: int
-    ):
+    ) -> Group | None:
         config_reminder = self.config.custom(
             "REMINDER", str(user_id), str(user_reminder_id)
         )
@@ -398,8 +404,9 @@ class ReminderCommands(MixinMeta, ABC):
         self,
         ctx: commands.Context,
         time_and_optional_text: str,
+        *,
         validate_text: bool = True,
-    ):
+    ) -> dict[str, Any] | None:
         try:
             parse_result = self.reminder_parser.parse(time_and_optional_text.strip())
         except ParseException:
@@ -411,7 +418,7 @@ class ReminderCommands(MixinMeta, ABC):
             )
             return None
 
-        created_datetime = datetime.now(timezone.utc)
+        created_datetime = datetime.datetime.now(datetime.UTC)
         created_timestamp_int = int(created_datetime.timestamp())
 
         repeat_dict = parse_result["every"] if "every" in parse_result else None
@@ -448,7 +455,7 @@ class ReminderCommands(MixinMeta, ABC):
         expires_timestamp_int = int(expires_datetime.timestamp())
 
         reminder_text = parse_result["text"] if "text" in parse_result else ""
-        if validate_text and len(reminder_text) > 800:
+        if validate_text and len(reminder_text) > self.MAX_REMINDER_LENGTH:
             await reply(ctx, "Your reminder text is too long.")
             return None
 

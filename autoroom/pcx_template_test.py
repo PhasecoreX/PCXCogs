@@ -1,3 +1,4 @@
+"""Unit tests for pcx_template."""
 import unittest
 
 import pcx_template
@@ -11,35 +12,35 @@ class Interpolation(unittest.TestCase):
         data = {}
         result = renderer.render(template, data)
         expected = template
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_basic_interpolation(self):
         template = "Hello, {{subject}}!"
         data = {"subject": "world"}
         result = renderer.render(template, data)
         expected = "Hello, world!"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_basic_integer_interpolation(self):
         template = '"{{mph}} miles an hour!"'
         data = {"mph": 88}
         result = renderer.render(template, data)
         expected = '"88 miles an hour!"'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_basic_float_interpolation(self):
         template = '"{{power}} jiggawatts!"'
         data = {"power": 1.210}
         result = renderer.render(template, data)
         expected = '"1.21 jiggawatts!"'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_basic_context_miss_interpolation(self):
         template = "I ({{cannot}}) be seen!"
         data = {}
         result = renderer.render(template, data)
         expected = "I () be seen!"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     # Dotted Names
 
@@ -48,21 +49,21 @@ class Interpolation(unittest.TestCase):
         data = {"a": {"b": {"c": {"d": {"e": {"name": "Phil"}}}}}}
         result = renderer.render(template, data)
         expected = '"Phil" == "Phil"'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_dotted_names_broken_chains(self):
         template = '"{{a.b.c}}" == ""'
         data = {"a": {}}
         result = renderer.render(template, data)
         expected = '"" == ""'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_dotted_names_broken_chain_resolution(self):
         template = '"{{a.b.c.name}}" == ""'
         data = {"a": {"b": {}}, "c": {"name": "Jim"}}
         result = renderer.render(template, data)
         expected = '"" == ""'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     # Whitespace Sensitivity
 
@@ -71,14 +72,14 @@ class Interpolation(unittest.TestCase):
         data = {"string": "---"}
         result = renderer.render(template, data)
         expected = "| --- |"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_interpolation_standalone(self):
         template = "  {{string}}\n"
         data = {"string": "---"}
         result = renderer.render(template, data)
         expected = "  ---\n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     # Whitespace Insensitivity
 
@@ -87,7 +88,7 @@ class Interpolation(unittest.TestCase):
         data = {"string": "---"}
         result = renderer.render(template, data)
         expected = "|---|"
-        self.assertEqual(expected, result)
+        assert expected == result
 
 
 class IfStatement(unittest.TestCase):
@@ -96,21 +97,21 @@ class IfStatement(unittest.TestCase):
         data = {"boolean": True}
         result = renderer.render(template, data)
         expected = '"This should be rendered."'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_falsey(self):
         template = '"{% if boolean %}This should not be rendered.{% endif %}"'
         data = {"boolean": False}
         result = renderer.render(template, data)
         expected = '""'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_empty_lists(self):
         template = '"{% if list %}Yay lists!{% endif %}"'
         data = {"list": []}
         result = renderer.render(template, data)
         expected = '""'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_doubled(self):
         template = """{% if bool %}
@@ -127,28 +128,28 @@ class IfStatement(unittest.TestCase):
 * second
 * third
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_nested_truthy(self):
         template = "| A {% if bool %}B {% if bool %}C{% endif %} D{% endif %} E |"
         data = {"bool": True}
         result = renderer.render(template, data)
         expected = "| A B C D E |"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_nested_falsey(self):
         template = "| A {% if bool %}B {% if bool %}C{% endif %} D{% endif %} E |"
         data = {"bool": False}
         result = renderer.render(template, data)
         expected = "| A  E |"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_context_misses(self):
         template = "[{% if missing %}Found key 'missing'!{% endif %}]"
         data = {}
         result = renderer.render(template, data)
         expected = "[]"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     # Dotted Names
 
@@ -157,21 +158,21 @@ class IfStatement(unittest.TestCase):
         data = {"a": {"b": {"c": True}}}
         result = renderer.render(template, data)
         expected = '"Here" == "Here"'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_dotted_names_falsey(self):
         template = '"{% if a.b.c %}Here{% endif %}" == ""'
         data = {"a": {"b": {"c": False}}}
         result = renderer.render(template, data)
         expected = '"" == ""'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_dotted_names_broken_chains(self):
         template = '"{% if a.b.c %}Here{% endif %}" == ""'
         data = {"a": {}}
         result = renderer.render(template, data)
         expected = '"" == ""'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     # Whitespace Sensitivity
 
@@ -180,21 +181,21 @@ class IfStatement(unittest.TestCase):
         data = {"boolean": True}
         result = renderer.render(template, data)
         expected = " | \t|\t | \n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_internal_whitespace(self):
         template = " | {% if boolean %} {# Important Whitespace #}\n {% endif %} | \n"
         data = {"boolean": True}
         result = renderer.render(template, data)
         expected = " |  \n  | \n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_indented_inline_sections(self):
         template = " {% if boolean %}YES{% endif %}\n {% if boolean %}GOOD{% endif %}\n"
         data = {"boolean": True}
         result = renderer.render(template, data)
         expected = " YES\n GOOD\n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_lines(self):
         template = """| This Is
@@ -209,7 +210,7 @@ class IfStatement(unittest.TestCase):
 |
 | A Line
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_indented_standalone_lines(self):
         template = """| This Is
@@ -224,28 +225,28 @@ class IfStatement(unittest.TestCase):
 |
 | A Line
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_line_endings(self):
         template = "|\r\n{% if boolean %}\r\n{% endif %}\r\n|"
         data = {"boolean": True}
         result = renderer.render(template, data)
         expected = "|\r\n|"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_without_previous_line(self):
         template = "  {% if boolean %}\n#{% endif %}\n/"
         data = {"boolean": True}
         result = renderer.render(template, data)
         expected = "#\n/"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_without_newline(self):
         template = "#{% if boolean %}\n/\n  {% endif %}"
         data = {"boolean": True}
         result = renderer.render(template, data)
         expected = "#\n/\n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     # Whitespace Insensitivity
 
@@ -254,7 +255,7 @@ class IfStatement(unittest.TestCase):
         data = {"boolean": True}
         result = renderer.render(template, data)
         expected = "|=|"
-        self.assertEqual(expected, result)
+        assert expected == result
 
 
 class IfNotStatement(unittest.TestCase):
@@ -263,21 +264,21 @@ class IfNotStatement(unittest.TestCase):
         data = {"boolean": False}
         result = renderer.render(template, data)
         expected = '"This should be rendered."'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_truthy(self):
         template = '"{% if not boolean %}This should not be rendered.{% endif %}"'
         data = {"boolean": True}
         result = renderer.render(template, data)
         expected = '""'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_empty_list(self):
         template = '"{% if not list %}Yay lists!{% endif %}"'
         data = {"list": []}
         result = renderer.render(template, data)
         expected = '"Yay lists!"'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_doubled(self):
         template = """{% if not bool %}
@@ -294,7 +295,7 @@ class IfNotStatement(unittest.TestCase):
 * second
 * third
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_nested_falsey(self):
         template = (
@@ -303,7 +304,7 @@ class IfNotStatement(unittest.TestCase):
         data = {"bool": False}
         result = renderer.render(template, data)
         expected = "| A B C D E |"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_nested_truthy(self):
         template = (
@@ -312,14 +313,14 @@ class IfNotStatement(unittest.TestCase):
         data = {"bool": True}
         result = renderer.render(template, data)
         expected = "| A  E |"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_context_misses(self):
         template = "[{% if not missing %}Cannot find key 'missing'!{% endif %}]"
         data = {}
         result = renderer.render(template, data)
         expected = "[Cannot find key 'missing'!]"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     # Dotted Names
 
@@ -328,21 +329,21 @@ class IfNotStatement(unittest.TestCase):
         data = {"a": {"b": {"c": True}}}
         result = renderer.render(template, data)
         expected = '"" == ""'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_dotted_names_falsey(self):
         template = '"{% if not a.b.c %}Not Here{% endif %}" == "Not Here"'
         data = {"a": {"b": {"c": False}}}
         result = renderer.render(template, data)
         expected = '"Not Here" == "Not Here"'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_dotted_names_broken_chains(self):
         template = '"{% if not a.b.c %}Not Here{% endif %}" == "Not Here"'
         data = {"a": {}}
         result = renderer.render(template, data)
         expected = '"Not Here" == "Not Here"'
-        self.assertEqual(expected, result)
+        assert expected == result
 
     # Whitespace Sensitivity
 
@@ -351,7 +352,7 @@ class IfNotStatement(unittest.TestCase):
         data = {"boolean": False}
         result = renderer.render(template, data)
         expected = " | \t|\t | \n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_internal_whitespace(self):
         template = (
@@ -360,14 +361,14 @@ class IfNotStatement(unittest.TestCase):
         data = {"boolean": False}
         result = renderer.render(template, data)
         expected = " |  \n  | \n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_indented_inline_sections(self):
         template = " {% if not boolean %}YES{% endif %}\n {% if not boolean %}GOOD{% endif %}\n"
         data = {"boolean": False}
         result = renderer.render(template, data)
         expected = " YES\n GOOD\n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_lines(self):
         template = """| This Is
@@ -382,7 +383,7 @@ class IfNotStatement(unittest.TestCase):
 |
 | A Line
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_indented_standalone_lines(self):
         template = """| This Is
@@ -397,28 +398,28 @@ class IfNotStatement(unittest.TestCase):
 |
 | A Line
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_line_endings(self):
         template = "|\r\n{% if not boolean %}\r\n{% endif %}\r\n|"
         data = {"boolean": False}
         result = renderer.render(template, data)
         expected = "|\r\n|"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_without_previous_line(self):
         template = "  {% if not boolean %}\n#{% endif %}\n/"
         data = {"boolean": False}
         result = renderer.render(template, data)
         expected = "#\n/"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_without_newline(self):
         template = "#{% if not boolean %}\n/\n  {% endif %}"
         data = {"boolean": False}
         result = renderer.render(template, data)
         expected = "#\n/\n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     # Whitespace Insensitivity
 
@@ -427,7 +428,7 @@ class IfNotStatement(unittest.TestCase):
         data = {"boolean": False}
         result = renderer.render(template, data)
         expected = "|=|"
-        self.assertEqual(expected, result)
+        assert expected == result
 
 
 class ElseStatement(unittest.TestCase):
@@ -454,7 +455,7 @@ class Comment(unittest.TestCase):
         data = {}
         result = renderer.render(template, data)
         expected = "1234567890"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_multiline(self):
         template = """12345{#
@@ -466,7 +467,7 @@ class Comment(unittest.TestCase):
         result = renderer.render(template, data)
         expected = """1234567890
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone(self):
         template = """Begin.
@@ -478,7 +479,7 @@ End.
         expected = """Begin.
 End.
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_indented_standalone(self):
         template = """Begin.
@@ -490,28 +491,28 @@ End.
         expected = """Begin.
 End.
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_line_endings(self):
         template = "|\r\n{# Standalone Comment #}\r\n|"
         data = {}
         result = renderer.render(template, data)
         expected = "|\r\n|"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_without_previous_line(self):
         template = "  {# I'm Still Standalone #}\n!"
         data = {}
         result = renderer.render(template, data)
         expected = "!"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_standalone_without_newline(self):
         template = "!\n  {# I'm Still Standalone #}"
         data = {}
         result = renderer.render(template, data)
         expected = "!\n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_multiline_standalone(self):
         template = """Begin.
@@ -525,7 +526,7 @@ End.
         expected = """Begin.
 End.
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_indented_multiline_standalone(self):
         template = """Begin.
@@ -539,21 +540,21 @@ End.
         expected = """Begin.
 End.
 """
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_indented_inline(self):
         template = "  12 {# 34 #}\n"
         data = {}
         result = renderer.render(template, data)
         expected = "  12 \n"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_surrounding_whitespace(self):
         template = "12345 {# Comment Block! #} 67890"
         data = {}
         result = renderer.render(template, data)
         expected = "12345  67890"
-        self.assertEqual(expected, result)
+        assert expected == result
 
 
 class Filter(unittest.TestCase):
@@ -562,28 +563,28 @@ class Filter(unittest.TestCase):
         data = {"words": "This won't be changed"}
         result = renderer.render(template, data)
         expected = "This won't be changed"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_lower(self):
         template = "{{word | lower}}"
         data = {"word": "QUIET"}
         result = renderer.render(template, data)
         expected = "quiet"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_upper(self):
         template = "{{word | upper}}"
         data = {"word": "loud"}
         result = renderer.render(template, data)
         expected = "LOUD"
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_multiple(self):
         template = "{{word | upper | lower | upper | lower | upper | lower | upper | lower | upper}}"
         data = {"word": "loud"}
         result = renderer.render(template, data)
         expected = "LOUD"
-        self.assertEqual(expected, result)
+        assert expected == result
 
 
 # Run unit tests from command line

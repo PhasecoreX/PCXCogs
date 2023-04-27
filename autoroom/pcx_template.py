@@ -1,5 +1,8 @@
 """A simple template engine, safe for untrusted user templates."""
 
+from contextlib import suppress
+from typing import Any
+
 from pyparsing import (
     Keyword,
     Literal,
@@ -18,7 +21,10 @@ __author__ = "PhasecoreX"
 
 
 class Template:
-    def __init__(self):
+    """A simple template engine, safe for untrusted user templates."""
+
+    def __init__(self) -> None:
+        """Set up the parser."""
         ParserElement.enablePackrat()
 
         expression_l = Suppress("{{")
@@ -89,20 +95,18 @@ class Template:
         self.template_parser = template.parseWithTabs()
 
     @staticmethod
-    def _get_value(key, data):
+    def _get_value(key: Any, data: dict[str, Any]) -> Any:  # noqa: ANN401
         if not isinstance(key, str):
             return key
         if len(key) > 1 and key[0] in ('"', "'") and key[0] == key[-1]:
             return key[1:-1]
-        try:
+        with suppress(KeyError):
             for attr in key.split("."):
                 data = data[attr]
             return data
-        except KeyError:
-            pass
         return ""
 
-    def _evaluate(self, condition, data):
+    def _evaluate(self, condition: Any, data: dict[str, Any]) -> Any:  # noqa: ANN401
         # Base case
         if not isinstance(condition, ParseResults):
             return self._get_value(condition, data)
@@ -117,9 +121,8 @@ class Template:
             return lhs or self._evaluate(condition[2], data)
         # rhs is now required
         rhs = self._evaluate(condition[2], data)
-        if not lhs:
-            if isinstance(rhs, int) or isinstance(rhs, float):
-                lhs = 0
+        if not lhs and isinstance(rhs, int | float):
+            lhs = 0
         if condition[1] == "==":
             return lhs == rhs
         if condition[1] == ">=":
@@ -135,7 +138,7 @@ class Template:
         return False
 
     @staticmethod
-    def _statement_result_append(result, to_append):
+    def _statement_result_append(result: str | None, to_append: str) -> str:
         if not result:
             result = ""
         if (
@@ -157,19 +160,17 @@ class Template:
         ):
             result = result.rstrip(" \t")
             to_append = to_append.lstrip(" \t")
-            if to_append.startswith("\r\n"):
-                to_append = to_append[2:]
-            else:
-                to_append = to_append[1:]
+            to_append = to_append[2:] if to_append.startswith("\r\n") else to_append[1:]
         return result + to_append
 
-    def render(self, template="", data=None):
+    def render(self, template: str = "", data: dict[str, Any] | None = None) -> str:
+        """Render a template with the given data."""
         if data is None:
             data = {}
         result = ""
         current_index = 0
         # stack keeps track of if the previous check was true, and thus are printing
-        stack = [("base", True)]
+        stack: list[tuple[str, Any]] = [("base", True)]
         target_stack_height = len(stack)
         potential_standalone = False
         tokens = self.template_parser.scanString(template)
