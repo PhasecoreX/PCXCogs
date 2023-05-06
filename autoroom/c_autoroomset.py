@@ -324,7 +324,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         with suppress(asyncio.TimeoutError):
             await ctx.bot.wait_for("message", check=pred, timeout=60)
             answer = pred.result
-        if answer in options:
+        if answer is not None:
             new_source["room_type"] = options[answer]
         else:
             await ctx.send("No valid answer was received, canceling setup process.")
@@ -364,7 +364,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         with suppress(asyncio.TimeoutError):
             await ctx.bot.wait_for("message", check=pred, timeout=60)
             answer = pred.result
-        if answer in options:
+        if answer is not None:
             new_source["channel_name_type"] = options[answer]
         else:
             await ctx.send("No valid answer was received, canceling setup process.")
