@@ -77,7 +77,7 @@ class ReminderCommands(MixinMeta, ABC):
             if "repeat" in reminder and reminder["repeat"]:
                 reminder_title += f", repeating every {self.humanize_relativedelta(reminder['repeat'])}"
             reminder_text = reminder["text"]
-            if reminder["jump_link"]:
+            if reminder.get("jump_link"):
                 reminder_text += f"\n([original message]({reminder['jump_link']}))"
             reminder_text = reminder_text or "(no reminder text or jump link)"
             embed.add_field(
