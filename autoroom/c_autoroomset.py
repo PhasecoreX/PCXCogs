@@ -635,6 +635,12 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         This can have template variables and statements, which you can learn more
         about by looking at `[p]autoroomset modify name custom`, or by looking at
         [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md).
+
+        The only additional variable that may be useful here is the `mention` variable,
+        which will insert the users mention (pinging them).
+
+        - Example:
+        `Hello {{mention}}! Welcome to your new AutoRoom!`
         """
         if not ctx.guild:
             return

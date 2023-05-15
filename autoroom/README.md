@@ -57,4 +57,6 @@ Finally, you can use filters in order to format your variables. They are specifi
 -   `{{username | lower}}` - Will lowercase the variable, the username in this example
 -   `{{game | upper}}` - Will uppercase the variable, the game name in this example
 
-This template format can also be used for the message hint sent to new AutoRooms built in text channels.
+This template format can also be used for the message hint sent to new AutoRooms built in text channels. For that, you can also use this variable:
+
+-   `{{mention}}` - The AutoRoom Owners mention

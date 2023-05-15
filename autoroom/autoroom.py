@@ -36,7 +36,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.5.0"
+    __version__ = "3.5.1"
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {
@@ -529,7 +529,7 @@ class AutoRoom(
     @staticmethod
     def get_template_data(member: discord.Member | discord.User) -> dict[str, str]:
         """Return a dict of template data based on a member."""
-        data = {"username": member.display_name}
+        data = {"username": member.display_name, "mention": member.mention}
         if isinstance(member, discord.Member):
             for activity in member.activities:
                 if activity.type == discord.ActivityType.playing:
