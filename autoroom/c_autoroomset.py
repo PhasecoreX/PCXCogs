@@ -573,7 +573,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                         error(
                             "Hmm... that doesn't seem to be a valid template:"
                             "\n\n"
-                            f"`{str(rte)}`"
+                            f"`{rte!s}`"
                             "\n\n"
                             "If you need some help, take a look at "
                             "[the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)."
@@ -654,7 +654,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                     error(
                         "Hmm... that doesn't seem to be a valid template:"
                         "\n\n"
-                        f"`{str(rte)}`"
+                        f"`{rte!s}`"
                         "\n\n"
                         "If you need some help, take a look at "
                         "[the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)."

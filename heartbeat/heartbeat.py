@@ -94,7 +94,7 @@ class Heartbeat(commands.Cog):
                 _ = asyncio.create_task(
                     self.bot.send_to_owners(
                         "An unexpected exception occurred in the background loop of Heartbeat:\n"
-                        f"```{str(exc)}```"
+                        f"```{exc!s}```"
                         "Heartbeat pings will not be sent until Heartbeat is reloaded.\n"
                         "Check your console or logs for more details, and consider opening a bug report for this."
                     )
