@@ -179,6 +179,6 @@ class Dice(commands.Cog):
         ) as exception:
             await ctx.send(
                 error(
-                    f"{ctx.message.author.mention}, I couldn't parse your dice formula:\n`{str(exception)}`"
+                    f"{ctx.message.author.mention}, I couldn't parse your dice formula:\n`{exception!s}`"
                 )
             )
