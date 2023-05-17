@@ -5,9 +5,9 @@ from typing import Any
 import discord
 from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
-from redbot.core.utils.chat_formatting import error, info, warning
+from redbot.core.utils.chat_formatting import error, info, success, warning
 
-from .pcx_lib import checkmark, delete
+from .pcx_lib import delete
 from .services.antiraid import Antiraid
 from .services.ksoftsi import KSoftSi
 from .services.ravy import Ravy
@@ -171,7 +171,7 @@ class BanCheck(commands.Cog):
                 disabled_services += f"{await self.format_service_name_url(service_name, show_help=True)}\n"
         if enabled_services:
             embed.add_field(
-                name=checkmark("API Keys Set"), value=enabled_services, inline=False
+                name=success("API Keys Set"), value=enabled_services, inline=False
             )
         if disabled_services:
             embed.add_field(
@@ -213,7 +213,7 @@ class BanCheck(commands.Cog):
             await ctx.bot.remove_shared_api_tokens(service, "api_key")
             action = "removed"
         response = f"API key for the {self.get_nice_service_name(service)} BanCheck service has been {action}."
-        await ctx.send(checkmark(response))
+        await ctx.send(success(response))
 
     #
     # Command methods: bancheckset
@@ -279,7 +279,7 @@ class BanCheck(commands.Cog):
                 enabled_services += "\n"
         if enabled_services:
             embed.add_field(
-                name=checkmark("Enabled Services"), value=enabled_services, inline=False
+                name=success("Enabled Services"), value=enabled_services, inline=False
             )
         else:
             embed.add_field(
@@ -310,13 +310,13 @@ class BanCheck(commands.Cog):
             )
         else:
             embed.add_field(
-                name=checkmark("AutoCheck"),
+                name=success("AutoCheck"),
                 value="**Enabled**\n(On join)",
             )
         # AutoCheck Channel status
         if notify_channel:
             embed.add_field(
-                name=checkmark("AutoCheck Channel"),
+                name=success("AutoCheck Channel"),
                 value=notify_channel.mention,
             )
         else:
@@ -348,7 +348,7 @@ class BanCheck(commands.Cog):
             )
         else:
             embed.add_field(
-                name=checkmark("AutoBan"),
+                name=success("AutoBan"),
                 value=f"**Enabled**\n({autoban_service_count} {'service' if autoban_service_count == 1 else 'services'})",
             )
 
@@ -399,7 +399,7 @@ class BanCheck(commands.Cog):
                     disabled_services_api += service_name_formatted
         if enabled_services:
             embed.add_field(
-                name=checkmark("Enabled Services"), value=enabled_services, inline=False
+                name=success("Enabled Services"), value=enabled_services, inline=False
             )
         if enabled_services_api:
             embed.add_field(
@@ -464,7 +464,7 @@ class BanCheck(commands.Cog):
             and not self.supported_global_services[service].SERVICE_API_KEY_REQUIRED
         ):
             await ctx.send(
-                checkmark(
+                success(
                     f"{self.get_nice_service_name(service)} does not require an API key."
                 )
             )
@@ -492,7 +492,7 @@ class BanCheck(commands.Cog):
         if not api_key:
             action = "removed"
         response = f"API key for the {self.get_nice_service_name(service)} BanCheck service has been {action}."
-        await ctx.send(checkmark(response))
+        await ctx.send(success(response))
 
     @service.command(name="enable")
     async def service_enable(self, ctx: commands.Context, service: str) -> None:
@@ -521,7 +521,7 @@ class BanCheck(commands.Cog):
                         "\nThe bot owner has not set this service up yet, so it will not be used. "
                         "If in the future the bot owner supplies an API key, this service will automatically be used."
                     )
-            await ctx.send(checkmark(response))
+            await ctx.send(success(response))
 
     @service.command(name="disable")
     async def service_disable(self, ctx: commands.Context, service: str) -> None:
@@ -540,7 +540,7 @@ class BanCheck(commands.Cog):
         response = (
             f"Disabled the {self.get_nice_service_name(service)} BanCheck service."
         )
-        await ctx.send(checkmark(response))
+        await ctx.send(success(response))
 
     @bancheckset.group()
     async def autoban(self, ctx: commands.Context) -> None:
@@ -570,7 +570,7 @@ class BanCheck(commands.Cog):
                 response += "\nAn API key is needed in order for this to take effect."
             if not ctx.guild.me.guild_permissions.ban_members:
                 response += "\nI will need to be granted the Ban Members permission for this to take effect."
-            await ctx.send(checkmark(response))
+            await ctx.send(success(response))
 
     @autoban.command(name="disable")
     async def autoban_disable(self, ctx: commands.Context, service: str) -> None:
@@ -587,7 +587,7 @@ class BanCheck(commands.Cog):
                 return
             config_services[service]["autoban"] = False
         response = f"Automatic banning with {self.get_nice_service_name(service)} has now been disabled."
-        await ctx.send(checkmark(response))
+        await ctx.send(success(response))
 
     @bancheckset.group()
     async def autocheck(self, ctx: commands.Context) -> None:
@@ -625,7 +625,7 @@ class BanCheck(commands.Cog):
             await ctx.send(info("AutoCheck is already disabled."))
         else:
             await self.config.guild(ctx.guild).notify_channel.set(None)
-            await ctx.send(checkmark("AutoCheck is now disabled."))
+            await ctx.send(success("AutoCheck is now disabled."))
 
     @commands.command()
     @commands.guild_only()
@@ -725,7 +725,7 @@ class BanCheck(commands.Cog):
                     )
 
                 elif response.result == "clear":
-                    description += checkmark(f"**{response.service}:** No ban found\n")
+                    description += success(f"**{response.service}:** No ban found\n")
 
                 elif response.result == "error":
                     is_error = True

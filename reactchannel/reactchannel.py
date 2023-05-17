@@ -6,9 +6,9 @@ import discord
 from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
 from redbot.core.utils import AsyncIter
-from redbot.core.utils.chat_formatting import box, error, warning
+from redbot.core.utils.chat_formatting import box, error, pagify, success, warning
 
-from .pcx_lib import checkmark, delete, message_splitter
+from .pcx_lib import delete
 
 KARMATOP_LIMIT = 10
 
@@ -277,7 +277,8 @@ class ReactChannel(commands.Cog):
         if not message:
             message = " None"
         message = "**ReactChannels configured:**\n" + message
-        await message_splitter(message, ctx)
+        for page in pagify(message, ["\n\n", "\n"], priority=True):
+            await ctx.send(page)
 
     @reactchannelset.group()
     async def enable(self, ctx: commands.Context) -> None:
@@ -351,7 +352,7 @@ class ReactChannel(commands.Cog):
             custom_emojis = f" ({', '.join(reaction_template)})"
             reaction_template = "custom"
         await ctx.send(
-            checkmark(
+            success(
                 f"{channel.mention} is now a {reaction_template} ReactChannel.{custom_emojis}"
             )
         )
@@ -383,7 +384,7 @@ class ReactChannel(commands.Cog):
             "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
         ).clear()
         await ctx.send(
-            checkmark(
+            success(
                 f"ReactChannel functionality has been disabled on {channel.mention}."
             )
         )
@@ -419,7 +420,7 @@ class ReactChannel(commands.Cog):
                 "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_to.users.set(react_to_users)
             await ctx.send(
-                checkmark(
+                success(
                     f"{channel.mention} ReactChannel will {'now' if react_to_users else 'no longer'} automatically react to users."
                 )
             )
@@ -452,7 +453,7 @@ class ReactChannel(commands.Cog):
                 "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_to.bots.set(react_to_bots)
             await ctx.send(
-                checkmark(
+                success(
                     f"{channel.mention} ReactChannel will {'now' if react_to_bots else 'no longer'} automatically react to bots."
                 )
             )
@@ -485,7 +486,7 @@ class ReactChannel(commands.Cog):
                 "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_to.myself.set(react_to_myself)
             await ctx.send(
-                checkmark(
+                success(
                     f"{channel.mention} ReactChannel will {'now' if react_to_myself else 'no longer'} automatically react to my ({channel.guild.me.display_name}) messages."
                 )
             )
@@ -527,7 +528,7 @@ class ReactChannel(commands.Cog):
             ).react_roles_allow()
 
             await ctx.send(
-                checkmark(
+                success(
                     f"{channel.mention} ReactChannel will {'only' if react_roles_allow else 'not'} react to users with the given roles:\n\n"
                     f"{self._list_roles(channel.guild, react_role_ids)}"
                 )
@@ -563,7 +564,7 @@ class ReactChannel(commands.Cog):
 
             if not react_role_ids:
                 await ctx.send(
-                    checkmark(
+                    success(
                         f"{channel.mention} ReactChannel will not filter on roles anymore."
                     )
                 )
@@ -573,7 +574,7 @@ class ReactChannel(commands.Cog):
                 ).react_roles_allow()
 
                 await ctx.send(
-                    checkmark(
+                    success(
                         f"{channel.mention} ReactChannel will {'only' if react_roles_allow else 'not'} react to users with the given roles:\n\n"
                         f"{self._list_roles(channel.guild, react_role_ids)}"
                     )
@@ -607,7 +608,7 @@ class ReactChannel(commands.Cog):
             ).react_roles()
             if react_role_ids:
                 await ctx.send(
-                    checkmark(
+                    success(
                         f"{channel.mention} ReactChannel will {'only' if react_roles_allow else 'not'} react to users with the given roles:\n\n"
                         f"{self._list_roles(channel.guild, react_role_ids)}"
                     )
@@ -648,7 +649,7 @@ class ReactChannel(commands.Cog):
                 "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_filter.text.set(react_filter_text)
             await ctx.send(
-                checkmark(
+                success(
                     f"{channel.mention} ReactChannel will {'now' if react_filter_text else 'no longer'} automatically react to text-only messages."
                 )
             )
@@ -676,7 +677,7 @@ class ReactChannel(commands.Cog):
                 "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_filter.commands.set(react_filter_commands)
             await ctx.send(
-                checkmark(
+                success(
                     f"{channel.mention} ReactChannel will {'now' if react_filter_commands else 'no longer'} automatically react to command messages."
                 )
             )
@@ -704,7 +705,7 @@ class ReactChannel(commands.Cog):
                 "REACT_CHANNEL", str(channel.guild.id), str(channel.id)
             ).react_filter.images.set(react_filter_images)
             await ctx.send(
-                checkmark(
+                success(
                     f"{channel.mention} ReactChannel will {'now' if react_filter_images else 'no longer'} automatically react to images."
                 )
             )
@@ -745,7 +746,7 @@ class ReactChannel(commands.Cog):
             setting = getattr(self.config.guild(ctx.guild).emojis, emoji_type)
             await setting.set(None)
             await ctx.send(
-                checkmark(
+                success(
                     f"{emoji_type.capitalize()} emoji for this server has been disabled"
                 )
             )
@@ -763,7 +764,7 @@ class ReactChannel(commands.Cog):
             setting = getattr(self.config.guild(ctx.guild).emojis, emoji_type)
             await setting.set(save)
             await ctx.send(
-                checkmark(
+                success(
                     f"{emoji_type.capitalize()} emoji for this server has been set to {emoji}"
                 )
             )

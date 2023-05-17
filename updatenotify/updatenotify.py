@@ -9,9 +9,9 @@ import aiohttp
 from redbot.core import Config, VersionInfo, checks, commands
 from redbot.core import version_info as redbot_version
 from redbot.core.bot import Red
-from redbot.core.utils.chat_formatting import box, error, humanize_timedelta
+from redbot.core.utils.chat_formatting import box, error, humanize_timedelta, success
 
-from .pcx_lib import SettingDisplay, checkmark
+from .pcx_lib import SettingDisplay
 
 log = logging.getLogger("red.pcxcogs.updatenotify")
 
@@ -199,7 +199,7 @@ class UpdateNotify(commands.Cog):
         """Set the frequency that UpdateNotify should check for updates."""
         await self.config.frequency.set(frequency.total_seconds())
         await ctx.send(
-            checkmark(
+            success(
                 f"Update check frequency has been set to {humanize_timedelta(timedelta=frequency)}."  # noqa: S608
             )
         )
@@ -222,7 +222,7 @@ class UpdateNotify(commands.Cog):
         state = not state
         await self.config.check_red_discordbot.set(state)
         await ctx.send(
-            checkmark(
+            success(
                 f"Red-DiscordBot version checking is now {'enabled' if state else 'disabled'}."
             )
         )
@@ -238,7 +238,7 @@ class UpdateNotify(commands.Cog):
         state = not state
         await self.config.check_pcx_docker.set(state)
         await ctx.send(
-            checkmark(
+            success(
                 f"Docker image version checking is now {'enabled' if state else 'disabled'}."
             )
         )
@@ -251,14 +251,14 @@ class UpdateNotify(commands.Cog):
         await self.config.pcx_docker_feature_only.set(state)
         if state:
             await ctx.send(
-                checkmark(
+                success(
                     "UpdateNotify will now only check for Docker image updates "
                     "that were caused by the codebase being updated (new features/bugfixes)."
                 )
             )
         else:
             await ctx.send(
-                checkmark(
+                success(
                     "UpdateNotify will now check for any Docker image updates, "
                     "including ones caused by the base image being updated (potential security updates)."
                 )

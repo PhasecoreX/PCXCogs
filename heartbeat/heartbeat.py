@@ -8,9 +8,9 @@ import aiohttp
 from redbot.core import Config, checks, commands
 from redbot.core import __version__ as redbot_version
 from redbot.core.bot import Red
-from redbot.core.utils.chat_formatting import error, humanize_timedelta
+from redbot.core.utils.chat_formatting import error, humanize_timedelta, success
 
-from .pcx_lib import SettingDisplay, checkmark, delete
+from .pcx_lib import SettingDisplay, delete
 
 user_agent = (
     f"Red-DiscordBot/{redbot_version} Heartbeat (https://github.com/PhasecoreX/PCXCogs)"
@@ -193,7 +193,7 @@ class Heartbeat(commands.Cog):
             if not error_message:
                 await self.config.url.set(url)
                 self.enable_bg_loop(skip_first=True)
-                await ctx.send(checkmark("Heartbeat URL has been set and enabled."))
+                await ctx.send(success("Heartbeat URL has been set and enabled."))
                 return
         except Exception as ex:  # noqa: BLE001
             error_message = str(ex)
@@ -213,7 +213,7 @@ class Heartbeat(commands.Cog):
         """Remove the set URL and disable Heartbeat pings."""
         await self.config.url.clear()
         self.enable_bg_loop()
-        await ctx.send(checkmark("Heartbeat has been disabled."))
+        await ctx.send(success("Heartbeat has been disabled."))
 
     @heartbeat.command()
     async def frequency(
@@ -228,7 +228,7 @@ class Heartbeat(commands.Cog):
         """Set the frequency Heartbeat will send pings."""
         await self.config.frequency.set(frequency.total_seconds())
         await ctx.send(
-            checkmark(
+            success(
                 f"Heartbeat frequency has been set to {humanize_timedelta(timedelta=frequency)}."
             )
         )

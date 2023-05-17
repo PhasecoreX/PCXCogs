@@ -6,10 +6,10 @@ from contextlib import suppress
 import pyhedrals
 from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
-from redbot.core.utils.chat_formatting import error, question
+from redbot.core.utils.chat_formatting import error, question, success
 from redbot.core.utils.predicates import MessagePredicate
 
-from .pcx_lib import SettingDisplay, checkmark
+from .pcx_lib import SettingDisplay
 
 MAX_ROLLS_NOTIFY = 1000000
 MAX_MESSAGE_LENGTH = 2000
@@ -107,7 +107,7 @@ class Dice(commands.Cog):
             action = "is now set to"
 
         await ctx.send(
-            checkmark(
+            success(
                 f"Maximum dice rolls per user {action} {await self.config.max_dice_rolls()}"
             )
         )
@@ -122,7 +122,7 @@ class Dice(commands.Cog):
         """
         await self.config.max_die_sides.set(maximum)
         await ctx.send(
-            checkmark(
+            success(
                 f"Maximum die sides is now set to {await self.config.max_die_sides()}"
             )
         )

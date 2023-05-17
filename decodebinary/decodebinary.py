@@ -4,9 +4,9 @@ import re
 import discord
 from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
-from redbot.core.utils.chat_formatting import info
+from redbot.core.utils.chat_formatting import info, success
 
-from .pcx_lib import SettingDisplay, checkmark, type_message
+from .pcx_lib import SettingDisplay, type_message
 
 
 class DecodeBinary(commands.Cog):
@@ -111,10 +111,10 @@ class DecodeBinary(commands.Cog):
         async with self.config.guild(ctx.guild).ignored_channels() as ignored_channels:
             if ctx.channel.id in ignored_channels:
                 ignored_channels.remove(ctx.channel.id)
-                await ctx.send(checkmark("I will no longer ignore this channel."))
+                await ctx.send(success("I will no longer ignore this channel."))
             else:
                 ignored_channels.append(ctx.channel.id)
-                await ctx.send(checkmark("I will ignore this channel."))
+                await ctx.send(success("I will ignore this channel."))
 
     #
     # Listener methods

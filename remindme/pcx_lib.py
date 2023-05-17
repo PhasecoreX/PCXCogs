@@ -17,11 +17,6 @@ MAX_EMBED_FIELDS = 20
 MAX_EMBED_FIELD_SIZE = 1024
 
 
-def checkmark(text: str) -> str:
-    """Get text prefixed with a checkmark emoji."""
-    return f"\N{WHITE HEAVY CHECK MARK} {text}"
-
-
 async def delete(message: discord.Message, *, delay: float | None = None) -> bool:
     """Attempt to delete a message.
 
@@ -77,42 +72,6 @@ async def type_message(
         async with destination.typing():
             await asyncio.sleep(max(0.25, min(2.5, len(content) * 0.01)))
         return await destination.send(content=content, **kwargs)
-
-
-async def message_splitter(
-    message: str, destination: discord.abc.Messageable | None = None
-) -> list[str]:
-    r"""Take a message string and split it so that each message in the resulting list is no greater than 1900.
-
-    Splits on double newlines (\n\n), and if there are none, just trims the strings down to 1900.
-
-    If supplied with a destination, will also send those messages to the destination.
-    """
-    max_length = 1900
-    if len(message) <= max_length:
-        if destination:
-            await destination.send(message)
-        return [message]
-
-    split_messages: list[str] = []
-    message_buffer = ""
-    for message_chunk in message.split("\n\n"):
-        test_message = (message_buffer + "\n\n" + message_chunk).strip()
-        if len(test_message) <= max_length:
-            message_buffer = test_message
-        else:
-            if message_buffer:
-                split_messages.append(message_buffer)
-                message_buffer = ""
-            if len(message_chunk) <= max_length:
-                message_buffer = message_chunk
-            else:
-                split_messages.append(message_chunk[: max_length - 3] + "...")
-
-    if destination:
-        for split_message in split_messages:
-            await destination.send(split_message)
-    return split_messages
 
 
 async def embed_splitter(

@@ -2,9 +2,10 @@
 from abc import ABC
 
 from redbot.core import checks, commands
+from redbot.core.utils.chat_formatting import success
 
 from .abc import MixinMeta
-from .pcx_lib import SettingDisplay, checkmark
+from .pcx_lib import SettingDisplay
 
 
 class RemindMeSetCommands(MixinMeta, ABC):
@@ -77,7 +78,7 @@ class RemindMeSetCommands(MixinMeta, ABC):
         me_too = not await self.config.guild(ctx.guild).me_too()
         await self.config.guild(ctx.guild).me_too.set(me_too)
         await ctx.send(
-            checkmark(
+            success(
                 f"I will {'now' if me_too else 'no longer'} ask if others want to be reminded."
             )
         )
@@ -88,7 +89,7 @@ class RemindMeSetCommands(MixinMeta, ABC):
         """Global: Set the maximum number of reminders a user can create at one time."""
         await self.config.max_user_reminders.set(maximum)
         await ctx.send(
-            checkmark(
+            success(
                 f"Maximum reminders per user is now set to {await self.config.max_user_reminders()}"
             )
         )
