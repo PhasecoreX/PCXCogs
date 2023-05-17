@@ -7,6 +7,10 @@
     "description": "This cog will periodically check if there are updates to the Red-DiscordBot code. If you are using the phasecorex/red-discordbot Docker image, it will check for any updates to that as well.",
     "install_msg": "Thanks for installing UpdateNotify! If you also happen to be running the bot in the `phasecorex/red-discordbot` Docker image, this plugin will check for updates to that as well.",
     "tags": [
+        "auto",
+        "automated",
+        "automatic",
+        "check",
         "update",
         "utility"
     ],

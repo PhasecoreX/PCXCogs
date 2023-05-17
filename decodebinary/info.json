@@ -7,7 +7,11 @@
     "description": "Automatically decodes binary strings to human readable ones when detected in chat.",
     "install_msg": "01011001011000010111100100100001",
     "tags": [
+        "auto",
+        "automated",
+        "automatic",
         "binary",
+        "convert",
         "decode"
     ],
     "min_bot_version": "3.5.0",

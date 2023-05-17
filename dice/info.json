@@ -10,7 +10,11 @@
         "pyhedrals"
     ],
     "tags": [
+        "chance",
+        "d20",
+        "dnd",
         "random",
+        "roll",
         "utility"
     ],
     "min_bot_version": "3.5.0",

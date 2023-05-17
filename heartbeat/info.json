@@ -7,6 +7,9 @@
     "description": "Monitor the uptime of your bot by having it send heartbeat pings to a configurable URL (healthchecks.io for instance).",
     "install_msg": "Thanks for installing Heartbeat!",
     "tags": [
+        "auto",
+        "automated",
+        "automatic",
         "health",
         "healthcheck",
         "ping",

@@ -7,7 +7,12 @@
     "description": "This cog allows server admins to check their members against multiple external ban lists. It can also automatically check new members that join the server, and optionally ban them if they appear in a list.",
     "install_msg": "Thanks for installing BanCheck! For a quick rundown on how to get started with this cog, check out [the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/bancheck/README.md)",
     "tags": [
+        "auto",
+        "automated",
+        "automatic",
         "ban",
+        "check",
+        "lookup",
         "moderation",
         "utility"
     ],
