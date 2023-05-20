@@ -169,6 +169,10 @@ class SettingDisplay:
         """Generate a ready-to-send formatted box of settings."""
         return self.display()
 
+    def __len__(self) -> int:
+        """Count of how many settings there are to display."""
+        return len(self._settings)
+
 
 class Perms:
     """Helper class for dealing with a dictionary of discord.PermissionOverwrite."""
