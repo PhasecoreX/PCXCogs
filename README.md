@@ -35,6 +35,10 @@ Automatic voice channel management. When a user joins an AutoRoom source channel
 
 Automatically check users against multiple global ban lists on server join. Other features include automatic banning, manually checking users already on the server, and sending ban reports to supported services.
 
+### BanSync
+
+Automatically sync bans between servers that the bot is in. Supports pulls (one way) and two way syncing of bans and unbans.
+
 ### DecodeBinary
 
 Automatically decode binary strings in chat. Any message that the bot thinks is binary will be decoded to regular text. Based on a Reddit bot, and was my first cog!

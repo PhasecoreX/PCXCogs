@@ -1,0 +1,26 @@
+{
+    "name": "BanSync",
+    "author": [
+        "PhasecoreX (PhasecoreX#0635)"
+    ],
+    "short": "Automatically sync bans across servers.",
+    "description": "This cog allows server admins to ban users on their server when they are banned on another server that the bot is in.",
+    "install_msg": "Thanks for installing BanSync!",
+    "tags": [
+        "auto",
+        "automated",
+        "automatic",
+        "ban",
+        "moderation",
+        "pull",
+        "sync",
+        "utility"
+    ],
+    "min_bot_version": "3.5.0",
+    "min_python_version": [
+        3,
+        11,
+        0
+    ],
+    "end_user_data_statement": "This cog does not persistently store data or metadata about users."
+}
