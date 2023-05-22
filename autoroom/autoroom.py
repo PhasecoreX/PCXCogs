@@ -36,7 +36,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.5.1"
+    __version__ = "3.5.2"
 
     default_global_settings = {"schema_version": 0}
     default_guild_settings = {
@@ -450,7 +450,7 @@ class AutoRoom(
             category=dest_category,
             reason="AutoRoom: New AutoRoom needed.",
             overwrites=perms.overwrites if perms.overwrites else {},
-            bitrate=autoroom_source.bitrate,
+            bitrate=min(autoroom_source.bitrate, int(guild.bitrate_limit)),
             user_limit=autoroom_source.user_limit,
         )
         await self.config.channel(new_voice_channel).source_channel.set(
