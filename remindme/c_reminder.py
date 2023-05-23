@@ -70,7 +70,7 @@ class ReminderCommands(MixinMeta, ABC):
             color=await ctx.embed_color(),
         )
         embed.set_thumbnail(url=author.display_avatar.url)
-        for reminder in user_reminders:  # TODO make this look nicer.
+        for reminder in user_reminders:  # TODO(PhasecoreX): make this look nicer.
             reminder_title = (
                 f"ID# {reminder['user_reminder_id']} — <t:{reminder['expires']}:f>"
             )
