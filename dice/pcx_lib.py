@@ -207,15 +207,21 @@ class Perms:
     def overwrite(
         self,
         target: discord.Role | discord.Member | discord.Object,
-        permission_overwrite: discord.PermissionOverwrite,
+        permission_overwrite: Mapping[str, bool | None] | discord.PermissionOverwrite,
     ) -> None:
         """Set the permissions for a target."""
-        if not permission_overwrite.is_empty() and isinstance(
-            target, discord.Role | discord.Member
-        ):
+        if not isinstance(target, discord.Role | discord.Member):
+            return
+        if isinstance(permission_overwrite, discord.PermissionOverwrite):
+            if permission_overwrite.is_empty():
+                self.__overwrites[target] = discord.PermissionOverwrite()
+                return
             self.__overwrites[target] = discord.PermissionOverwrite().from_pair(
                 *permission_overwrite.pair()
             )
+        else:
+            self.__overwrites[target] = discord.PermissionOverwrite()
+            self.update(target, permission_overwrite)
 
     def update(
         self,
