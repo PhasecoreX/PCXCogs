@@ -1,7 +1,7 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
 from abc import ABC
 from contextlib import suppress
-from typing import Any
+from typing import Any, ClassVar
 
 import discord
 from redbot.core import Config, commands
@@ -36,39 +36,58 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.5.2"
+    __version__ = "3.6.0"
 
-    default_global_settings = {"schema_version": 0}
-    default_guild_settings = {
+    default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
+    default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
         "admin_access": True,
         "mod_access": False,
         "bot_access": [],
     }
-    default_autoroom_source_settings = {
+    default_autoroom_source_settings: ClassVar[dict[str, int | str | None]] = {
         "dest_category_id": None,
         "room_type": "public",
         "text_channel_hint": None,
         "channel_name_type": "username",
         "channel_name_format": "",
     }
-    default_channel_settings = {
+    default_channel_settings: ClassVar[dict[str, int | None]] = {
         "source_channel": None,
         "owner": None,
         "associated_text_channel": None,
     }
     extra_channel_name_change_delay = 4
 
-    perms_public = {"view_channel": True, "connect": True, "send_messages": True}
-    perms_locked = {"view_channel": True, "connect": False, "send_messages": False}
-    perms_private = {"view_channel": False, "connect": False, "send_messages": False}
+    perms_public: ClassVar[dict[str, bool]] = {
+        "view_channel": True,
+        "connect": True,
+        "send_messages": True,
+    }
+    perms_locked: ClassVar[dict[str, bool]] = {
+        "view_channel": True,
+        "connect": False,
+        "send_messages": False,
+    }
+    perms_private: ClassVar[dict[str, bool]] = {
+        "view_channel": False,
+        "connect": False,
+        "send_messages": False,
+    }
 
-    perms_bot_source = {"view_channel": True, "connect": True, "move_members": True}
-    perms_autoroom_owner = {
+    perms_bot_source: ClassVar[dict[str, bool]] = {
+        "view_channel": True,
+        "connect": True,
+        "move_members": True,
+    }
+    perms_autoroom_owner: ClassVar[dict[str, bool]] = {
         **perms_public,
         "manage_channels": True,
         "manage_messages": True,
     }
-    perms_bot_dest = {**perms_autoroom_owner, "move_members": True}
+    perms_bot_dest: ClassVar[dict[str, bool]] = {
+        **perms_autoroom_owner,
+        "move_members": True,
+    }
 
     def __init__(self, bot: Red) -> None:
         """Set up the cog."""
@@ -93,6 +112,9 @@ class AutoRoom(
         )
         self.bucket_autoroom_name = commands.CooldownMapping.from_cooldown(
             2, 600 + self.extra_channel_name_change_delay, lambda channel: channel
+        )
+        self.bucket_autoroom_owner_claim = commands.CooldownMapping.from_cooldown(
+            1, 120, lambda channel: channel
         )
 
     #
@@ -322,11 +344,22 @@ class AutoRoom(
         """Do voice channel stuff when users move about channels."""
         if await self.bot.cog_disabled_in_guild(self, member.guild):
             return
+
         # If user left an AutoRoom, do cleanup
-        if isinstance(
-            leaving.channel, discord.VoiceChannel
-        ) and await self.get_autoroom_info(leaving.channel):
-            await self._process_autoroom_delete(leaving.channel)
+        if isinstance(leaving.channel, discord.VoiceChannel):
+            autoroom_info = await self.get_autoroom_info(leaving.channel)
+            if autoroom_info:
+                deleted = await self._process_autoroom_delete(leaving.channel)
+                if not deleted and member.id == autoroom_info["owner"]:
+                    # There are still users left and the AutoRoom Owner left.
+                    # Start a countdown so that others can claim the AutoRoom.
+                    bucket = self.bucket_autoroom_owner_claim.get_bucket(
+                        leaving.channel
+                    )
+                    if bucket:
+                        bucket.reset()
+                        bucket.update_rate_limit()
+
         # If user entered an AutoRoom Source channel, create new AutoRoom
         if isinstance(joining.channel, discord.VoiceChannel):
             asc = await self.get_autoroom_source_config(joining.channel)
@@ -458,9 +491,12 @@ class AutoRoom(
         )
         if autoroom_source_config["room_type"] != "server":
             await self.config.channel(new_voice_channel).owner.set(member.id)
-        await member.move_to(
-            new_voice_channel, reason="AutoRoom: Move user to new AutoRoom."
-        )
+        try:
+            await member.move_to(
+                new_voice_channel, reason="AutoRoom: Move user to new AutoRoom."
+            )
+        except discord.HTTPException:
+            await self._process_autoroom_delete(new_voice_channel)
 
         # Send text chat hint if enabled
         if autoroom_source_config["text_channel_hint"]:
@@ -473,7 +509,7 @@ class AutoRoom(
                     await new_voice_channel.send(hint)
 
     @staticmethod
-    async def _process_autoroom_delete(voice_channel: discord.VoiceChannel) -> None:
+    async def _process_autoroom_delete(voice_channel: discord.VoiceChannel) -> bool:
         """Delete AutoRoom if empty."""
         if (
             not voice_channel.members
@@ -483,6 +519,8 @@ class AutoRoom(
                 discord.NotFound
             ):  # Sometimes this happens when the user manually deletes their channel
                 await voice_channel.delete(reason="AutoRoom: Channel empty.")
+                return True
+        return False
 
     def _generate_channel_name(
         self,

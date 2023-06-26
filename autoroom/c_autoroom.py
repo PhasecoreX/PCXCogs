@@ -200,6 +200,60 @@ class AutoRoomCommands(MixinMeta, ABC):
         await delete(ctx.message, delay=5)
 
     @autoroom.command()
+    async def claim(self, ctx: commands.Context) -> None:
+        """Claim ownership of this AutoRoom."""
+        if not ctx.guild:
+            return
+        new_owner = ctx.message.author
+        if not isinstance(new_owner, discord.Member):
+            return
+        autoroom_channel, autoroom_info = await self._get_autoroom_channel_and_info(
+            ctx, check_owner=False
+        )
+        if not autoroom_channel or not autoroom_info:
+            return
+        bucket = self.bucket_autoroom_owner_claim.get_bucket(autoroom_channel)
+        old_owner = ctx.guild.get_member(autoroom_info["owner"])
+        denied_message = ""
+
+        if (
+            not await self.is_mod_or_mod_role(new_owner)
+            and not await self.is_admin_or_admin_role(new_owner)
+            and new_owner != ctx.guild.owner
+        ):
+            if old_owner and old_owner in autoroom_channel.members:
+                denied_message = (
+                    "you can only claim ownership once the AutoRoom Owner has left"
+                )
+            elif bucket:
+                retry_after = bucket.update_rate_limit()
+                if retry_after:
+                    denied_message = f"you must wait **{humanize_timedelta(seconds=max(retry_after, 1))}** before claiming ownership, in case the previous AutoRoom Owner comes back"
+
+        if denied_message:
+            hint = await ctx.send(
+                error(f"{ctx.message.author.mention}, {denied_message}")
+            )
+            await delete(ctx.message, delay=10)
+            await delete(hint, delay=10)
+            return
+
+        perms = Perms(autoroom_channel.overwrites)
+        if old_owner:
+            perms.overwrite(old_owner, self.perms_public)
+        perms.update(new_owner, self.perms_autoroom_owner)
+        if perms.modified:
+            await autoroom_channel.edit(
+                overwrites=perms.overwrites if perms.overwrites else {},
+                reason="AutoRoom: Ownership claimed",
+            )
+        await self.config.channel(autoroom_channel).owner.set(new_owner.id)
+        if bucket:
+            bucket.reset()
+        await ctx.tick()
+        await delete(ctx.message, delay=5)
+
+    @autoroom.command()
     async def public(self, ctx: commands.Context) -> None:
         """Make your AutoRoom public."""
         await self._process_allow_deny(ctx, self.perms_public)

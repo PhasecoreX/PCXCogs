@@ -20,11 +20,13 @@ class MixinMeta(ABC):
     config: Config
     template: Template
     bucket_autoroom_name: CooldownMapping
+    bucket_autoroom_owner_claim: CooldownMapping
     extra_channel_name_change_delay: int
 
     perms_public: dict[str, bool]
     perms_locked: dict[str, bool]
     perms_private: dict[str, bool]
+    perms_autoroom_owner: dict[str, bool]
 
     @staticmethod
     @abstractmethod
