@@ -2,6 +2,7 @@
 import asyncio
 import re
 from contextlib import suppress
+from typing import ClassVar
 
 import pyhedrals
 from redbot.core import Config, checks, commands
@@ -21,7 +22,10 @@ class Dice(commands.Cog):
     __author__ = "PhasecoreX"
     __version__ = "2.1.0"
 
-    default_global_settings = {"max_dice_rolls": 10000, "max_die_sides": 10000}
+    default_global_settings: ClassVar[dict[str, int]] = {
+        "max_dice_rolls": 10000,
+        "max_die_sides": 10000,
+    }
     DROPPED_EXPLODED_RE = re.compile(r"-\*(\d+)\*-")
     EXPLODED_RE = re.compile(r"\*(\d+)\*")
     DROPPED_RE = re.compile(r"-(\d+)-")

@@ -23,58 +23,57 @@ class KSoftSi:
     async def lookup(user_id: int, api_key: str) -> LookupResult:
         """Perform user lookup on KSoft.Si (via Ravy)."""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{KSoftSi.BASE_URL}/{user_id}",
-                    headers={
-                        "Authorization": "KSoft " + api_key,
-                        "user-agent": user_agent,
-                    },
-                ) as resp:
-                    # Response 200 example:
-                    # {
-                    #     "id": "140926691442359926",
-                    #     "tag": "PhasecoreX 󠂪#0000",
-                    #     "reason": "Being too cool",
-                    #     "proof": "https://www.youtube.com/watch?v=I7Tps0M-l64",
-                    #     "moderator": "141866639703756037",
-                    #     "severe": true,
-                    #     "timestamp": "2018-09-21T23:58:32.743477",
-                    #     "found": true
-                    # }
-                    #
-                    # Response 401 examples:
-                    # {
-                    #     "error": "Unauthorized",
-                    #     "details": "Invalid token"
-                    # }
-                    # {
-                    #     "error": "Unauthorized",
-                    #     "details": "Not authorized for this route"
-                    # }
-                    #
-                    # Response 404 example:
-                    # {
-                    #     "error": "Not Found",
-                    #     "details": "The user you queried is not banned",
-                    #     "found": false
-                    # }
-                    data = await resp.json()
-                    if "found" in data:
-                        # "found" will always be in a successful lookup
-                        if data["found"]:
-                            return LookupResult(
-                                KSoftSi.SERVICE_NAME,
-                                "ban",
-                                reason=data["reason"],
-                                proof_url=data["proof"] if "proof" in data else None,
-                            )
-                        LookupResult(KSoftSi.SERVICE_NAME, "clear")
-                    # Otherwise, failed lookup
-                    reason = ""
-                    if "details" in data:
-                        reason = data["details"]
-                    return LookupResult(KSoftSi.SERVICE_NAME, "error", reason=reason)
+            async with aiohttp.ClientSession() as session, session.get(
+                f"{KSoftSi.BASE_URL}/{user_id}",
+                headers={
+                    "Authorization": "KSoft " + api_key,
+                    "user-agent": user_agent,
+                },
+            ) as resp:
+                # Response 200 example:
+                # {
+                #     "id": "140926691442359926",
+                #     "tag": "PhasecoreX 󠂪#0000",
+                #     "reason": "Being too cool",
+                #     "proof": "https://www.youtube.com/watch?v=I7Tps0M-l64",
+                #     "moderator": "141866639703756037",
+                #     "severe": true,
+                #     "timestamp": "2018-09-21T23:58:32.743477",
+                #     "found": true
+                # }
+                #
+                # Response 401 examples:
+                # {
+                #     "error": "Unauthorized",
+                #     "details": "Invalid token"
+                # }
+                # {
+                #     "error": "Unauthorized",
+                #     "details": "Not authorized for this route"
+                # }
+                #
+                # Response 404 example:
+                # {
+                #     "error": "Not Found",
+                #     "details": "The user you queried is not banned",
+                #     "found": false
+                # }
+                data = await resp.json()
+                if "found" in data:
+                    # "found" will always be in a successful lookup
+                    if data["found"]:
+                        return LookupResult(
+                            KSoftSi.SERVICE_NAME,
+                            "ban",
+                            reason=data["reason"],
+                            proof_url=data["proof"] if "proof" in data else None,
+                        )
+                    LookupResult(KSoftSi.SERVICE_NAME, "clear")
+                # Otherwise, failed lookup
+                reason = ""
+                if "details" in data:
+                    reason = data["details"]
+                return LookupResult(KSoftSi.SERVICE_NAME, "error", reason=reason)
 
         except aiohttp.ClientConnectionError:
             return LookupResult(

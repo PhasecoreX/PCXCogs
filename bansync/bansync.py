@@ -1,7 +1,7 @@
 """BanSync cog for Red-DiscordBot by PhasecoreX."""
 import asyncio
 from contextlib import suppress
-from typing import Any
+from typing import ClassVar
 
 import discord
 from redbot.core import Config, checks, commands
@@ -29,7 +29,7 @@ class BanSync(commands.Cog):
     __author__ = "PhasecoreX"
     __version__ = "1.0.0"
 
-    default_guild_settings: Any = {
+    default_guild_settings: ClassVar[dict[str, str | list[int] | dict[str, int]]] = {
         "cached_guild_name": "Unknown Server Name",
         "ban_sources": [],
         "ban_count": {},

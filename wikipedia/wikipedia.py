@@ -130,13 +130,12 @@ class Wikipedia(commands.Cog):
     ) -> tuple[list[discord.Embed], str | None]:
         """Query Wikipedia."""
         payload = self.generate_payload(query)
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                "https://en.wikipedia.org/w/api.php",
-                params=payload,
-                headers={"user-agent": "Red-DiscordBot/" + redbot_version},
-            ) as res:
-                result = await res.json()
+        async with aiohttp.ClientSession() as session, session.get(
+            "https://en.wikipedia.org/w/api.php",
+            params=payload,
+            headers={"user-agent": "Red-DiscordBot/" + redbot_version},
+        ) as res:
+            result = await res.json()
 
         embeds = []
         if "query" in result and "pages" in result["query"]:
