@@ -1,5 +1,6 @@
 """DecodeBinary cog for Red-DiscordBot by PhasecoreX."""
 import re
+from typing import ClassVar
 
 import discord
 from redbot.core import Config, checks, commands
@@ -22,8 +23,8 @@ class DecodeBinary(commands.Cog):
     __author__ = "PhasecoreX"
     __version__ = "1.2.0"
 
-    default_global_settings = {"schema_version": 0}
-    default_guild_settings = {"ignored_channels": []}
+    default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
+    default_guild_settings: ClassVar[dict[str, list[int]]] = {"ignored_channels": []}
 
     def __init__(self, bot: Red) -> None:
         """Set up the cog."""

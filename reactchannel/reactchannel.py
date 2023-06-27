@@ -1,6 +1,7 @@
 """ReactChannel cog for Red-DiscordBot by PhasecoreX."""
 import datetime
 from contextlib import suppress
+from typing import ClassVar
 
 import discord
 from redbot.core import Config, checks, commands
@@ -28,11 +29,11 @@ class ReactChannel(commands.Cog):
     __author__ = "PhasecoreX"
     __version__ = "3.1.0"
 
-    default_global_settings = {"schema_version": 0}
-    default_guild_settings = {
+    default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
+    default_guild_settings: ClassVar[dict[str, dict[str, str | int | None]]] = {
         "emojis": {"upvote": None, "downvote": None},
     }
-    default_react_channel_settings = {
+    default_react_channel_settings: ClassVar[dict] = {
         "reaction_template": None,  # Can be "vote", "checklist", or a list of ("emoji", "action") tuples.
         "react_to": {
             "users": True,
@@ -47,7 +48,7 @@ class ReactChannel(commands.Cog):
             "images": True,
         },
     }
-    default_member_settings = {"karma": 0, "created_at": 0}
+    default_member_settings: ClassVar[dict[str, int]] = {"karma": 0, "created_at": 0}
 
     def __init__(self, bot: Red) -> None:
         """Set up the cog."""

@@ -1,6 +1,6 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
 from contextlib import suppress
-from typing import Any
+from typing import Any, ClassVar
 
 import discord
 from redbot.core import Config, checks, commands
@@ -27,15 +27,27 @@ class BanCheck(commands.Cog):
     __author__ = "PhasecoreX"
     __version__ = "2.6.0"
 
-    default_global_settings = {"schema_version": 0, "total_bans": 0}
-    default_guild_settings: Any = {
+    default_global_settings: ClassVar[dict[str, int]] = {
+        "schema_version": 0,
+        "total_bans": 0,
+    }
+    default_guild_settings: ClassVar[
+        dict[str, int | dict[str, dict[str, bool | str]] | None]
+    ] = {
         "notify_channel": None,
         "total_bans": 0,
         "services": {},
     }
-    supported_global_services = {"antiraid": Antiraid, "ksoftsi": KSoftSi, "ravy": Ravy}
-    supported_guild_services = {}
-    all_supported_services = {**supported_global_services, **supported_guild_services}
+    supported_global_services: ClassVar[dict] = {
+        "antiraid": Antiraid,
+        "ksoftsi": KSoftSi,
+        "ravy": Ravy,
+    }
+    supported_guild_services: ClassVar[dict] = {}
+    all_supported_services: ClassVar[dict] = {
+        **supported_global_services,
+        **supported_guild_services,
+    }
 
     def __init__(self, bot: Red) -> None:
         """Set up the cog."""

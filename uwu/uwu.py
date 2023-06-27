@@ -2,6 +2,7 @@
 # ruff: noqa: S311
 import random
 from contextlib import suppress
+from typing import ClassVar
 
 import discord
 from redbot.core import commands
@@ -15,7 +16,7 @@ class UwU(commands.Cog):
     __author__ = "PhasecoreX"
     __version__ = "2.1.0"
 
-    KAOMOJI_JOY = [
+    KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
         " (o^▽^o)",
         " (≧◡≦)",
@@ -23,7 +24,7 @@ class UwU(commands.Cog):
         " ( ˘⌣˘)♡(˘⌣˘ )",
         " xD",
     ]
-    KAOMOJI_EMBARRASSED = [
+    KAOMOJI_EMBARRASSED: ClassVar[list[str]] = [
         " (/ />/ ▽ /</ /)..",
         " (\\*^.^\\*)..,",
         "..,",
@@ -33,8 +34,14 @@ class UwU(commands.Cog):
         " mmm..",
         "O.o",
     ]
-    KAOMOJI_CONFUSE = [" (o_O)?", " (°ロ°) !?", " (ーー;)?", " owo?"]
-    KAOMOJI_SPARKLES = [" \\*:･ﾟ✧\\*:･ﾟ✧ ", " ☆\\*:・ﾟ ", "〜☆ ", " uguu.., ", "-.-"]
+    KAOMOJI_CONFUSE: ClassVar[list[str]] = [" (o_O)?", " (°ロ°) !?", " (ーー;)?", " owo?"]
+    KAOMOJI_SPARKLES: ClassVar[list[str]] = [
+        " \\*:･ﾟ✧\\*:･ﾟ✧ ",
+        " ☆\\*:・ﾟ ",
+        "〜☆ ",
+        " uguu.., ",
+        "-.-",
+    ]
 
     #
     # Red methods

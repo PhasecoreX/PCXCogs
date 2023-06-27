@@ -4,6 +4,7 @@ import datetime
 import logging
 import os
 from contextlib import suppress
+from typing import ClassVar
 
 import aiohttp
 from redbot.core import Config, VersionInfo, checks, commands
@@ -28,7 +29,7 @@ class UpdateNotify(commands.Cog):
     __author__ = "PhasecoreX"
     __version__ = "3.1.0"
 
-    default_global_settings = {
+    default_global_settings: ClassVar[dict[str, int | bool]] = {
         "schema_version": 0,
         "frequency": 3600,
         "check_red_discordbot": True,

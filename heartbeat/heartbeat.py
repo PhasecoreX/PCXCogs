@@ -3,6 +3,7 @@ import asyncio
 import datetime
 import logging
 from datetime import timedelta
+from typing import ClassVar
 
 import aiohttp
 from redbot.core import Config, checks, commands
@@ -32,7 +33,10 @@ class Heartbeat(commands.Cog):
     __author__ = "PhasecoreX"
     __version__ = "1.4.0"
 
-    default_global_settings = {"url": "", "frequency": 60}
+    default_global_settings: ClassVar[dict[str, int | str]] = {
+        "url": "",
+        "frequency": 60,
+    }
 
     def __init__(self, bot: Red) -> None:
         """Set up the cog."""

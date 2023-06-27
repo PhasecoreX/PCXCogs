@@ -3,7 +3,7 @@ import asyncio
 import datetime
 import logging
 from abc import ABC
-from typing import Any
+from typing import Any, ClassVar
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -35,15 +35,17 @@ class RemindMe(
     __author__ = "PhasecoreX"
     __version__ = "3.1.0"
 
-    default_global_settings = {
+    default_global_settings: ClassVar[dict[str, int]] = {
         "schema_version": 0,
         "total_sent": 0,
         "max_user_reminders": 20,
     }
-    default_guild_settings = {
+    default_guild_settings: ClassVar[dict[str, bool]] = {
         "me_too": False,
     }
-    default_reminder_settings = {
+    default_reminder_settings: ClassVar[
+        dict[str, str | int | dict[str, int] | None]
+    ] = {
         "text": "",  # str
         "created": None,  # seconds from epoch int
         "expires": None,  # seconds from epoch int
