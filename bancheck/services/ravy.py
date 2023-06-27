@@ -71,10 +71,7 @@ class Ravy:
                         for ban in data["bans"]:
                             results.append(
                                 LookupResult(
-                                    Ravy.SERVICE_NAME
-                                    + " ("
-                                    + ban["provider"]
-                                    + ")",
+                                    Ravy.SERVICE_NAME + " (" + ban["provider"] + ")",
                                     "ban",
                                     reason=ban["reason"],
                                 )
