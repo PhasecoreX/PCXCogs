@@ -67,16 +67,14 @@ class Ravy:
                 if "bans" in data:
                     # "bans" will always be in a successful lookup
                     if data["bans"]:
-                        results = []
-                        for ban in data["bans"]:
-                            results.append(
-                                LookupResult(
-                                    Ravy.SERVICE_NAME + " (" + ban["provider"] + ")",
-                                    "ban",
-                                    reason=ban["reason"],
-                                )
+                        return [
+                            LookupResult(
+                                Ravy.SERVICE_NAME + " (" + ban["provider"] + ")",
+                                "ban",
+                                reason=ban["reason"],
                             )
-                        return results
+                            for ban in data["bans"]
+                        ]
                     return LookupResult(Ravy.SERVICE_NAME, "clear")
                 # Otherwise, failed lookup
                 reason = ""

@@ -21,7 +21,7 @@ class DecodeBinary(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "1.2.0"
+    __version__ = "1.2.1"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, list[int]]] = {"ignored_channels": []}
@@ -149,9 +149,7 @@ class DecodeBinary(commands.Cog):
         self, orig_message: discord.Message, found: list[str]
     ) -> None:
         """Translate each found string and sends a message."""
-        translated_messages = []
-        for encoded in found:
-            translated_messages.append(self.decode_binary_string(encoded))
+        translated_messages = [self.decode_binary_string(encoded) for encoded in found]
 
         if len(translated_messages) == 1 and translated_messages[0]:
             await type_message(

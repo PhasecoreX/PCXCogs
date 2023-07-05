@@ -27,7 +27,7 @@ class ReactChannel(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.1.0"
+    __version__ = "3.1.1"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, dict[str, str | int | None]]] = {
@@ -159,9 +159,7 @@ class ReactChannel(commands.Cog):
                                 True  # noqa: FBT003
                             )
                     elif isinstance(channel_type, list):
-                        emoji_tuple_list = []
-                        for emoji in channel_type:
-                            emoji_tuple_list.append((emoji, None))
+                        emoji_tuple_list = [(emoji, None) for emoji in channel_type]
                         if emoji_tuple_list:
                             await self.config.custom(
                                 "REACT_CHANNEL", guild_id, channel_id
@@ -266,10 +264,11 @@ class ReactChannel(commands.Cog):
                 else:
                     message += f"\nIgnoring Roles: \n{roles_list}"
             # react_filter
-            filters = []
-            for r_filter, enabled in channel_settings["react_filter"].items():
-                if enabled:
-                    filters.append(r_filter.capitalize())
+            filters = [
+                r_filter.capitalize()
+                for r_filter, enabled in channel_settings["react_filter"].items()
+                if enabled
+            ]
             if filters:
                 message += f"\nContent: {', '.join(filters)}"
             else:
