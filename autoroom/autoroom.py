@@ -36,7 +36,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.6.0"
+    __version__ = "3.6.1"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -857,13 +857,13 @@ class AutoRoom(
             autoroom_source.guild.default_role,
         ):
             # If it isn't allowed, then member roles are being used
-            for role, overwrite in autoroom_source.overwrites.items():
-                if (
-                    isinstance(role, discord.Role)
-                    and role != autoroom_source.guild.default_role
-                    and overwrite.pair()[0].connect
-                ):
-                    member_roles.append(role)
+            member_roles.extend(
+                role
+                for role, overwrite in autoroom_source.overwrites.items()
+                if isinstance(role, discord.Role)
+                and role != autoroom_source.guild.default_role
+                and overwrite.pair()[0].connect
+            )
         return member_roles
 
     async def get_bot_roles(self, guild: discord.Guild) -> list[discord.Role]:
