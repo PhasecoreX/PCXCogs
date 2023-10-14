@@ -27,7 +27,7 @@ class ReactChannel(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.1.1"
+    __version__ = "3.1.2"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, dict[str, str | int | None]]] = {
@@ -979,9 +979,9 @@ class ReactChannel(commands.Cog):
         upvote = await self._get_emoji(guild, "upvote")
         downvote = await self._get_emoji(guild, "downvote")
         karma = 0
-        if upvote and str(payload.emoji) == upvote:
+        if upvote and payload.emoji == upvote:
             karma = 1
-        elif downvote and str(payload.emoji) == downvote:
+        elif downvote and payload.emoji == downvote:
             karma = -1
         if karma:
             message_author = message.author
@@ -1025,9 +1025,9 @@ class ReactChannel(commands.Cog):
         upvote = await self._get_emoji(guild, "upvote")
         downvote = await self._get_emoji(guild, "downvote")
         karma = 0
-        if upvote and str(payload.emoji) == upvote:
+        if upvote and payload.emoji == upvote:
             karma = -1
-        elif downvote and str(payload.emoji) == downvote:
+        elif downvote and payload.emoji == downvote:
             karma = 1
         if karma:
             message_author = message.author
