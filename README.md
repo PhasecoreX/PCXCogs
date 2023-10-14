@@ -21,6 +21,12 @@ Then install your cog(s) of choice:
 [p]cog install pcxcogs <cog_name>
 ```
 
+Finally, load your cog(s):
+
+```
+[p]load <cog_name>
+```
+
 If you don't have an instance, consider using my nice [docker image](https://hub.docker.com/r/phasecorex/red-discordbot)!
 
 If you'd like to contact me, test out my cogs, or stay up to date on my cogs, consider joining my [Discord server](https://discord.gg/QzdPp2b)! You can find me on the Red Cog Support server as well.
