@@ -52,6 +52,7 @@ class MixinMeta(ABC):
         category_dest: discord.CategoryChannel,
         *,
         with_manage_roles_guild: bool = False,
+        with_legacy_text_channel: bool = False,
         with_optional_clone_perms: bool = False,
         detailed: bool = False,
     ) -> tuple[bool, bool, str | None]:

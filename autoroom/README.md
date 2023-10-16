@@ -12,6 +12,7 @@ Once you join an AutoRoom Source, you will be moved into a brand new AutoRoom (v
 -   Make it a private AutoRoom with `[p]autoroom private` (nobody can see and join your AutoRoom)
 -   Kick/ban users (or entire roles) from your AutoRoom with `[p]autoroom deny` (useful for public AutoRooms)
 -   Allow users (or roles) into your AutoRoom with `[p]autoroom allow` (useful for locked and private AutoRooms)
+-   You can manage the messages in your AutoRooms associated text channel
 
 When everyone leaves your AutoRoom, it will automatically be deleted.
 

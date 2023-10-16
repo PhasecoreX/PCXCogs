@@ -36,7 +36,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.6.1"
+    __version__ = "3.7.0"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -47,6 +47,7 @@ class AutoRoom(
     default_autoroom_source_settings: ClassVar[dict[str, int | str | None]] = {
         "dest_category_id": None,
         "room_type": "public",
+        "legacy_text_channel": False,
         "text_channel_hint": None,
         "channel_name_type": "username",
         "channel_name_format": "",
@@ -88,6 +89,23 @@ class AutoRoom(
         **perms_autoroom_owner,
         "move_members": True,
     }
+
+    perms_legacy_text: ClassVar[list[str]] = ["read_message_history", "read_messages"]
+    perms_legacy_text_allow: ClassVar[dict[str, bool]] = dict.fromkeys(
+        perms_legacy_text, True
+    )
+    perms_legacy_text_deny: ClassVar[dict[str, bool]] = dict.fromkeys(
+        perms_legacy_text, False
+    )
+    perms_legacy_text_reset: ClassVar[dict[str, None]] = dict.fromkeys(
+        perms_legacy_text, None
+    )
+    perms_autoroom_owner_legacy_text: ClassVar[dict[str, bool]] = {
+        **perms_legacy_text_allow,
+        "manage_channels": True,
+        "manage_messages": True,
+    }
+    perms_bot_dest_legacy_text = perms_autoroom_owner_legacy_text
 
     def __init__(self, bot: Red) -> None:
         """Set up the cog."""
@@ -350,21 +368,28 @@ class AutoRoom(
             autoroom_info = await self.get_autoroom_info(leaving.channel)
             if autoroom_info:
                 deleted = await self._process_autoroom_delete(leaving.channel)
-                if not deleted and member.id == autoroom_info["owner"]:
-                    # There are still users left and the AutoRoom Owner left.
-                    # Start a countdown so that others can claim the AutoRoom.
-                    bucket = self.bucket_autoroom_owner_claim.get_bucket(
-                        leaving.channel
-                    )
-                    if bucket:
-                        bucket.reset()
-                        bucket.update_rate_limit()
+                if not deleted:
+                    # AutoRoom wasn't deleted, so update text channel perms
+                    await self._process_autoroom_legacy_text_perms(leaving.channel)
 
-        # If user entered an AutoRoom Source channel, create new AutoRoom
+                    if member.id == autoroom_info["owner"]:
+                        # There are still users left and the AutoRoom Owner left.
+                        # Start a countdown so that others can claim the AutoRoom.
+                        bucket = self.bucket_autoroom_owner_claim.get_bucket(
+                            leaving.channel
+                        )
+                        if bucket:
+                            bucket.reset()
+                            bucket.update_rate_limit()
+
         if isinstance(joining.channel, discord.VoiceChannel):
+            # If user entered an AutoRoom Source channel, create new AutoRoom
             asc = await self.get_autoroom_source_config(joining.channel)
             if asc:
                 await self._process_autoroom_create(joining.channel, asc, member)
+            # If user entered an AutoRoom, allow them into the associated text channel
+            if await self.get_autoroom_info(joining.channel):
+                await self._process_autoroom_legacy_text_perms(joining.channel)
 
     #
     # Private methods
@@ -497,6 +522,44 @@ class AutoRoom(
             )
         except discord.HTTPException:
             await self._process_autoroom_delete(new_voice_channel)
+            return
+
+        # Create optional legacy text channel
+        new_legacy_text_channel = None
+        if autoroom_source_config["legacy_text_channel"]:
+            # Sanity check on required permissions
+            for perm_name in self.perms_bot_dest_legacy_text:
+                if not getattr(dest_perms, perm_name):
+                    return
+            # Generate overwrites
+            perms = Perms()
+            perms.update(guild.me, self.perms_bot_dest_legacy_text)
+            perms.update(guild.default_role, self.perms_legacy_text_deny)
+            if autoroom_source_config["room_type"] != "server":
+                perms.update(member, self.perms_autoroom_owner_legacy_text)
+            else:
+                perms.update(member, self.perms_legacy_text_allow)
+            # Admin/moderator overwrites
+            additional_allowed_roles_text = []
+            if await self.config.guild(guild).mod_access():
+                # Add mod roles to be allowed
+                additional_allowed_roles_text += await self.bot.get_mod_roles(guild)
+            if await self.config.guild(guild).admin_access():
+                # Add admin roles to be allowed
+                additional_allowed_roles_text += await self.bot.get_admin_roles(guild)
+            for role in additional_allowed_roles_text:
+                # Add all the mod/admin roles, if required
+                perms.update(role, self.perms_legacy_text_allow)
+            # Create text channel
+            new_legacy_text_channel = await guild.create_text_channel(
+                name=new_channel_name.replace("'s ", " "),
+                category=dest_category,
+                reason="AutoRoom: New legacy text channel needed.",
+                overwrites=perms.overwrites if perms.overwrites else {},
+            )
+            await self.config.channel(new_voice_channel).associated_text_channel.set(
+                new_legacy_text_channel.id
+            )
 
         # Send text chat hint if enabled
         if autoroom_source_config["text_channel_hint"]:
@@ -506,7 +569,10 @@ class AutoRoom(
                     self.get_template_data(member),
                 )
                 if hint:
-                    await new_voice_channel.send(hint)
+                    if new_legacy_text_channel:
+                        await new_legacy_text_channel.send(hint)
+                    else:
+                        await new_voice_channel.send(hint)
 
     @staticmethod
     async def _process_autoroom_delete(voice_channel: discord.VoiceChannel) -> bool:
@@ -521,6 +587,37 @@ class AutoRoom(
                 await voice_channel.delete(reason="AutoRoom: Channel empty.")
                 return True
         return False
+
+    async def _process_autoroom_legacy_text_perms(
+        self, autoroom: discord.VoiceChannel
+    ) -> None:
+        """Allow or deny a user access to the legacy text channel associated to an AutoRoom."""
+        text_channel_id = await self.config.channel(autoroom).associated_text_channel()
+        text_channel = (
+            autoroom.guild.get_channel(text_channel_id) if text_channel_id else None
+        )
+        if not text_channel:
+            return
+
+        overwrites = dict(text_channel.overwrites)
+        perms = Perms(overwrites)
+        # Remove read perms for users not in autoroom
+        for member in overwrites:
+            if (
+                isinstance(member, discord.Member)
+                and member not in autoroom.members
+                and member != autoroom.guild.me
+            ):
+                perms.update(member, self.perms_legacy_text_reset)
+        # Add read perms for users in autoroom
+        for member in autoroom.members:
+            perms.update(member, self.perms_legacy_text_allow)
+        # Edit channel if overwrites were modified
+        if perms.modified:
+            await text_channel.edit(
+                overwrites=perms.overwrites if perms.overwrites else {},
+                reason="AutoRoom: Legacy text channel permission update",
+            )
 
     def _generate_channel_name(
         self,
@@ -613,6 +710,7 @@ class AutoRoom(
         category_dest: discord.CategoryChannel,
         *,
         with_manage_roles_guild: bool = False,
+        with_legacy_text_channel: bool = False,
         with_optional_clone_perms: bool = False,
         detailed: bool = False,
     ) -> tuple[bool, bool, str | None]:
@@ -632,6 +730,9 @@ class AutoRoom(
                 and category_dest.guild.me.guild_permissions.manage_roles
             )
         # Optional
+        if with_legacy_text_channel:
+            for perm_name in self.perms_bot_dest_legacy_text:
+                result_optional = result_optional and getattr(dest, perm_name)
         clone_section = None
         if with_optional_clone_perms:
             clone_result, clone_section = self._check_perms_source_dest_optional(
@@ -661,6 +762,16 @@ class AutoRoom(
                 "Manage roles", category_dest.guild.me.guild_permissions.manage_roles
             )
             autoroom_sections.append(guild_section)
+
+        if with_legacy_text_channel:
+            text_section = SettingDisplay(
+                "Optional on Destination Category (for legacy text channel)"
+            )
+            for perm_name in self.perms_bot_dest_legacy_text:
+                text_section.add(
+                    perm_name.capitalize().replace("_", " "), getattr(dest, perm_name)
+                )
+            autoroom_sections.append(text_section)
 
         if clone_section:
             autoroom_sections.append(clone_section)

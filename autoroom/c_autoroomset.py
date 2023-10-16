@@ -67,6 +67,11 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 "Destination category",
                 f"#{dest_category.name}" if dest_category else "INVALID CATEGORY",
             )
+            if avc_settings["legacy_text_channel"]:
+                autoroom_section.add(
+                    "Legacy Text Channel",
+                    "True",
+                )
             member_roles = self.get_member_roles(source_channel)
             if member_roles:
                 autoroom_section.add(
@@ -95,8 +100,9 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             )
         elif not optional_check:
             message += "\n" + warning(
-                "It looks like I am missing one or more optional permissions. "
-                "All AutoRooms will work, however cloning all source permissions to the AutoRooms may not work. "
+                "All AutoRooms will work correctly, as I have all of the required permissions. "
+                "However, it looks like I am missing one or more optional permissions "
+                "for one or more AutoRooms. "
                 "Check `[p]autoroomset permissions` for more information."
             )
         await ctx.send(message)
@@ -146,7 +152,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             await ctx.send(
                 warning(
                     "It looks like I am missing one or more optional permissions. "
-                    "All AutoRooms will work, however cloning all source permissions to the AutoRooms may not work. "
+                    "All AutoRooms will work, however some extra features may not work. "
                     "\n\n"
                     "The easiest way of fixing this is just giving me these permissions as part of my server role, "
                     "otherwise you will need to give me these permissions on the destination category, "
@@ -705,6 +711,63 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 )
             )
 
+    @modify.group(name="legacytextchannel")
+    async def modify_legacytext(
+        self,
+        ctx: commands.Context,
+    ) -> None:
+        """Manage if a legacy text channel should be created as well."""
+
+    @modify_legacytext.command(name="enable")
+    async def modify_legacytext_enable(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+    ) -> None:
+        """Enable creating a legacy text channel with the AutoRoom."""
+        if not ctx.guild:
+            return
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+            ).legacy_text_channel.set(value=True)
+            await ctx.send(
+                success(
+                    f"New AutoRooms created by **{autoroom_source.mention}** will now get their own legacy text channel."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @modify_legacytext.command(name="disable")
+    async def modify_legacytext_disable(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+    ) -> None:
+        """Disable creating a legacy text channel with the AutoRoom."""
+        if not ctx.guild:
+            return
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+            ).legacy_text_channel.clear()
+            await ctx.send(
+                success(
+                    f"New AutoRooms created by **{autoroom_source.mention}** will no longer get their own legacy text channel."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
     @modify.command(
         name="defaults", aliases=["bitrate", "memberrole", "other", "perms", "users"]
     )
@@ -754,6 +817,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                     autoroom_source,
                     category_dest,
                     with_manage_roles_guild=avc_settings["room_type"] != "server",
+                    with_legacy_text_channel=avc_settings["legacy_text_channel"],
                     with_optional_clone_perms=True,
                     detailed=detailed,
                 )
