@@ -14,7 +14,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX"
-    __version__ = "2.1.0"
+    __version__ = "2.1.1"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -143,7 +143,7 @@ class UwU(commands.Cog):
         elif uwu in ("cum", "semen"):
             uwu = "cummies"
         elif uwu == "ass":
-            uwu = "boi pussy"
+            uwu = "b-butt"
         elif uwu in ("dad", "father"):
             uwu = "daddy"
         # Normal word conversion
