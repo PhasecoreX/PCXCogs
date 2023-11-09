@@ -552,7 +552,6 @@ class AutoRoom(
                 # Add all the mod/admin roles, if required
                 perms.update(role, self.perms_legacy_text_allow)
             # Create text channel
-            # TODO - Add support for custom text channel name
             new_legacy_text_channel = await guild.create_text_channel(
                 name=new_channel_name.replace("'s ", " "),
                 category=dest_category,
