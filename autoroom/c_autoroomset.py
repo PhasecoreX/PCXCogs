@@ -833,7 +833,6 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         autoroom_source: discord.VoiceChannel,
     ) -> None:
         """Disable setting a legacy text channel topic."""
-
         if not ctx.guild:
             return
         if await self.get_autoroom_source_config(autoroom_source):
