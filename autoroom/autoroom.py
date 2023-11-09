@@ -1,6 +1,7 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
 from abc import ABC
 from contextlib import suppress
+from datetime import datetime
 from typing import Any, ClassVar
 
 import discord
@@ -36,7 +37,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.7.0"
+    __version__ = "3.7.1"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -49,6 +50,7 @@ class AutoRoom(
         "room_type": "public",
         "legacy_text_channel": False,
         "text_channel_hint": None,
+        "text_channel_topic": None,
         "channel_name_type": "username",
         "channel_name_format": "",
     }
@@ -551,12 +553,20 @@ class AutoRoom(
                 # Add all the mod/admin roles, if required
                 perms.update(role, self.perms_legacy_text_allow)
             # Create text channel
+            # TODO - Add support for custom text channel name
             new_legacy_text_channel = await guild.create_text_channel(
                 name=new_channel_name.replace("'s ", " "),
                 category=dest_category,
                 reason="AutoRoom: New legacy text channel needed.",
                 overwrites=perms.overwrites if perms.overwrites else {},
             )
+            if autoroom_source_config["text_channel_topic"]:
+                text_channel_topic = self.template.render(
+                    autoroom_source_config["text_channel_topic"],
+                    self.get_template_data(member),
+                )
+                await new_legacy_text_channel.edit(topic=text_channel_topic)
+
             await self.config.channel(new_voice_channel).associated_text_channel.set(
                 new_legacy_text_channel.id
             )
