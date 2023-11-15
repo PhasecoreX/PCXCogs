@@ -814,7 +814,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
 
             await ctx.send(
                 success(
-                    f"New AutoRooms created by **{autoroom_source.mention}** will have the following message sent in them:"
+                    f"New AutoRooms created by **{autoroom_source.mention}** will have the following message topic set:"
                     "\n\n"
                     f"{topic_text_formatted}"
                 )
