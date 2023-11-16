@@ -768,6 +768,89 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 )
             )
 
+    @modify_legacytext.group(name="topic")
+    async def modify_legacytext_topic(
+        self,
+        ctx: commands.Context,
+    ) -> None:
+        """Manage the legacy text channel topic."""
+
+    @modify_legacytext_topic.command(name="set")
+    async def modify_legacytext_topic_set(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+        *,
+        topic_text: str,
+    ) -> None:
+        """Set the legacy text channel topic.
+
+        - Example:
+        `This channel is only visible to members of your voice channel, and admins of this server. It will be deleted when everyone leaves. `
+        """
+        if not ctx.guild:
+            return
+        if await self.get_autoroom_source_config(autoroom_source):
+            data = self.get_template_data(ctx.author)
+            try:
+                # Validate template
+                topic_text_formatted = self.template.render(topic_text, data)
+            except RuntimeError as rte:
+                await ctx.send(
+                    error(
+                        "Hmm... that doesn't seem to be a valid template:"
+                        "\n\n"
+                        f"`{rte!s}`"
+                        "\n\n"
+                        "If you need some help, take a look at "
+                        "[the readme](https://github.com/PhasecoreX/PCXCogs/tree/master/autoroom/README.md)."
+                    )
+                )
+                return
+
+            await self.config.custom(
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+            ).text_channel_topic.set(topic_text)
+
+            await ctx.send(
+                success(
+                    f"New AutoRooms created by **{autoroom_source.mention}** will have the following message topic set:"
+                    "\n\n"
+                    f"{topic_text_formatted}"
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @modify_legacytext_topic.command(name="disable")
+    async def modify_legacytext_topic_disable(
+        self,
+        ctx: commands.Context,
+        autoroom_source: discord.VoiceChannel,
+    ) -> None:
+        """Disable setting a legacy text channel topic."""
+        if not ctx.guild:
+            return
+        if await self.get_autoroom_source_config(autoroom_source):
+            await self.config.custom(
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+            ).text_channel_topic.clear()
+            await ctx.send(
+                success(
+                    f"New AutoRooms created by **{autoroom_source.mention}** will no longer have a topic set."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
     @modify.command(
         name="defaults", aliases=["bitrate", "memberrole", "other", "perms", "users"]
     )
