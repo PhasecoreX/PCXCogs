@@ -1,7 +1,7 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
 from abc import ABC
 from contextlib import suppress
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 import discord
@@ -670,12 +670,13 @@ class AutoRoom(
     #
 
     @staticmethod
-    def get_template_data(member: discord.Member | discord.User) -> dict[str, str]:
+    def get_template_data(member: discord.Member | discord.User) -> dict[str, Any]:
         """Return a dict of template data based on a member."""
         data = {
             "username": member.display_name,
             "mention": member.mention,
-            "time": datetime.now(tz=datetime.UTC).strftime("%H:%M"),
+            "datetime": datetime.now(tz=UTC).strftime("%H:%M"),
+            "member": member,
         }
         if isinstance(member, discord.Member):
             for activity in member.activities:
