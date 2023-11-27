@@ -653,7 +653,7 @@ class AutoRoom(
         data = {
             "username": member.display_name,
             "mention": member.mention,
-            "datetime": datetime.now(tz=UTC).strftime("%H:%M"),
+            "datetime": datetime.now(tz=UTC),
             "member": member,
         }
         if isinstance(member, discord.Member):
