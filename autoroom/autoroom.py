@@ -36,7 +36,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.7.1"
+    __version__ = "3.7.2"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -296,24 +296,19 @@ class AutoRoom(
         """Remove non-existent AutoRooms from the config."""
         await self.bot.wait_until_ready()
         voice_channel_dict = await self.config.all_channels()
-        for voice_channel_id, voice_channel_settings in voice_channel_dict.items():
+        for voice_channel_id in voice_channel_dict:
             voice_channel = self.bot.get_channel(voice_channel_id)
             if voice_channel:
                 if isinstance(voice_channel, discord.VoiceChannel):
                     # Delete AutoRoom if it is empty
                     await self._process_autoroom_delete(voice_channel)
             else:
-                # AutoRoom has already been deleted, clean up text channel if it still exists
-                text_channel = self.bot.get_channel(
-                    voice_channel_settings["associated_text_channel"]
+                # AutoRoom has already been deleted, clean up legacy text channel if it still exists
+                legacy_text_channel = await self.get_autoroom_legacy_text_channel(
+                    voice_channel
                 )
-                if (
-                    isinstance(text_channel, discord.abc.GuildChannel)
-                    and text_channel.permissions_for(
-                        text_channel.guild.me
-                    ).manage_channels
-                ):
-                    await text_channel.delete(
+                if legacy_text_channel:
+                    await legacy_text_channel.delete(
                         reason="AutoRoom: Associated voice channel deleted."
                     )
                 await self.config.channel_from_id(voice_channel_id).clear()
@@ -336,19 +331,11 @@ class AutoRoom(
             ).clear()
         else:
             # AutoRoom was deleted, remove associated text channel if it exists
-            text_channel_id = await self.config.channel(
+            legacy_text_channel = await self.get_autoroom_legacy_text_channel(
                 guild_channel
-            ).associated_text_channel()
-            text_channel = (
-                guild_channel.guild.get_channel(text_channel_id)
-                if text_channel_id
-                else None
             )
-            if (
-                text_channel
-                and text_channel.permissions_for(text_channel.guild.me).manage_channels
-            ):
-                await text_channel.delete(
+            if legacy_text_channel:
+                await legacy_text_channel.delete(
                     reason="AutoRoom: Associated voice channel deleted."
                 )
             await self.config.channel(guild_channel).clear()
@@ -599,14 +586,11 @@ class AutoRoom(
         self, autoroom: discord.VoiceChannel
     ) -> None:
         """Allow or deny a user access to the legacy text channel associated to an AutoRoom."""
-        text_channel_id = await self.config.channel(autoroom).associated_text_channel()
-        text_channel = (
-            autoroom.guild.get_channel(text_channel_id) if text_channel_id else None
-        )
-        if not text_channel:
+        legacy_text_channel = await self.get_autoroom_legacy_text_channel(autoroom)
+        if not legacy_text_channel:
             return
 
-        overwrites = dict(text_channel.overwrites)
+        overwrites = dict(legacy_text_channel.overwrites)
         perms = Perms(overwrites)
         # Remove read perms for users not in autoroom
         for member in overwrites:
@@ -621,7 +605,7 @@ class AutoRoom(
             perms.update(member, self.perms_legacy_text_allow)
         # Edit channel if overwrites were modified
         if perms.modified:
-            await text_channel.edit(
+            await legacy_text_channel.edit(
                 overwrites=perms.overwrites if perms.overwrites else {},
                 reason="AutoRoom: Legacy text channel permission update",
             )
@@ -880,6 +864,27 @@ class AutoRoom(
         if not await self.config.channel(autoroom).source_channel():
             return None
         return await self.config.channel(autoroom).all()
+
+    async def get_autoroom_legacy_text_channel(
+        self, autoroom: discord.VoiceChannel
+    ) -> discord.TextChannel | None:
+        """Get the AutoRoom legacy test channel, if it exists and we have manage channels permission."""
+        legacy_text_channel_id = await self.config.channel(
+            autoroom
+        ).associated_text_channel()
+        legacy_text_channel = (
+            autoroom.guild.get_channel(legacy_text_channel_id)
+            if legacy_text_channel_id
+            else None
+        )
+        if (
+            isinstance(legacy_text_channel, discord.TextChannel)
+            and legacy_text_channel.permissions_for(
+                legacy_text_channel.guild.me
+            ).manage_channels
+        ):
+            return legacy_text_channel
+        return None
 
     @staticmethod
     def check_if_member_or_role_allowed(

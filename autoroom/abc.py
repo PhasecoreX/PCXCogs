@@ -1,6 +1,6 @@
 """ABC for the AutoRoom Cog."""
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, ClassVar
 
 import discord
 from discord.ext.commands import CooldownMapping
@@ -27,6 +27,10 @@ class MixinMeta(ABC):
     perms_locked: dict[str, bool]
     perms_private: dict[str, bool]
     perms_autoroom_owner: dict[str, bool]
+
+    perms_legacy_text_allow: ClassVar[dict[str, bool]]
+    perms_legacy_text_reset: ClassVar[dict[str, None]]
+    perms_autoroom_owner_legacy_text: ClassVar[dict[str, bool]]
 
     @staticmethod
     @abstractmethod
@@ -74,6 +78,12 @@ class MixinMeta(ABC):
     async def get_autoroom_info(
         self, autoroom: discord.VoiceChannel | None
     ) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_autoroom_legacy_text_channel(
+        self, autoroom: discord.VoiceChannel
+    ) -> discord.TextChannel | None:
         raise NotImplementedError
 
     @staticmethod

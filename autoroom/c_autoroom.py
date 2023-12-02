@@ -248,6 +248,26 @@ class AutoRoomCommands(MixinMeta, ABC):
                 reason="AutoRoom: Ownership claimed",
             )
         await self.config.channel(autoroom_channel).owner.set(new_owner.id)
+
+        legacy_text_channel = await self.get_autoroom_legacy_text_channel(
+            autoroom_channel
+        )
+        if legacy_text_channel:
+            legacy_text_perms = Perms(legacy_text_channel.overwrites)
+            if old_owner:
+                if old_owner in autoroom_channel.members:
+                    legacy_text_perms.overwrite(old_owner, self.perms_legacy_text_allow)
+                else:
+                    legacy_text_perms.overwrite(old_owner, self.perms_legacy_text_reset)
+            legacy_text_perms.update(new_owner, self.perms_autoroom_owner_legacy_text)
+            if legacy_text_perms.modified:
+                await legacy_text_channel.edit(
+                    overwrites=legacy_text_perms.overwrites
+                    if legacy_text_perms.overwrites
+                    else {},
+                    reason="AutoRoom: Ownership claimed (legacy text channel)",
+                )
+
         if bucket:
             bucket.reset()
         await ctx.tick()
