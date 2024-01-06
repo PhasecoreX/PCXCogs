@@ -68,6 +68,7 @@ class RemindMe(
         self.config.init_custom("REMINDER", 2)
         self.config.register_custom("REMINDER", **self.default_reminder_settings)
         self.bg_loop_task = None
+        self.background_tasks = set()
         self.next_reminder_to_send = {}
         self.search_for_next_reminder = True
         self.me_too_reminders = {}
@@ -259,13 +260,15 @@ class RemindMe(
                     "Unexpected exception occurred in background loop of RemindMe: ",
                     exc_info=exc,
                 )
-                _ = asyncio.create_task(
+                task = asyncio.create_task(
                     self.bot.send_to_owners(
                         "An unexpected exception occurred in the background loop of RemindMe.\n"
                         "Reminders will not be sent out until the cog is reloaded.\n"
                         "Check your console or logs for details, and consider opening a bug report for this."
                     )
                 )
+                self.background_tasks.add(task)
+                task.add_done_callback(self.background_tasks.discard)
 
         self.bg_loop_task = self.bot.loop.create_task(self._bg_loop())
         self.bg_loop_task.add_done_callback(error_handler)
