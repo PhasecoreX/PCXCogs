@@ -1,6 +1,7 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
 from abc import ABC
 from contextlib import suppress
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 import discord
@@ -653,9 +654,14 @@ class AutoRoom(
     #
 
     @staticmethod
-    def get_template_data(member: discord.Member | discord.User) -> dict[str, str]:
+    def get_template_data(member: discord.Member | discord.User) -> dict[str, Any]:
         """Return a dict of template data based on a member."""
-        data = {"username": member.display_name, "mention": member.mention}
+        data = {
+            "username": member.display_name,
+            "mention": member.mention,
+            "datetime": datetime.now(tz=UTC),
+            "member": member,
+        }
         if isinstance(member, discord.Member):
             for activity in member.activities:
                 if activity.type == discord.ActivityType.playing:
@@ -667,7 +673,7 @@ class AutoRoom(
         """Return a formatted channel name, taking into account the 100 character channel name limit."""
         nums = {"dupenum": num}
         return self.template.render(
-            template=template,
+            template_str=template,
             data={**nums, **data},
         )[:100].strip()
 
