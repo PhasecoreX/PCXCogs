@@ -54,6 +54,7 @@ class UpdateNotify(commands.Cog):
 
         self.next_check = datetime.datetime.now(datetime.UTC)
         self.bg_loop_task = None
+        self.background_tasks = set()
 
     #
     # Red methods
@@ -114,13 +115,15 @@ class UpdateNotify(commands.Cog):
                     "Unexpected exception occurred in background loop of UpdateNotify: ",
                     exc_info=exc,
                 )
-                _ = asyncio.create_task(
+                task = asyncio.create_task(
                     self.bot.send_to_owners(
                         "An unexpected exception occurred in the background loop of UpdateNotify.\n"
                         "Updates will not be checked until UpdateNotify is reloaded.\n"
                         "Check your console or logs for details, and consider opening a bug report for this."
                     )
                 )
+                self.background_tasks.add(task)
+                task.add_done_callback(self.background_tasks.discard)
 
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
