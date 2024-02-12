@@ -1,4 +1,5 @@
 """Package for RemindMe cog."""
+
 import json
 from pathlib import Path
 

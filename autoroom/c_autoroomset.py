@@ -1,4 +1,5 @@
 """The autoroomset command."""
+
 import asyncio
 from abc import ABC
 from contextlib import suppress

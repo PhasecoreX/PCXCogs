@@ -1,4 +1,5 @@
 """UpdateNotify cog for Red-DiscordBot by PhasecoreX."""
+
 import asyncio
 import datetime
 import logging
@@ -184,9 +185,11 @@ class UpdateNotify(commands.Cog):
             )
             global_section.add(
                 "Docker image check type",
-                "New features only"
-                if await self.config.pcx_docker_feature_only()
-                else "All updates",
+                (
+                    "New features only"
+                    if await self.config.pcx_docker_feature_only()
+                    else "All updates"
+                ),
             )
         await ctx.send(str(global_section))
 
@@ -286,16 +289,20 @@ class UpdateNotify(commands.Cog):
                 if await self.config.pcx_docker_feature_only():
                     setting_display.add(
                         "Local Docker Status (based on hash)",
-                        "Up to date"
-                        if build["sha"] == self.docker_commit
-                        else "Update available",
+                        (
+                            "Up to date"
+                            if build["sha"] == self.docker_commit
+                            else "Update available"
+                        ),
                     )
                 else:
                     setting_display.add(
                         "Local Docker Status (based on build num)",
-                        "Up to date"
-                        if build["id"] == self.docker_build
-                        else "Update available",
+                        (
+                            "Up to date"
+                            if build["id"] == self.docker_build
+                            else "Update available"
+                        ),
                     )
                 setting_display.add("Latest Docker commit message", build["message"])
                 await ctx.send(str(setting_display))

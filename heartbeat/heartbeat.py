@@ -1,4 +1,5 @@
 """Heartbeat cog for Red-DiscordBot by PhasecoreX."""
+
 import asyncio
 import datetime
 import logging
@@ -149,10 +150,7 @@ class Heartbeat(commands.Cog):
                     url,
                     headers={"user-agent": user_agent},
                 )
-            except (
-                aiohttp.ClientConnectionError,
-                asyncio.TimeoutError,
-            ) as exc:
+            except (TimeoutError, aiohttp.ClientConnectionError) as exc:
                 last_exception = exc
             else:
                 return None

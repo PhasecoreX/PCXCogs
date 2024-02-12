@@ -1,4 +1,5 @@
 """A parser for remindme commands."""
+
 from typing import Any
 
 from pyparsing import (

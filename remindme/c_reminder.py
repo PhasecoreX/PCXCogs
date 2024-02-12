@@ -1,4 +1,5 @@
 """Commands for the average user."""
+
 import asyncio
 import datetime
 from abc import ABC
@@ -74,7 +75,7 @@ class ReminderCommands(MixinMeta, ABC):
             reminder_title = (
                 f"ID# {reminder['user_reminder_id']} — <t:{reminder['expires']}:f>"
             )
-            if "repeat" in reminder and reminder["repeat"]:
+            if reminder.get("repeat"):
                 reminder_title += f", repeating every {self.humanize_relativedelta(reminder['repeat'])}"
             reminder_text = reminder["text"]
             if reminder.get("jump_link"):
@@ -236,6 +237,7 @@ class ReminderCommands(MixinMeta, ABC):
         `[p]remindme 8h`
         `[p]remindme every 1 week to take out the trash`
         `[p]remindme in 1 hour to drink some water every 1 day`
+
         """
         await self._create_reminder(ctx, time_and_optional_text)
 

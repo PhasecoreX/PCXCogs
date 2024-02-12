@@ -1,4 +1,5 @@
 """Package for UwU cog."""
+
 import json
 from pathlib import Path
 

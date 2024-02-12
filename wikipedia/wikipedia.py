@@ -1,4 +1,5 @@
 """Wikipedia cog for Red-DiscordBot ported by PhasecoreX."""
+
 import re
 from contextlib import suppress
 from typing import Any

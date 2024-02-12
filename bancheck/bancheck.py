@@ -1,4 +1,5 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
+
 from contextlib import suppress
 from typing import Any, ClassVar
 

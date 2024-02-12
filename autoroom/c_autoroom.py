@@ -1,4 +1,5 @@
 """The autoroom command."""
+
 import datetime
 from abc import ABC
 from typing import Any
@@ -262,9 +263,11 @@ class AutoRoomCommands(MixinMeta, ABC):
             legacy_text_perms.update(new_owner, self.perms_autoroom_owner_legacy_text)
             if legacy_text_perms.modified:
                 await legacy_text_channel.edit(
-                    overwrites=legacy_text_perms.overwrites
-                    if legacy_text_perms.overwrites
-                    else {},
+                    overwrites=(
+                        legacy_text_perms.overwrites
+                        if legacy_text_perms.overwrites
+                        else {}
+                    ),
                     reason="AutoRoom: Ownership claimed (legacy text channel)",
                 )
 

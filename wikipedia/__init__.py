@@ -1,4 +1,5 @@
 """Package for Wikipedia cog."""
+
 import json
 from pathlib import Path
 

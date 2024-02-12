@@ -1,4 +1,5 @@
 """Package for DecodeBinary cog."""
+
 import json
 from pathlib import Path
 

@@ -1,4 +1,5 @@
 """Ban lookup for KSoft.Si (via Ravy)."""
+
 import aiohttp
 from redbot.core import __version__ as redbot_version
 

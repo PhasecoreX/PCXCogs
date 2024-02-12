@@ -1,4 +1,5 @@
 """DecodeBinary cog for Red-DiscordBot by PhasecoreX."""
+
 import re
 from typing import ClassVar
 
