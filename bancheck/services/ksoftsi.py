@@ -67,7 +67,7 @@ class KSoftSi:
                             KSoftSi.SERVICE_NAME,
                             "ban",
                             reason=data["reason"],
-                            proof_url=data["proof"] if "proof" in data else None,
+                            proof_url=data.get("proof", None),
                         )
                     LookupResult(KSoftSi.SERVICE_NAME, "clear")
                 # Otherwise, failed lookup
