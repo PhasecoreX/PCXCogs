@@ -15,9 +15,9 @@ class Antiraid:
 
     SERVICE_NAME = "Antiraid"
     SERVICE_API_KEY_REQUIRED = False
-    SERVICE_URL = "https://antiraid.win/"
+    SERVICE_URL = "https://banapi.derpystown.com/"
     SERVICE_HINT = None
-    BASE_URL = "https://api.antiraid.win"
+    BASE_URL = "https://banapi.derpystown.com"
 
     @staticmethod
     async def lookup(user_id: int, _api_key: str) -> LookupResult:
