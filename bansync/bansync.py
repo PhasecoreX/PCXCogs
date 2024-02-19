@@ -1,4 +1,5 @@
 """BanSync cog for Red-DiscordBot by PhasecoreX."""
+
 import asyncio
 from contextlib import suppress
 from typing import ClassVar

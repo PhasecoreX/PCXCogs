@@ -1,4 +1,5 @@
 """Package for BanSync cog."""
+
 import json
 from pathlib import Path
 

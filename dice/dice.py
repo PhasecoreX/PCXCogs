@@ -1,4 +1,5 @@
 """Dice cog for Red-DiscordBot by PhasecoreX."""
+
 import asyncio
 import re
 from contextlib import suppress
@@ -82,6 +83,7 @@ class Dice(commands.Cog):
         Setting this too high will allow other users to slow down/freeze/crash your bot!
         Generating random numbers is easily the most CPU consuming process here,
         so keep this number low (less than one million, and way less than that on a Pi)
+
         """
         action = "is already set at"
         if maximum == await self.config.max_dice_rolls():

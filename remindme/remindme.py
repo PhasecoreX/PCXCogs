@@ -1,4 +1,5 @@
 """RemindMe cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
+
 import asyncio
 import datetime
 import logging
@@ -173,9 +174,9 @@ class RemindMe(
                     "expires": int(expires_normalized.timestamp()),
                 }
                 # Optional fields
-                if "JUMP_LINK" in reminder and reminder["JUMP_LINK"]:
+                if reminder.get("JUMP_LINK"):
                     new_reminder["jump_link"] = reminder["JUMP_LINK"]
-                if "REPEAT" in reminder and reminder["REPEAT"]:
+                if reminder.get("REPEAT"):
                     new_reminder["repeat"] = self.relativedelta_to_dict(
                         relativedelta(seconds=reminder["REPEAT"])
                     )
@@ -226,7 +227,7 @@ class RemindMe(
                     datetime.datetime.fromtimestamp(reminder["created"], datetime.UTC),
                 )
                 repeat_delta = None
-                if "repeat" in reminder and reminder["repeat"]:
+                if reminder.get("repeat"):
                     repeat_delta = relativedelta(reminder["repeat"])
                 message = "Hello! I will also send you "
                 if repeat_delta:

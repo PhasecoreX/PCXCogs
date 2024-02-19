@@ -1,4 +1,5 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
+
 from abc import ABC
 from contextlib import suppress
 from typing import Any, ClassVar
@@ -221,20 +222,14 @@ class AutoRoom(
                     avc_id,
                     autoroom_source_config,
                 ) in guild_autoroom_sources.items():
-                    if (
-                        "channel_name_format" in autoroom_source_config
-                        and autoroom_source_config["channel_name_format"]
-                    ):
+                    if autoroom_source_config.get("channel_name_format"):
                         # Change username and game template variables
                         new_template = (
                             autoroom_source_config["channel_name_format"]
                             .replace("{username}", "{{username}}")
                             .replace("{game}", "{{game}}")
                         )
-                        if (
-                            "increment_always" in autoroom_source_config
-                            and autoroom_source_config["increment_always"]
-                        ):
+                        if autoroom_source_config.get("increment_always"):
                             if "increment_format" in autoroom_source_config:
                                 # Always show number, custom format
                                 new_template += autoroom_source_config[

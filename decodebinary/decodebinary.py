@@ -1,4 +1,5 @@
 """DecodeBinary cog for Red-DiscordBot by PhasecoreX."""
+
 import re
 from typing import ClassVar
 
@@ -161,16 +162,18 @@ class DecodeBinary(commands.Cog):
             )
 
         elif len(translated_messages) > 1:
-            translated_counter = 0
             one_was_translated = False
             msg = f"{orig_message.author.display_name}'s {len(translated_messages)} messages said:"
-            for translated_message in translated_messages:
-                translated_counter += 1
+            for translated_counter, translated_message in enumerate(
+                translated_messages
+            ):
                 if translated_message:
                     one_was_translated = True
-                    msg += f'\n{translated_counter}. "{translated_message}"'
+                    msg += f'\n{translated_counter + 1}. "{translated_message}"'
                 else:
-                    msg += f"\n{translated_counter}. (Couldn't translate this one...)"
+                    msg += (
+                        f"\n{translated_counter + 1}. (Couldn't translate this one...)"
+                    )
             if one_was_translated:
                 await type_message(
                     orig_message.channel,

@@ -1,4 +1,5 @@
 """UwU cog for Red-DiscordBot by PhasecoreX."""
+
 # ruff: noqa: S311
 import random
 from contextlib import suppress
@@ -34,7 +35,12 @@ class UwU(commands.Cog):
         " mmm..",
         "O.o",
     ]
-    KAOMOJI_CONFUSE: ClassVar[list[str]] = [" (o_O)?", " (°ロ°) !?", " (ーー;)?", " owo?"]
+    KAOMOJI_CONFUSE: ClassVar[list[str]] = [
+        " (o_O)?",
+        " (°ロ°) !?",
+        " (ーー;)?",
+        " owo?",
+    ]
     KAOMOJI_SPARKLES: ClassVar[list[str]] = [
         " \\*:･ﾟ✧\\*:･ﾟ✧ ",
         " ☆\\*:・ﾟ ",

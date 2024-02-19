@@ -1,4 +1,5 @@
 """Wikipedia cog for Red-DiscordBot ported by PhasecoreX."""
+
 import re
 from contextlib import suppress
 from typing import Any
@@ -87,10 +88,8 @@ class Wikipedia(commands.Cog):
             embeds[0].set_author(name="Result 1 of 1")
             await ctx.send(embed=embeds[0])
         else:
-            count = 0
-            for embed in embeds:
-                count += 1
-                embed.set_author(name=f"Result {count} of {len(embeds)}")
+            for count, embed in enumerate(embeds):
+                embed.set_author(name=f"Result {count + 1} of {len(embeds)}")
             await menu(ctx, embeds, DEFAULT_CONTROLS, timeout=60.0)
 
     #

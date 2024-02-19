@@ -1,4 +1,5 @@
 """Commands for the average user."""
+
 import asyncio
 import datetime
 from abc import ABC
@@ -74,7 +75,7 @@ class ReminderCommands(MixinMeta, ABC):
             reminder_title = (
                 f"ID# {reminder['user_reminder_id']} — <t:{reminder['expires']}:f>"
             )
-            if "repeat" in reminder and reminder["repeat"]:
+            if reminder.get("repeat"):
                 reminder_title += f", repeating every {self.humanize_relativedelta(reminder['repeat'])}"
             reminder_text = reminder["text"]
             if reminder.get("jump_link"):
@@ -236,6 +237,7 @@ class ReminderCommands(MixinMeta, ABC):
         `[p]remindme 8h`
         `[p]remindme every 1 week to take out the trash`
         `[p]remindme in 1 hour to drink some water every 1 day`
+
         """
         await self._create_reminder(ctx, time_and_optional_text)
 
@@ -421,7 +423,7 @@ class ReminderCommands(MixinMeta, ABC):
         created_datetime = datetime.datetime.now(datetime.UTC)
         created_timestamp_int = int(created_datetime.timestamp())
 
-        repeat_dict = parse_result["every"] if "every" in parse_result else None
+        repeat_dict = parse_result.get("every", None)
         repeat_delta = None
         if repeat_dict:
             repeat_delta = relativedelta(**repeat_dict)
@@ -436,7 +438,7 @@ class ReminderCommands(MixinMeta, ABC):
                 await reply(ctx, "Reminder repeat time is too large.")
                 return None
 
-        expires_dict = parse_result["in"] if "in" in parse_result else repeat_dict
+        expires_dict = parse_result.get("in", repeat_dict)
         if not expires_dict:
             await ctx.send_help()
             return None
@@ -454,7 +456,7 @@ class ReminderCommands(MixinMeta, ABC):
         expires_datetime = created_datetime + expires_delta
         expires_timestamp_int = int(expires_datetime.timestamp())
 
-        reminder_text = parse_result["text"] if "text" in parse_result else ""
+        reminder_text = parse_result.get("text", "")
         if validate_text and len(reminder_text) > self.MAX_REMINDER_LENGTH:
             await reply(ctx, "Your reminder text is too long.")
             return None

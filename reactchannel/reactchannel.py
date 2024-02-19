@@ -1,4 +1,5 @@
 """ReactChannel cog for Red-DiscordBot by PhasecoreX."""
+
 import datetime
 from contextlib import suppress
 from typing import ClassVar
