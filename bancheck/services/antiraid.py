@@ -53,7 +53,7 @@ class Antiraid:
                             reason=data["reason"],
                             proof_url=data.get("proof", None),
                         )
-                    LookupResult(Antiraid.SERVICE_NAME, "clear")
+                    return LookupResult(Antiraid.SERVICE_NAME, "clear")
                 # Otherwise, failed lookup
                 return LookupResult(Antiraid.SERVICE_NAME, "error")
 
