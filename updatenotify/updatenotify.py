@@ -418,9 +418,9 @@ class UpdateNotify(commands.Cog):
             self.notified_version = latest_redbot_version
             also_insert = "also " if update_docker else ""
             message += (
-                "There is {}a newer version of Red-DiscordBot available!\n"
-                "Your version: {}\nLatest version: {}\n\n"
-            ).format(also_insert, redbot_version, latest_redbot_version)
+                f"There is {also_insert}a newer version of Red-DiscordBot available!\n"
+                f"Your version: {redbot_version}\nLatest version: {latest_redbot_version}\n\n"
+            )
 
             if update_docker:
                 message += (
