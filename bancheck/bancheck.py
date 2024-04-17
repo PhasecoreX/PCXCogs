@@ -10,8 +10,6 @@ from redbot.core.utils.chat_formatting import error, info, success, warning
 
 from .pcx_lib import delete
 from .services.antiraid import Antiraid
-from .services.ksoftsi import KSoftSi
-from .services.ravy import Ravy
 
 
 class BanCheck(commands.Cog):
@@ -41,8 +39,6 @@ class BanCheck(commands.Cog):
     }
     supported_global_services: ClassVar[dict] = {
         "antiraid": Antiraid,
-        "ksoftsi": KSoftSi,
-        "ravy": Ravy,
     }
     supported_guild_services: ClassVar[dict] = {}
     all_supported_services: ClassVar[dict] = {
