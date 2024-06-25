@@ -73,6 +73,16 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                     "Legacy Text Channel",
                     "True",
                 )
+            if not avc_settings["perm_send_messages"]:
+                autoroom_section.add(
+                    "Send Messages",
+                    "False",
+                )
+            if not avc_settings["perm_owner_manage_channels"]:
+                autoroom_section.add(
+                    "Owner Manage Channel",
+                    "False",
+                )
             member_roles = self.get_member_roles(source_channel)
             if member_roles:
                 autoroom_section.add(
@@ -703,6 +713,67 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             await ctx.send(
                 success(
                     f"New AutoRooms created by **{autoroom_source.mention}** will no longer have a message sent in them."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @modify.group(name="specialperms")
+    async def special_perms(self, ctx: commands.Context) -> None:
+        """Modify special AutoRoom permissions.
+
+        Remember, most permissions are automatically copied
+        from the AuthRoom Source over to the AutoRoom.
+        These are for configuring special cases.
+        """
+
+    @special_perms.command(name="ownermodify")
+    async def owner_manage_channels(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ) -> None:
+        """Allow AutoRoom Owners to have the Manage Channels permission on their AutoRoom."""
+        if not ctx.guild:
+            return
+        if await self.get_autoroom_source_config(autoroom_source):
+            new_config_value = not await self.config.custom(
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+            ).perm_owner_manage_channels()
+            await self.config.custom(
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+            ).perm_owner_manage_channels.set(new_config_value)
+            await ctx.send(
+                success(
+                    f"AutoRoom Owners are {'now' if new_config_value else 'no longer'} able to modify their AutoRoom with native Discord controls."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"**{autoroom_source.mention}** is not an AutoRoom Source channel."
+                )
+            )
+
+    @special_perms.command(name="sendmessage")
+    async def public_send_messages(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ) -> None:
+        """Allow users to send messages in the AutoRoom built in text channel."""
+        if not ctx.guild:
+            return
+        if await self.get_autoroom_source_config(autoroom_source):
+            new_config_value = not await self.config.custom(
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+            ).perm_send_messages()
+            await self.config.custom(
+                "AUTOROOM_SOURCE", str(ctx.guild.id), str(autoroom_source.id)
+            ).perm_send_messages.set(new_config_value)
+            await ctx.send(
+                success(
+                    f"Users are {'now' if new_config_value else 'no longer'} able to send messages in the AutoRoom built in text channel."
                 )
             )
         else:
