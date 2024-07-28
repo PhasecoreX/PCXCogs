@@ -855,12 +855,9 @@ class BanCheck(commands.Cog):
             api_key = guild_service_config.get(service_name, {}).get("api_key", False)
             if api_key:
                 return api_key
-        # API not required
+        # API not required, otherwise fail
         service_class = self.all_supported_services.get(service_name, None)
-        if service_class and not service_class().SERVICE_API_KEY_REQUIRED:
-            return True
-        # Fail
-        return False
+        return service_class and not service_class().SERVICE_API_KEY_REQUIRED
 
     def get_nice_service_name(self, service: str) -> str:
         """Get the nice name for a service."""
