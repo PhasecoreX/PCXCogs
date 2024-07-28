@@ -37,7 +37,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.8.0"
+    __version__ = "3.8.1"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -276,7 +276,7 @@ class AutoRoom(
         """Remove non-existent AutoRooms from the config."""
         await self.bot.wait_until_ready()
         voice_channel_dict = await self.config.all_channels()
-        for voice_channel_id in voice_channel_dict:
+        for voice_channel_id, voice_channel_settings in voice_channel_dict.items():
             voice_channel = self.bot.get_channel(voice_channel_id)
             if voice_channel:
                 if isinstance(voice_channel, discord.VoiceChannel):
@@ -285,7 +285,7 @@ class AutoRoom(
             else:
                 # AutoRoom has already been deleted, clean up legacy text channel if it still exists
                 legacy_text_channel = await self.get_autoroom_legacy_text_channel(
-                    voice_channel
+                    voice_channel_settings["associated_text_channel"]
                 )
                 if legacy_text_channel:
                     await legacy_text_channel.delete(
@@ -864,14 +864,18 @@ class AutoRoom(
         return await self.config.channel(autoroom).all()
 
     async def get_autoroom_legacy_text_channel(
-        self, autoroom: discord.VoiceChannel
+        self, autoroom: discord.VoiceChannel | int | None
     ) -> discord.TextChannel | None:
         """Get the AutoRoom legacy test channel, if it exists and we have manage channels permission."""
-        legacy_text_channel_id = await self.config.channel(
+        if isinstance(autoroom, discord.VoiceChannel):
+            autoroom = autoroom.id
+        if not autoroom:
+            return None
+        legacy_text_channel_id = await self.config.channel_from_id(
             autoroom
         ).associated_text_channel()
         legacy_text_channel = (
-            autoroom.guild.get_channel(legacy_text_channel_id)
+            self.bot.get_channel(legacy_text_channel_id)
             if legacy_text_channel_id
             else None
         )

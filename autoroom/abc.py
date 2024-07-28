@@ -78,7 +78,7 @@ class MixinMeta(ABC):
 
     @abstractmethod
     async def get_autoroom_legacy_text_channel(
-        self, autoroom: discord.VoiceChannel
+        self, autoroom: discord.VoiceChannel | int | None
     ) -> discord.TextChannel | None:
         raise NotImplementedError
 
