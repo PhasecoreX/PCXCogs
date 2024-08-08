@@ -435,6 +435,14 @@ class AutoRoomCommands(MixinMeta, ABC):
         for target in to_modify:
             if isinstance(target, discord.Member | discord.Role):
                 perms.update(target, asc["perms"][access])
+            if isinstance(target, discord.Member):
+                async with self.config.channel(
+                    autoroom_channel
+                ).denied() as denied_users:
+                    if access == "deny" and target.id not in denied_users:
+                        denied_users.append(target.id)
+                    elif access == "allow" and target.id in denied_users:
+                        denied_users.remove(target.id)
         if perms.modified:
             await autoroom_channel.edit(
                 overwrites=perms.overwrites if perms.overwrites else {},

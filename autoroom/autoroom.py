@@ -37,7 +37,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.8.1"
+    __version__ = "3.9.0"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -56,10 +56,11 @@ class AutoRoom(
         "perm_owner_manage_channels": True,
         "perm_send_messages": True,
     }
-    default_channel_settings: ClassVar[dict[str, int | None]] = {
+    default_channel_settings: ClassVar[dict[str, int | list[int] | None]] = {
         "source_channel": None,
         "owner": None,
         "associated_text_channel": None,
+        "denied": [],
     }
     extra_channel_name_change_delay = 4
 
@@ -358,6 +359,26 @@ class AutoRoom(
             # If user entered an AutoRoom, allow them into the associated text channel
             if await self.get_autoroom_info(joining.channel):
                 await self._process_autoroom_legacy_text_perms(joining.channel)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member) -> None:
+        """Check joining users against existing AutoRooms, re-adds their deny override if missing."""
+        for autoroom_channel in member.guild.voice_channels:
+            autoroom_info = await self.get_autoroom_info(autoroom_channel)
+            if autoroom_info and member.id in autoroom_info["denied"]:
+                source_channel = member.guild.get_channel(
+                    autoroom_info["source_channel"]
+                )
+                asc = await self.get_autoroom_source_config(source_channel)
+                if not asc:
+                    continue
+                perms = Perms(autoroom_channel.overwrites)
+                perms.update(member, asc["perms"]["deny"])
+                if perms.modified:
+                    await autoroom_channel.edit(
+                        overwrites=perms.overwrites if perms.overwrites else {},
+                        reason="AutoRoom: Rejoining user, prevent deny evasion",
+                    )
 
     #
     # Private methods
