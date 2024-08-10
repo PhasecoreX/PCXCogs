@@ -28,7 +28,7 @@ class ReactChannel(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.1.2"
+    __version__ = "3.2.0"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, dict[str, str | int | None]]] = {
@@ -208,7 +208,7 @@ class ReactChannel(commands.Cog):
             "REACT_CHANNEL", str(ctx.guild.id)
         ).all()  # Does NOT return default values
         for channel_id in channels:
-            channel = ctx.guild.get_channel(int(channel_id))
+            channel = ctx.guild.get_channel_or_thread(int(channel_id))
             if not channel:
                 await self.config.custom(
                     "REACT_CHANNEL", str(ctx.guild.id), channel_id
@@ -285,14 +285,18 @@ class ReactChannel(commands.Cog):
 
     @enable.command()
     async def checklist(
-        self, ctx: commands.Context, channel: discord.TextChannel | None = None
+        self,
+        ctx: commands.Context,
+        channel: discord.TextChannel | discord.Thread | None = None,
     ) -> None:
         """All messages will have a checkmark. Clicking it will delete the message."""
         await self._save_channel(ctx, channel, "checklist")
 
     @enable.command()
     async def vote(
-        self, ctx: commands.Context, channel: discord.TextChannel | None = None
+        self,
+        ctx: commands.Context,
+        channel: discord.TextChannel | discord.Thread | None = None,
     ) -> None:
         """All user messages will have an up and down arrow. Clicking them will affect a user's karma total."""
         await self._save_channel(ctx, channel, "vote")
@@ -308,12 +312,15 @@ class ReactChannel(commands.Cog):
     async def _save_channel(
         self,
         ctx: commands.Context,
-        channel: discord.TextChannel | None,
+        channel: discord.TextChannel | discord.Thread | None,
         reaction_template: str | list,
     ) -> None:
         """Actually save the ReactChannel settings."""
         if channel is None:
-            if isinstance(ctx.message.channel, discord.TextChannel):
+            if isinstance(
+                ctx.message.channel,
+                (discord.TextChannel | discord.Thread),
+            ):
                 channel = ctx.message.channel
             else:
                 return
@@ -948,8 +955,8 @@ class ReactChannel(commands.Cog):
         guild = self.bot.get_guild(payload.guild_id)
         if not guild:
             return
-        channel = guild.get_channel(payload.channel_id)
-        if not isinstance(channel, discord.TextChannel):
+        channel = guild.get_channel_or_thread(payload.channel_id)
+        if not isinstance(channel, (discord.TextChannel | discord.Thread)):
             return
         member = guild.get_member(payload.user_id)  # User who added a reaction
         if not guild or not channel or not member or not payload.message_id:
@@ -1007,8 +1014,8 @@ class ReactChannel(commands.Cog):
         guild = self.bot.get_guild(payload.guild_id)
         if not guild:
             return
-        channel = guild.get_channel(payload.channel_id)
-        if not isinstance(channel, discord.TextChannel):
+        channel = guild.get_channel_or_thread(payload.channel_id)
+        if not isinstance(channel, (discord.TextChannel | discord.Thread)):
             return
         member = guild.get_member(payload.user_id)  # User whose reaction was removed
         if not guild or not channel or not member or not payload.message_id:
