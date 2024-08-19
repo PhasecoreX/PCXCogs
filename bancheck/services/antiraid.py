@@ -1,4 +1,5 @@
 """Ban lookup for Antiraid."""
+
 import aiohttp
 from redbot.core import __version__ as redbot_version
 
@@ -14,9 +15,9 @@ class Antiraid:
 
     SERVICE_NAME = "Antiraid"
     SERVICE_API_KEY_REQUIRED = False
-    SERVICE_URL = "https://antiraid.win/"
+    SERVICE_URL = "https://banapi.derpystown.com/"
     SERVICE_HINT = None
-    BASE_URL = "https://api.antiraid.win"
+    BASE_URL = "https://banapi.derpystown.com"
 
     @staticmethod
     async def lookup(user_id: int, _api_key: str) -> LookupResult:
@@ -50,9 +51,9 @@ class Antiraid:
                             Antiraid.SERVICE_NAME,
                             "ban",
                             reason=data["reason"],
-                            proof_url=data["proof"] if "proof" in data else None,
+                            proof_url=data.get("proof", None),
                         )
-                    LookupResult(Antiraid.SERVICE_NAME, "clear")
+                    return LookupResult(Antiraid.SERVICE_NAME, "clear")
                 # Otherwise, failed lookup
                 return LookupResult(Antiraid.SERVICE_NAME, "error")
 

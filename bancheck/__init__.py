@@ -1,4 +1,5 @@
 """Package for BanCheck cog."""
+
 import json
 from pathlib import Path
 

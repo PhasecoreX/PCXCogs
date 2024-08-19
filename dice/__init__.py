@@ -1,4 +1,5 @@
 """Package for Dice cog."""
+
 import json
 from pathlib import Path
 

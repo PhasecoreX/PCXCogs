@@ -1,4 +1,5 @@
 """RemindMe cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
+
 import asyncio
 import datetime
 import logging
@@ -68,6 +69,7 @@ class RemindMe(
         self.config.init_custom("REMINDER", 2)
         self.config.register_custom("REMINDER", **self.default_reminder_settings)
         self.bg_loop_task = None
+        self.background_tasks = set()
         self.next_reminder_to_send = {}
         self.search_for_next_reminder = True
         self.me_too_reminders = {}
@@ -172,9 +174,9 @@ class RemindMe(
                     "expires": int(expires_normalized.timestamp()),
                 }
                 # Optional fields
-                if "JUMP_LINK" in reminder and reminder["JUMP_LINK"]:
+                if reminder.get("JUMP_LINK"):
                     new_reminder["jump_link"] = reminder["JUMP_LINK"]
-                if "REPEAT" in reminder and reminder["REPEAT"]:
+                if reminder.get("REPEAT"):
                     new_reminder["repeat"] = self.relativedelta_to_dict(
                         relativedelta(seconds=reminder["REPEAT"])
                     )
@@ -225,7 +227,7 @@ class RemindMe(
                     datetime.datetime.fromtimestamp(reminder["created"], datetime.UTC),
                 )
                 repeat_delta = None
-                if "repeat" in reminder and reminder["repeat"]:
+                if reminder.get("repeat"):
                     repeat_delta = relativedelta(reminder["repeat"])
                 message = "Hello! I will also send you "
                 if repeat_delta:
@@ -259,13 +261,15 @@ class RemindMe(
                     "Unexpected exception occurred in background loop of RemindMe: ",
                     exc_info=exc,
                 )
-                _ = asyncio.create_task(
+                task = asyncio.create_task(
                     self.bot.send_to_owners(
                         "An unexpected exception occurred in the background loop of RemindMe.\n"
                         "Reminders will not be sent out until the cog is reloaded.\n"
                         "Check your console or logs for details, and consider opening a bug report for this."
                     )
                 )
+                self.background_tasks.add(task)
+                task.add_done_callback(self.background_tasks.discard)
 
         self.bg_loop_task = self.bot.loop.create_task(self._bg_loop())
         self.bg_loop_task.add_done_callback(error_handler)

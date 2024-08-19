@@ -1,4 +1,5 @@
 """Commands for [p]remindmeset."""
+
 from abc import ABC
 
 from redbot.core import checks, commands
@@ -23,9 +24,11 @@ class RemindMeSetCommands(MixinMeta, ABC):
         if ctx.guild:
             server_section.add(
                 "Me too",
-                "Enabled"
-                if await self.config.guild(ctx.guild).me_too()
-                else "Disabled",
+                (
+                    "Enabled"
+                    if await self.config.guild(ctx.guild).me_too()
+                    else "Disabled"
+                ),
             )
 
         if await ctx.bot.is_owner(ctx.author):
@@ -41,7 +44,7 @@ class RemindMeSetCommands(MixinMeta, ABC):
             ).all()  # Does NOT return default values
             for users_reminders in all_reminders.values():
                 for reminder in users_reminders.values():
-                    if "repeat" in reminder and reminder["repeat"]:
+                    if reminder.get("repeat"):
                         repeating_reminders += 1
                     else:
                         non_repeating_reminders += 1

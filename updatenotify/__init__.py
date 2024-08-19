@@ -1,4 +1,5 @@
 """Package for UpdateNotify cog."""
+
 import json
 from pathlib import Path
 

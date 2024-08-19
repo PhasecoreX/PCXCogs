@@ -1,4 +1,5 @@
 """Package for ReactChannel cog."""
+
 import json
 from pathlib import Path
 

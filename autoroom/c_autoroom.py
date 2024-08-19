@@ -1,4 +1,5 @@
 """The autoroom command."""
+
 import datetime
 from abc import ABC
 from typing import Any
@@ -231,23 +232,50 @@ class AutoRoomCommands(MixinMeta, ABC):
                     denied_message = f"you must wait **{humanize_timedelta(seconds=max(retry_after, 1))}** before claiming ownership, in case the previous AutoRoom Owner comes back"
 
         if denied_message:
-            hint = await ctx.send(
-                error(f"{ctx.message.author.mention}, {denied_message}")
-            )
-            await delete(ctx.message, delay=10)
-            await delete(hint, delay=10)
+            await self._send_temp_error_message(ctx, denied_message)
             return
 
+        source_channel = ctx.guild.get_channel(autoroom_info["source_channel"])
+        asc = await self.get_autoroom_source_config(source_channel)
+        if not asc:
+            await self._send_temp_error_message(
+                ctx,
+                "it seems like the AutoRoom Source this AutoRoom was made from "
+                "no longer exists. Because of that, I can no longer modify this AutoRoom.",
+            )
+            return
         perms = Perms(autoroom_channel.overwrites)
         if old_owner:
-            perms.overwrite(old_owner, self.perms_public)
-        perms.update(new_owner, self.perms_autoroom_owner)
+            perms.overwrite(old_owner, asc["perms"]["allow"])
+        perms.update(new_owner, asc["perms"]["owner"])
         if perms.modified:
             await autoroom_channel.edit(
                 overwrites=perms.overwrites if perms.overwrites else {},
                 reason="AutoRoom: Ownership claimed",
             )
         await self.config.channel(autoroom_channel).owner.set(new_owner.id)
+
+        legacy_text_channel = await self.get_autoroom_legacy_text_channel(
+            autoroom_channel
+        )
+        if legacy_text_channel:
+            legacy_text_perms = Perms(legacy_text_channel.overwrites)
+            if old_owner:
+                if old_owner in autoroom_channel.members:
+                    legacy_text_perms.overwrite(old_owner, self.perms_legacy_text_allow)
+                else:
+                    legacy_text_perms.overwrite(old_owner, self.perms_legacy_text_reset)
+            legacy_text_perms.update(new_owner, self.perms_autoroom_owner_legacy_text)
+            if legacy_text_perms.modified:
+                await legacy_text_channel.edit(
+                    overwrites=(
+                        legacy_text_perms.overwrites
+                        if legacy_text_perms.overwrites
+                        else {}
+                    ),
+                    reason="AutoRoom: Ownership claimed (legacy text channel)",
+                )
+
         if bucket:
             bucket.reset()
         await ctx.tick()
@@ -256,26 +284,24 @@ class AutoRoomCommands(MixinMeta, ABC):
     @autoroom.command()
     async def public(self, ctx: commands.Context) -> None:
         """Make your AutoRoom public."""
-        await self._process_allow_deny(ctx, self.perms_public)
+        await self._process_allow_deny(ctx, "allow")
 
     @autoroom.command()
     async def locked(self, ctx: commands.Context) -> None:
         """Lock your AutoRoom (visible, but no one can join)."""
-        await self._process_allow_deny(ctx, self.perms_locked)
+        await self._process_allow_deny(ctx, "lock")
 
     @autoroom.command()
     async def private(self, ctx: commands.Context) -> None:
         """Make your AutoRoom private."""
-        await self._process_allow_deny(ctx, self.perms_private)
+        await self._process_allow_deny(ctx, "deny")
 
     @autoroom.command(aliases=["add"])
     async def allow(
         self, ctx: commands.Context, member_or_role: discord.Role | discord.Member
     ) -> None:
         """Allow a user (or role) into your AutoRoom."""
-        await self._process_allow_deny(
-            ctx, self.perms_public, member_or_role=member_or_role
-        )
+        await self._process_allow_deny(ctx, "allow", member_or_role=member_or_role)
 
     @autoroom.command(aliases=["ban", "block"])
     async def deny(
@@ -291,9 +317,7 @@ class AutoRoomCommands(MixinMeta, ABC):
         """
         if not ctx.guild:
             return
-        if await self._process_allow_deny(
-            ctx, self.perms_private, member_or_role=member_or_role
-        ):
+        if await self._process_allow_deny(ctx, "deny", member_or_role=member_or_role):
             channel = self._get_current_voice_channel(ctx.message.author)
             if not channel or not channel.permissions_for(ctx.guild.me).move_members:
                 return
@@ -304,7 +328,7 @@ class AutoRoomCommands(MixinMeta, ABC):
     async def _process_allow_deny(
         self,
         ctx: commands.Context,
-        perm_overwrite: dict[str, bool],
+        access: str,
         *,
         member_or_role: discord.Role | discord.Member | None = None,
     ) -> bool:
@@ -316,26 +340,20 @@ class AutoRoomCommands(MixinMeta, ABC):
             return False
 
         if not autoroom_channel.permissions_for(autoroom_channel.guild.me).manage_roles:
-            hint = await ctx.send(
-                error(
-                    f"{ctx.message.author.mention}, I do not have the required permissions to do this. "
-                    "Please let the staff know about this!"
-                )
+            await self._send_temp_error_message(
+                ctx,
+                "I do not have the required permissions to do this. "
+                "Please let the staff know about this!",
             )
-            await delete(ctx.message, delay=10)
-            await delete(hint, delay=10)
             return False
 
         source_channel = ctx.guild.get_channel(autoroom_info["source_channel"])
         if not isinstance(source_channel, discord.VoiceChannel):
-            hint = await ctx.send(
-                error(
-                    f"{ctx.message.author.mention}, it seems like the AutoRoom Source this AutoRoom was made from "
-                    "no longer exists. Because of that, I can no longer modify this AutoRoom."
-                )
+            await self._send_temp_error_message(
+                ctx,
+                "it seems like the AutoRoom Source this AutoRoom was made from "
+                "no longer exists. Because of that, I can no longer modify this AutoRoom.",
             )
-            await delete(ctx.message, delay=10)
-            await delete(hint, delay=10)
             return False
 
         # Gather member roles and determine the lowest ranked member role
@@ -349,7 +367,7 @@ class AutoRoomCommands(MixinMeta, ABC):
         if not member_or_role:
             # Public/locked/private command
             to_modify = member_roles or [source_channel.guild.default_role]
-        elif False not in perm_overwrite.values():
+        elif access == "allow":
             # If we are allowing a bot role, allow it
             if isinstance(
                 member_or_role, discord.Role
@@ -401,17 +419,30 @@ class AutoRoomCommands(MixinMeta, ABC):
             denied_message = f"that's a moderator{role_suffix}, so I can't deny them from entering your AutoRoom."
 
         if denied_message:
-            hint = await ctx.send(
-                error(f"{ctx.message.author.mention}, {denied_message}")
+            await self._send_temp_error_message(ctx, denied_message)
+            return False
+
+        asc = await self.get_autoroom_source_config(source_channel)
+        if not asc:
+            await self._send_temp_error_message(
+                ctx,
+                "it seems like the AutoRoom Source this AutoRoom was made from "
+                "no longer exists. Because of that, I can no longer modify this AutoRoom.",
             )
-            await delete(ctx.message, delay=10)
-            await delete(hint, delay=10)
             return False
 
         perms = Perms(autoroom_channel.overwrites)
         for target in to_modify:
             if isinstance(target, discord.Member | discord.Role):
-                perms.update(target, perm_overwrite)
+                perms.update(target, asc["perms"][access])
+            if isinstance(target, discord.Member):
+                async with self.config.channel(
+                    autoroom_channel
+                ).denied() as denied_users:
+                    if access == "deny" and target.id not in denied_users:
+                        denied_users.append(target.id)
+                    elif access == "allow" and target.id in denied_users:
+                        denied_users.remove(target.id)
         if perms.modified:
             await autoroom_channel.edit(
                 overwrites=perms.overwrites if perms.overwrites else {},
@@ -440,23 +471,15 @@ class AutoRoomCommands(MixinMeta, ABC):
         autoroom_channel = self._get_current_voice_channel(ctx.message.author)
         autoroom_info = await self.get_autoroom_info(autoroom_channel)
         if not autoroom_info:
-            hint = await ctx.send(
-                error(f"{ctx.message.author.mention}, you are not in an AutoRoom.")
-            )
-            await delete(ctx.message, delay=5)
-            await delete(hint, delay=5)
+            await self._send_temp_error_message(ctx, "you are not in an AutoRoom.")
             return None, None
         if check_owner and ctx.message.author.id != autoroom_info["owner"]:
             reason_server = ""
             if not autoroom_info["owner"]:
                 reason_server = " (it is a server AutoRoom)"
-            hint = await ctx.send(
-                error(
-                    f"{ctx.message.author.mention}, you are not the owner of this AutoRoom{reason_server}."
-                )
+            await self._send_temp_error_message(
+                ctx, f"you are not the owner of this AutoRoom{reason_server}."
             )
-            await delete(ctx.message, delay=10)
-            await delete(hint, delay=10)
             return None, None
         return autoroom_channel, autoroom_info
 
@@ -480,3 +503,11 @@ class AutoRoomCommands(MixinMeta, ABC):
         if view_channel and not connect:
             return "locked"
         return "public"
+
+    async def _send_temp_error_message(
+        self, ctx: commands.Context, message: str
+    ) -> None:
+        """Send an error message that deletes itself along with the context message."""
+        hint = await ctx.send(error(f"{ctx.message.author.mention}, {message}"))
+        await delete(ctx.message, delay=10)
+        await delete(hint, delay=10)

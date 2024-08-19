@@ -1,4 +1,5 @@
 """ABC for the RemindMe Cog."""
+
 from abc import ABC, abstractmethod
 
 import discord

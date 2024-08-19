@@ -1,4 +1,5 @@
 """Package for NetSpeed cog."""
+
 import json
 from pathlib import Path
 

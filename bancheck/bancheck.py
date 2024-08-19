@@ -1,4 +1,5 @@
 """BanCheck cog for Red-DiscordBot ported and enhanced by PhasecoreX."""
+
 from contextlib import suppress
 from typing import Any, ClassVar
 
@@ -9,8 +10,6 @@ from redbot.core.utils.chat_formatting import error, info, success, warning
 
 from .pcx_lib import delete
 from .services.antiraid import Antiraid
-from .services.ksoftsi import KSoftSi
-from .services.ravy import Ravy
 
 
 class BanCheck(commands.Cog):
@@ -40,8 +39,6 @@ class BanCheck(commands.Cog):
     }
     supported_global_services: ClassVar[dict] = {
         "antiraid": Antiraid,
-        "ksoftsi": KSoftSi,
-        "ravy": Ravy,
     }
     supported_guild_services: ClassVar[dict] = {}
     all_supported_services: ClassVar[dict] = {
@@ -858,12 +855,9 @@ class BanCheck(commands.Cog):
             api_key = guild_service_config.get(service_name, {}).get("api_key", False)
             if api_key:
                 return api_key
-        # API not required
+        # API not required, otherwise fail
         service_class = self.all_supported_services.get(service_name, None)
-        if service_class and not service_class().SERVICE_API_KEY_REQUIRED:
-            return True
-        # Fail
-        return False
+        return service_class and not service_class().SERVICE_API_KEY_REQUIRED
 
     def get_nice_service_name(self, service: str) -> str:
         """Get the nice name for a service."""

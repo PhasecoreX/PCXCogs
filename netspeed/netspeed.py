@@ -1,4 +1,5 @@
 """NetSpeed cog for Red-DiscordBot by PhasecoreX."""
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any

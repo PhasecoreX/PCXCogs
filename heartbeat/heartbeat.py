@@ -1,4 +1,5 @@
 """Heartbeat cog for Red-DiscordBot by PhasecoreX."""
+
 import asyncio
 import datetime
 import logging
@@ -50,6 +51,7 @@ class Heartbeat(commands.Cog):
         self.current_error = None
         self.next_heartbeat = datetime.datetime.now(datetime.UTC)
         self.bg_loop_task = None
+        self.background_tasks = set()
 
     #
     # Red methods
@@ -59,7 +61,9 @@ class Heartbeat(commands.Cog):
         """Clean up when cog shuts down."""
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
-        _ = asyncio.create_task(self.session.close())
+        task = asyncio.create_task(self.session.close())
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
 
     def format_help_for_context(self, ctx: commands.Context) -> str:
         """Show version in help."""
@@ -95,7 +99,7 @@ class Heartbeat(commands.Cog):
                     "Unexpected exception occurred in background loop of Heartbeat: ",
                     exc_info=exc,
                 )
-                _ = asyncio.create_task(
+                task = asyncio.create_task(
                     self.bot.send_to_owners(
                         "An unexpected exception occurred in the background loop of Heartbeat:\n"
                         f"```{exc!s}```"
@@ -103,6 +107,8 @@ class Heartbeat(commands.Cog):
                         "Check your console or logs for more details, and consider opening a bug report for this."
                     )
                 )
+                self.background_tasks.add(task)
+                task.add_done_callback(self.background_tasks.discard)
 
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
@@ -144,10 +150,7 @@ class Heartbeat(commands.Cog):
                     url,
                     headers={"user-agent": user_agent},
                 )
-            except (
-                aiohttp.ClientConnectionError,
-                asyncio.TimeoutError,
-            ) as exc:
+            except (TimeoutError, aiohttp.ClientConnectionError) as exc:
                 last_exception = exc
             else:
                 return None

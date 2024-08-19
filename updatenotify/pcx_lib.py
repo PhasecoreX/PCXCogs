@@ -1,4 +1,5 @@
 """Shared code across multiple cogs."""
+
 import asyncio
 from collections.abc import Mapping
 from contextlib import suppress
@@ -105,7 +106,7 @@ async def embed_splitter(
 
     # Nah, we're really doing this
     split_embeds: list[discord.Embed] = []
-    fields = embed_dict["fields"] if "fields" in embed_dict else []
+    fields = embed_dict.get("fields", [])
     embed_dict["fields"] = []
 
     for field in fields:
@@ -179,10 +180,13 @@ class Perms:
 
     def __init__(
         self,
-        overwrites: dict[
-            discord.Role | discord.Member | discord.Object, discord.PermissionOverwrite
-        ]
-        | None = None,
+        overwrites: (
+            dict[
+                discord.Role | discord.Member | discord.Object,
+                discord.PermissionOverwrite,
+            ]
+            | None
+        ) = None,
     ) -> None:
         """Init."""
         self.__overwrites: dict[

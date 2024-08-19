@@ -1,4 +1,5 @@
 """Package for AutoRoom cog."""
+
 import json
 from pathlib import Path
 
