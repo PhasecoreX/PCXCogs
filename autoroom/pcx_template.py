@@ -32,7 +32,7 @@ class Template:
         self,
         template_str: str,
         data: dict[str, Any] | None = None,
-        timeout: int = 2,  # in seconds  # noqa: ASYNC109
+        timeout: int = 2,  # in seconds
     ) -> str:
         """Render a template with the given data, enforcing a maximum runtime."""
         if data is None:
