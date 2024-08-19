@@ -1,4 +1,5 @@
 """Module for template engine using Jinja2, safe for untrusted user templates."""
+
 from typing import Any
 
 from jinja2 import BaseLoader
