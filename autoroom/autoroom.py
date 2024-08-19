@@ -430,7 +430,7 @@ class AutoRoom(
         taken_channel_names = [
             voice_channel.name for voice_channel in dest_category.voice_channels
         ]
-        new_channel_name = self._generate_channel_name(
+        new_channel_name = await self._generate_channel_name(
             autoroom_source_config, member, taken_channel_names
         )
 
@@ -534,7 +534,7 @@ class AutoRoom(
                 # Add all the mod/admin roles, if required
                 perms.update(role, self.perms_legacy_text_allow)
             # Create text channel
-            text_channel_topic = self.template.render(
+            text_channel_topic = await self.template.render(
                 autoroom_source_config["text_channel_topic"],
                 self.get_template_data(member),
             )
@@ -553,7 +553,7 @@ class AutoRoom(
         # Send text chat hint if enabled
         if autoroom_source_config["text_channel_hint"]:
             with suppress(RuntimeError):
-                hint = self.template.render(
+                hint = await self.template.render(
                     autoroom_source_config["text_channel_hint"],
                     self.get_template_data(member),
                 )
@@ -561,7 +561,7 @@ class AutoRoom(
                     if new_legacy_text_channel:
                         await new_legacy_text_channel.send(hint)
                     else:
-                        await new_voice_channel.send(hint)
+                        await new_voice_channel.send(hint[:2000].strip())
 
     @staticmethod
     async def _process_autoroom_delete(voice_channel: discord.VoiceChannel) -> bool:
@@ -605,7 +605,7 @@ class AutoRoom(
                 reason="AutoRoom: Legacy text channel permission update",
             )
 
-    def _generate_channel_name(
+    async def _generate_channel_name(
         self,
         autoroom_source_config: dict,
         member: discord.Member,
@@ -625,12 +625,16 @@ class AutoRoom(
         new_channel_name = None
         attempt = 1
         with suppress(RuntimeError):
-            new_channel_name = self.format_template_room_name(template, data, attempt)
+            new_channel_name = await self.format_template_room_name(
+                template, data, attempt
+            )
 
         if not new_channel_name:
             # Either the user screwed with the template, or the template returned nothing. Use a default one instead.
             template = channel_name_template["username"]
-            new_channel_name = self.format_template_room_name(template, data, attempt)
+            new_channel_name = await self.format_template_room_name(
+                template, data, attempt
+            )
 
         # Check for duplicate names
         attempted_channel_names = []
@@ -640,7 +644,9 @@ class AutoRoom(
         ):
             attempt += 1
             attempted_channel_names.append(new_channel_name)
-            new_channel_name = self.format_template_room_name(template, data, attempt)
+            new_channel_name = await self.format_template_room_name(
+                template, data, attempt
+            )
         return new_channel_name
 
     #
@@ -663,13 +669,13 @@ class AutoRoom(
                     break
         return data
 
-    def format_template_room_name(self, template: str, data: dict, num: int = 1) -> str:
+    async def format_template_room_name(
+        self, template: str, data: dict, num: int = 1
+    ) -> str:
         """Return a formatted channel name, taking into account the 100 character channel name limit."""
         nums = {"dupenum": num}
-        return self.template.render(
-            template_str=template,
-            data={**nums, **data},
-        )[:100].strip()
+        msg = await self.template.render(template, {**data, **nums})
+        return msg[:100].strip()
 
     async def is_admin_or_admin_role(self, who: discord.Role | discord.Member) -> bool:
         """Check if a member (or role) is an admin (role).
