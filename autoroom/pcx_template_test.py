@@ -5,7 +5,7 @@ from pcx_template import (
 )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_simple_template():
     tpl = Template()
     template_str = "Hello, {{ name }}!"
@@ -14,7 +14,7 @@ async def test_simple_template():
     assert result == "Hello, World!"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_template_with_no_data():
     tpl = Template()
     template_str = "Hello, World!"
@@ -22,7 +22,7 @@ async def test_template_with_no_data():
     assert result == "Hello, World!"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_template_with_missing_variable():
     tpl = Template()
     template_str = "Hello, {{ name }}!"
@@ -30,7 +30,7 @@ async def test_template_with_missing_variable():
     assert result == "Hello, !"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_template_timeout():
     tpl = Template()
     template_str = """{% for i in range(100000) %}{{ i*i }}{% endfor %}"""
@@ -40,7 +40,7 @@ async def test_template_timeout():
     assert "Template rendering exceeded maximum runtime" in str(excinfo.value)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_template_no_timeout():
     tpl = Template()
     template_str = """{% for i in range(100) %}{{ i }}\n{% endfor %}"""
@@ -50,7 +50,7 @@ async def test_template_no_timeout():
     assert result == expected_result
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_template_with_custom_timeout():
     tpl = Template()
     template_str = """
@@ -64,7 +64,7 @@ async def test_template_with_custom_timeout():
     assert "Template rendering exceeded maximum runtime" in str(excinfo.value)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_template_with_complex_data():
     tpl = Template()
     template_str = (
@@ -75,7 +75,7 @@ async def test_template_with_complex_data():
     assert result == "User: John, Age: 30, Active: True"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_template_with_escape_sequences():
     tpl = Template()
     template_str = "Hello, {{ user.name }}!\nYour score: {{ user.score }}\n\nThank you!"
