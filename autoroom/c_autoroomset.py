@@ -890,7 +890,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             data = self.get_template_data(ctx.author)
             try:
                 # Validate template
-                topic_text_formatted = self.template.render(topic_text, data)
+                topic_text_formatted = await self.template.render(topic_text, data)
             except RuntimeError as rte:
                 await ctx.send(
                     error(
