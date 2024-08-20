@@ -3,6 +3,7 @@
 import multiprocessing
 from typing import Any
 
+from jinja2.exceptions import TemplateError
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 
 
@@ -52,6 +53,9 @@ class Template:
 
         # Get the result from the queue
         result = queue.get()
+        if isinstance(result, TemplateError):
+            msg = f"Error rendering template: {result}"
+            raise RuntimeError(msg)
         if isinstance(result, Exception):
             raise result  # Re-raise the exception if something went wrong in the process
 
