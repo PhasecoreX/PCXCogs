@@ -362,11 +362,25 @@ class AutoRoomCommands(MixinMeta, ABC):
         for role in member_roles:
             lowest_member_role = min(lowest_member_role, role.position)
 
+        asc = await self.get_autoroom_source_config(source_channel)
+        if not asc:
+            await self._send_temp_error_message(
+                ctx,
+                "it seems like the AutoRoom Source this AutoRoom was made from "
+                "no longer exists. Because of that, I can no longer modify this AutoRoom.",
+            )
+            return False
+
+        perms = Perms(autoroom_channel.overwrites)
+
         denied_message = ""
         to_modify = [member_or_role]
         if not member_or_role:
             # Public/locked/private command
             to_modify = member_roles or [source_channel.guild.default_role]
+            if access != "allow":
+                for member in autoroom_channel.members:
+                    perms.update(member, asc["perms"]["allow"])
         elif access == "allow":
             # If we are allowing a bot role, allow it
             if isinstance(
@@ -422,16 +436,6 @@ class AutoRoomCommands(MixinMeta, ABC):
             await self._send_temp_error_message(ctx, denied_message)
             return False
 
-        asc = await self.get_autoroom_source_config(source_channel)
-        if not asc:
-            await self._send_temp_error_message(
-                ctx,
-                "it seems like the AutoRoom Source this AutoRoom was made from "
-                "no longer exists. Because of that, I can no longer modify this AutoRoom.",
-            )
-            return False
-
-        perms = Perms(autoroom_channel.overwrites)
         for target in to_modify:
             if isinstance(target, discord.Member | discord.Role):
                 perms.update(target, asc["perms"][access])
