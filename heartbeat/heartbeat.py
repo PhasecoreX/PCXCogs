@@ -124,8 +124,7 @@ class Heartbeat(commands.Cog):
         if not url:
             return
         frequency = await self.config.frequency()
-        if frequency < MIN_HEARTBEAT_SECONDS:
-            frequency = MIN_HEARTBEAT_SECONDS
+        frequency = max(frequency, MIN_HEARTBEAT_SECONDS)
         if not skip_first:
             self.current_error = await self.send_heartbeat(url)
         while True:
