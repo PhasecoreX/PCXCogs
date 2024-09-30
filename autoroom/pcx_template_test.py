@@ -1,4 +1,3 @@
-from jinja2 import TemplateError
 import pytest
 from pcx_template import (
     Template,
