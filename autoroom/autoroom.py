@@ -1,5 +1,6 @@
 """AutoRoom cog for Red-DiscordBot by PhasecoreX."""
 
+import random
 from abc import ABC
 from contextlib import suppress
 from datetime import UTC, datetime
@@ -622,6 +623,9 @@ class AutoRoom(
         template = template or channel_name_template["username"]
 
         data = self.get_template_data(member)
+        data["random_seed"] = (
+            f"{member.id}{random.random()}"  # noqa: S311 # Doesn't need to be secure
+        )
         new_channel_name = None
         attempt = 1
         with suppress(RuntimeError):
