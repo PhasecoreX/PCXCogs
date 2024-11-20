@@ -1,6 +1,7 @@
 """The autoroomset command."""
 
 import asyncio
+import io
 from abc import ABC
 from contextlib import suppress
 
@@ -17,6 +18,8 @@ channel_name_template = {
     "username": "{{username}}'s Room{% if dupenum > 1 %} ({{dupenum}}){% endif %}",
     "game": "{{game}}{% if not game %}{{username}}'s Room{% endif %}{% if dupenum > 1 %} ({{dupenum}}){% endif %}",
 }
+
+MAX_MESSAGE_LENGTH = 2000
 
 
 class AutoRoomSetCommands(MixinMeta, ABC):
@@ -52,7 +55,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         if bot_roles:
             server_section.add("Bot roles allowed in all AutoRooms", bot_roles)
 
-        autoroom_sections = []
+        await ctx.send(server_section.display())
         avcs = await self.get_all_autoroom_source_configs(ctx.guild)
         for avc_id, avc_settings in avcs.items():
             source_channel = ctx.guild.get_channel(avc_id)
@@ -98,9 +101,29 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             ):
                 room_name_format = f'Custom: "{avc_settings["channel_name_format"]}"'
             autoroom_section.add("Room name format", room_name_format)
-            autoroom_sections.append(autoroom_section)
 
-        message = server_section.display(*autoroom_sections)
+            if avc_settings["text_channel_hint"]:
+                autoroom_section.add(
+                    "Text Channel Hint",
+                    avc_settings["text_channel_hint"],
+                )
+
+            if avc_settings["text_channel_topic"]:
+                autoroom_section.add(
+                    "Text Channel Topic",
+                    avc_settings["text_channel_topic"],
+                )
+            msg = autoroom_section.display()
+            if len(msg) < MAX_MESSAGE_LENGTH:
+                await ctx.send(msg)
+            else:
+                raw_msg = autoroom_section.raw()
+                msg_bytes = io.BytesIO(raw_msg.encode("utf-8"))
+                await ctx.send(
+                    file=discord.File(msg_bytes, filename="autoroom_settings.txt")
+                )
+
+        message = ""
         required_check, optional_check, _ = await self._check_all_perms(ctx.guild)
         if not required_check:
             message += "\n" + error(
@@ -116,7 +139,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 "for one or more AutoRooms. "
                 "Check `[p]autoroomset permissions` for more information."
             )
-        await ctx.send(message)
+        if message:
+            await ctx.send(message)
 
     @autoroomset.command(aliases=["perms"])
     async def permissions(self, ctx: commands.Context) -> None:
@@ -665,7 +689,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             data = self.get_template_data(ctx.author)
             try:
                 # Validate template
-                hint_text_formatted = self.template.render(hint_text, data)
+                hint_text_formatted = await self.template.render(hint_text, data)
             except RuntimeError as rte:
                 await ctx.send(
                     error(
@@ -687,7 +711,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 success(
                     f"New AutoRooms created by **{autoroom_source.mention}** will have the following message sent in them:"
                     "\n\n"
-                    f"{hint_text_formatted}"
+                    f"{hint_text_formatted[:1900]}"
                 )
             )
         else:
@@ -866,7 +890,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             data = self.get_template_data(ctx.author)
             try:
                 # Validate template
-                topic_text_formatted = self.template.render(topic_text, data)
+                topic_text_formatted = await self.template.render(topic_text, data)
             except RuntimeError as rte:
                 await ctx.send(
                     error(
