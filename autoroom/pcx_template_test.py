@@ -1,4 +1,4 @@
-"""Tests for template engine using Jinja2"""
+"""Tests for template engine using Jinja2."""
 
 import pytest
 from pcx_template import (
