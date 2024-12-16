@@ -39,7 +39,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.9.1"
+    __version__ = "4.0.0"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
