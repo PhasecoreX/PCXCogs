@@ -9,7 +9,7 @@ from jinja2.exceptions import TemplateError
 from jinja2.runtime import Context
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 
-TIMEOUT = 1  # Maximum runtime for template rendering in seconds / should be very low to avoid DoS attacks
+TIMEOUT = 0.25  # Maximum runtime for template rendering in seconds / should be very low to avoid DoS attacks
 
 
 class TemplateTimeoutError(TemplateError):
@@ -50,7 +50,7 @@ class Template:
         self,
         template_str: str,
         data: dict[str, Any] | None = None,
-        timeout: int = TIMEOUT,  # noqa: ASYNC109
+        timeout: float = TIMEOUT,  # noqa: ASYNC109
     ) -> str:
         """Render a template with the given data, enforcing a maximum runtime."""
         if data is None:
