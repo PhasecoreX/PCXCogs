@@ -6,10 +6,13 @@ from abc import ABC
 from contextlib import suppress
 
 import discord
+from jinja2.exceptions import TemplateError
 from redbot.core import checks, commands
 from redbot.core.utils.chat_formatting import error, info, success, warning
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.predicates import MessagePredicate
+
+from autoroom.pcx_template import TemplateTimeoutError
 
 from .abc import MixinMeta
 from .pcx_lib import SettingDisplay
@@ -608,8 +611,8 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 template = template.replace("\n", " ")
                 try:
                     # Validate template
-                    self.format_template_room_name(template, data)
-                except RuntimeError as rte:
+                    await self.format_template_room_name(template, data)
+                except (TemplateError, TemplateTimeoutError) as rte:
                     await ctx.send(
                         error(
                             "Hmm... that doesn't seem to be a valid template:"
@@ -645,9 +648,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 data["game"] = "Example Game"
             message += "\n\nExample room names:"
             for room_num in range(1, 4):
-                message += (
-                    f"\n{self.format_template_room_name(template, data, room_num)}"
-                )
+                message += f"\n{await self.format_template_room_name(template, data, room_num)}"
             await ctx.send(success(message))
         else:
             await ctx.send(
@@ -690,7 +691,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             try:
                 # Validate template
                 hint_text_formatted = await self.template.render(hint_text, data)
-            except RuntimeError as rte:
+            except (TemplateError, TemplateTimeoutError) as rte:
                 await ctx.send(
                     error(
                         "Hmm... that doesn't seem to be a valid template:"
@@ -891,7 +892,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             try:
                 # Validate template
                 topic_text_formatted = await self.template.render(topic_text, data)
-            except RuntimeError as rte:
+            except (TemplateError, TemplateTimeoutError) as rte:
                 await ctx.send(
                     error(
                         "Hmm... that doesn't seem to be a valid template:"

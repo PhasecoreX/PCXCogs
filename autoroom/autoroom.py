@@ -39,7 +39,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "4.0.1"
+    __version__ = "4.0.2"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -553,7 +553,7 @@ class AutoRoom(
 
         # Send text chat hint if enabled
         if autoroom_source_config["text_channel_hint"]:
-            with suppress(RuntimeError):
+            with suppress(Exception):
                 hint = await self.template.render(
                     autoroom_source_config["text_channel_hint"],
                     self.get_template_data(member),
@@ -628,7 +628,7 @@ class AutoRoom(
         )
         new_channel_name = None
         attempt = 1
-        with suppress(RuntimeError):
+        with suppress(Exception):
             new_channel_name = await self.format_template_room_name(
                 template, data, attempt
             )

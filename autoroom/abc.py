@@ -34,7 +34,9 @@ class MixinMeta(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def format_template_room_name(self, template: str, data: dict, num: int = 1) -> str:
+    async def format_template_room_name(
+        self, template: str, data: dict, num: int = 1
+    ) -> str:
         raise NotImplementedError
 
     @abstractmethod
