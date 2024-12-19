@@ -39,7 +39,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "4.0.2"
+    __version__ = "4.0.3"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -665,11 +665,12 @@ class AutoRoom(
             "mention": member.mention,
             "datetime": datetime.now(tz=UTC),
             "member": member,
+            "game": None,
         }
         if isinstance(member, discord.Member):
             for activity in member.activities:
-                if activity.type == discord.ActivityType.playing:
-                    data["game"] = activity.name or ""
+                if activity.type == discord.ActivityType.playing and activity.name:
+                    data["game"] = activity.name
                     break
         return data
 

@@ -12,8 +12,6 @@ from redbot.core.utils.chat_formatting import error, info, success, warning
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.predicates import MessagePredicate
 
-from autoroom.pcx_template import TemplateTimeoutError
-
 from .abc import MixinMeta
 from .pcx_lib import SettingDisplay
 
@@ -612,7 +610,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 try:
                     # Validate template
                     await self.format_template_room_name(template, data)
-                except (TemplateError, TemplateTimeoutError) as rte:
+                except TemplateError as rte:
                     await ctx.send(
                         error(
                             "Hmm... that doesn't seem to be a valid template:"
@@ -691,7 +689,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             try:
                 # Validate template
                 hint_text_formatted = await self.template.render(hint_text, data)
-            except (TemplateError, TemplateTimeoutError) as rte:
+            except TemplateError as rte:
                 await ctx.send(
                     error(
                         "Hmm... that doesn't seem to be a valid template:"
@@ -892,7 +890,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             try:
                 # Validate template
                 topic_text_formatted = await self.template.render(topic_text, data)
-            except (TemplateError, TemplateTimeoutError) as rte:
+            except TemplateError as rte:
                 await ctx.send(
                     error(
                         "Hmm... that doesn't seem to be a valid template:"

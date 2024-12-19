@@ -17,7 +17,7 @@ MAX_CHANNEL_NAME_LENGTH = 100
 class AutoRoomCommands(MixinMeta, ABC):
     """The autoroom command."""
 
-    @commands.group()
+    @commands.group(aliases=["vc"])
     @commands.guild_only()
     async def autoroom(self, ctx: commands.Context) -> None:
         """Manage your AutoRoom.
