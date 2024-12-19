@@ -3,6 +3,7 @@
 import asyncio
 import datetime
 import logging
+import math
 from datetime import timedelta
 from typing import ClassVar
 
@@ -32,7 +33,7 @@ class Heartbeat(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "1.4.0"
+    __version__ = "1.5.0"
 
     default_global_settings: ClassVar[dict[str, int | str]] = {
         "url": "",
@@ -141,6 +142,9 @@ class Heartbeat(commands.Cog):
         """
         if not url:
             return "No URL supplied"
+        if "{{ping}}" in url:
+            ping = 0 if math.isnan(self.bot.latency) else int(self.bot.latency)
+            url = url.replace("{{ping}}", str(ping))
         last_exception = None
         retries = 3
         while retries > 0:
