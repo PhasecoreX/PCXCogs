@@ -39,7 +39,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "4.0.3"
+    __version__ = "4.0.4"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -284,7 +284,7 @@ class AutoRoom(
             if voice_channel:
                 if isinstance(voice_channel, discord.VoiceChannel):
                     # Delete AutoRoom if it is empty
-                    await self._process_autoroom_delete(voice_channel)
+                    await self._process_autoroom_delete(voice_channel, None)
             else:
                 # AutoRoom has already been deleted, clean up legacy text channel if it still exists
                 legacy_text_channel = await self.get_autoroom_legacy_text_channel(
@@ -334,11 +334,20 @@ class AutoRoom(
         if await self.bot.cog_disabled_in_guild(self, member.guild):
             return
 
+        if isinstance(joining.channel, discord.VoiceChannel):
+            # If user entered an AutoRoom Source channel, create new AutoRoom
+            asc = await self.get_autoroom_source_config(joining.channel)
+            if asc:
+                await self._process_autoroom_create(joining.channel, asc, member)
+            # If user entered an AutoRoom, allow them into the associated text channel
+            elif await self.get_autoroom_info(joining.channel):
+                await self._process_autoroom_legacy_text_perms(joining.channel)
+
         # If user left an AutoRoom, do cleanup
         if isinstance(leaving.channel, discord.VoiceChannel):
             autoroom_info = await self.get_autoroom_info(leaving.channel)
             if autoroom_info:
-                deleted = await self._process_autoroom_delete(leaving.channel)
+                deleted = await self._process_autoroom_delete(leaving.channel, member)
                 if not deleted:
                     # AutoRoom wasn't deleted, so update text channel perms
                     await self._process_autoroom_legacy_text_perms(leaving.channel)
@@ -352,15 +361,6 @@ class AutoRoom(
                         if bucket:
                             bucket.reset()
                             bucket.update_rate_limit()
-
-        if isinstance(joining.channel, discord.VoiceChannel):
-            # If user entered an AutoRoom Source channel, create new AutoRoom
-            asc = await self.get_autoroom_source_config(joining.channel)
-            if asc:
-                await self._process_autoroom_create(joining.channel, asc, member)
-            # If user entered an AutoRoom, allow them into the associated text channel
-            if await self.get_autoroom_info(joining.channel):
-                await self._process_autoroom_legacy_text_perms(joining.channel)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
@@ -505,7 +505,7 @@ class AutoRoom(
                 new_voice_channel, reason="AutoRoom: Move user to new AutoRoom."
             )
         except discord.HTTPException:
-            await self._process_autoroom_delete(new_voice_channel)
+            await self._process_autoroom_delete(new_voice_channel, member)
             return
 
         # Create optional legacy text channel
@@ -565,12 +565,18 @@ class AutoRoom(
                         await new_voice_channel.send(hint[:2000].strip())
 
     @staticmethod
-    async def _process_autoroom_delete(voice_channel: discord.VoiceChannel) -> bool:
+    async def _process_autoroom_delete(
+        voice_channel: discord.VoiceChannel, leaving_user: discord.Member | None
+    ) -> bool:
         """Delete AutoRoom if empty."""
         if (
+            # If there are no members left in the channel, or if there's just one and it's the person currently leaving (race condition)
             not voice_channel.members
-            and voice_channel.permissions_for(voice_channel.guild.me).manage_channels
-        ):
+            or (
+                len(voice_channel.members) == 1
+                and voice_channel.members[0] == leaving_user
+            )
+        ) and voice_channel.permissions_for(voice_channel.guild.me).manage_channels:
             with suppress(
                 discord.NotFound
             ):  # Sometimes this happens when the user manually deletes their channel
@@ -664,7 +670,15 @@ class AutoRoom(
             "username": member.display_name,
             "mention": member.mention,
             "datetime": datetime.now(tz=UTC),
-            "member": member,
+            "member": {
+                "display_name": member.display_name,
+                "mention": member.mention,
+                "name": member.name,
+                "id": member.id,
+                "global_name": member.global_name,
+                "bot": member.bot,
+                "system": member.system,
+            },
             "game": None,
         }
         if isinstance(member, discord.Member):
