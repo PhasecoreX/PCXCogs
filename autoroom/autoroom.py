@@ -39,7 +39,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "4.0.4"
+    __version__ = "4.0.5"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -334,15 +334,6 @@ class AutoRoom(
         if await self.bot.cog_disabled_in_guild(self, member.guild):
             return
 
-        if isinstance(joining.channel, discord.VoiceChannel):
-            # If user entered an AutoRoom Source channel, create new AutoRoom
-            asc = await self.get_autoroom_source_config(joining.channel)
-            if asc:
-                await self._process_autoroom_create(joining.channel, asc, member)
-            # If user entered an AutoRoom, allow them into the associated text channel
-            elif await self.get_autoroom_info(joining.channel):
-                await self._process_autoroom_legacy_text_perms(joining.channel)
-
         # If user left an AutoRoom, do cleanup
         if isinstance(leaving.channel, discord.VoiceChannel):
             autoroom_info = await self.get_autoroom_info(leaving.channel)
@@ -361,6 +352,15 @@ class AutoRoom(
                         if bucket:
                             bucket.reset()
                             bucket.update_rate_limit()
+
+        if isinstance(joining.channel, discord.VoiceChannel):
+            # If user entered an AutoRoom Source channel, create new AutoRoom
+            asc = await self.get_autoroom_source_config(joining.channel)
+            if asc:
+                await self._process_autoroom_create(joining.channel, asc, member)
+            # If user entered an AutoRoom, allow them into the associated text channel
+            elif await self.get_autoroom_info(joining.channel):
+                await self._process_autoroom_legacy_text_perms(joining.channel)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
