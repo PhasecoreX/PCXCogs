@@ -143,8 +143,10 @@ class Heartbeat(commands.Cog):
         if not url:
             return "No URL supplied"
         if "{{ping}}" in url:
-            ping = 0 if math.isnan(self.bot.latency) else int(self.bot.latency)
-            url = url.replace("{{ping}}", str(ping))
+            ping: float = self.bot.latency
+            if ping is None or math.isnan(ping):
+                ping = 0
+            url = url.replace("{{ping}}", f"{ping*1000:.2f}")
         last_exception = None
         retries = 3
         while retries > 0:
