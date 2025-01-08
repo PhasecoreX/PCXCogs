@@ -39,7 +39,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "4.0.5"
+    __version__ = "4.0.6"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -332,6 +332,9 @@ class AutoRoom(
     ) -> None:
         """Do voice channel stuff when users move about channels."""
         if await self.bot.cog_disabled_in_guild(self, member.guild):
+            return
+
+        if leaving.channel == joining.channel:
             return
 
         # If user left an AutoRoom, do cleanup
