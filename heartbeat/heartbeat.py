@@ -35,7 +35,7 @@ class Heartbeat(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "2.0.0"
+    __version__ = "2.0.1"
 
     default_global_settings: ClassVar[dict[str, int]] = {
         "schema_version": 0,
@@ -157,16 +157,16 @@ class Heartbeat(commands.Cog):
         frequency = await self.config.frequency()
         frequency = float(max(frequency, MIN_HEARTBEAT_SECONDS))
         while True:
-            self.next_heartbeat = datetime.datetime.now(
-                datetime.UTC
-            ) + datetime.timedelta(0, frequency)
-            await asyncio.sleep(frequency)
             errors: dict[str, str] = {}
             for endpoint_id, config in endpoints.items():
                 error = await self.send_heartbeat(config)
                 if error:
                     errors[endpoint_id] = error
             self.current_errors = errors
+            self.next_heartbeat = datetime.datetime.now(
+                datetime.UTC
+            ) + datetime.timedelta(0, frequency)
+            await asyncio.sleep(frequency)
 
     async def send_heartbeat(self, config: dict) -> str | None:
         """Send a heartbeat ping.
