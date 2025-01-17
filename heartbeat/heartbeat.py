@@ -4,8 +4,10 @@ import asyncio
 import datetime
 import logging
 import math
+from contextlib import suppress
 from datetime import timedelta
-from typing import ClassVar
+from typing import Any, ClassVar
+from urllib.parse import urlparse
 
 import aiohttp
 from redbot.core import Config, checks, commands
@@ -20,7 +22,7 @@ user_agent = (
 )
 log = logging.getLogger("red.pcxcogs.heartbeat")
 
-MIN_HEARTBEAT_SECONDS = 60.0
+MIN_HEARTBEAT_SECONDS = 60
 
 
 class Heartbeat(commands.Cog):
@@ -33,11 +35,16 @@ class Heartbeat(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "1.5.0"
+    __version__ = "2.0.0"
 
-    default_global_settings: ClassVar[dict[str, int | str]] = {
+    default_global_settings: ClassVar[dict[str, int]] = {
+        "schema_version": 0,
+        "frequency": MIN_HEARTBEAT_SECONDS,
+    }
+
+    default_endpoint_settings: ClassVar[dict[str, bool | str]] = {
         "url": "",
-        "frequency": 60,
+        "ssl_verify": True,
     }
 
     def __init__(self, bot: Red) -> None:
@@ -48,8 +55,10 @@ class Heartbeat(commands.Cog):
             self, identifier=1224364860, force_registration=True
         )
         self.config.register_global(**self.default_global_settings)
+        self.config.init_custom("ENDPOINT", 1)
+        self.config.register_custom("ENDPOINT", **self.default_endpoint_settings)
         self.session = aiohttp.ClientSession()
-        self.current_error = None
+        self.current_errors: dict[str, str] = {}
         self.next_heartbeat = datetime.datetime.now(datetime.UTC)
         self.bg_loop_task = None
         self.background_tasks = set()
@@ -81,13 +90,29 @@ class Heartbeat(commands.Cog):
 
     async def initialize(self) -> None:
         """Perform setup actions before loading cog."""
+        await self._migrate_config()
         self.enable_bg_loop()
+
+    async def _migrate_config(self) -> None:
+        """Perform some configuration migrations."""
+        schema_version = await self.config.schema_version()
+
+        if schema_version < 1:
+            # Support multiple URLs
+            url = await self.config.get_raw("url", default="")
+            if url:
+                await self.config.custom(
+                    "ENDPOINT",
+                    await self.get_new_endpoint_id(url),
+                ).set({"url": url})
+            await self.config.clear_raw("url")
+            await self.config.schema_version.set(1)
 
     #
     # Background loop methods
     #
 
-    def enable_bg_loop(self, *, skip_first: bool = False) -> None:
+    def enable_bg_loop(self) -> None:
         """Set up the background loop task."""
 
         def error_handler(fut: asyncio.Future) -> None:
@@ -113,35 +138,44 @@ class Heartbeat(commands.Cog):
 
         if self.bg_loop_task:
             self.bg_loop_task.cancel()
-        self.bg_loop_task = self.bot.loop.create_task(
-            self.bg_loop(skip_first=skip_first)
-        )
+        self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
         self.bg_loop_task.add_done_callback(error_handler)
 
-    async def bg_loop(self, *, skip_first: bool) -> None:
+    async def bg_loop(self) -> None:
         """Background loop."""
         await self.bot.wait_until_ready()
-        url = await self.config.url()
-        if not url:
+        endpoints_raw = await self.config.custom(
+            "ENDPOINT"
+        ).all()  # Does NOT return default values
+        if not endpoints_raw:
             return
+        endpoints = {}
+        for endpoint in endpoints_raw:
+            endpoints[endpoint] = await self.config.custom(
+                "ENDPOINT", endpoint
+            ).all()  # Returns default values
         frequency = await self.config.frequency()
-        frequency = max(frequency, MIN_HEARTBEAT_SECONDS)
-        if not skip_first:
-            self.current_error = await self.send_heartbeat(url)
+        frequency = float(max(frequency, MIN_HEARTBEAT_SECONDS))
         while True:
             self.next_heartbeat = datetime.datetime.now(
                 datetime.UTC
             ) + datetime.timedelta(0, frequency)
             await asyncio.sleep(frequency)
-            self.current_error = await self.send_heartbeat(url)
+            errors: dict[str, str] = {}
+            for endpoint_id, config in endpoints.items():
+                error = await self.send_heartbeat(config)
+                if error:
+                    errors[endpoint_id] = error
+            self.current_errors = errors
 
-    async def send_heartbeat(self, url: str) -> str | None:
+    async def send_heartbeat(self, config: dict) -> str | None:
         """Send a heartbeat ping.
 
         Returns error message if error, None otherwise
         """
-        if not url:
+        if not config["url"]:
             return "No URL supplied"
+        url = config["url"]
         if "{{ping}}" in url:
             ping: float = self.bot.latency
             if ping is None or math.isnan(ping):
@@ -154,13 +188,16 @@ class Heartbeat(commands.Cog):
                 await self.session.get(
                     url,
                     headers={"user-agent": user_agent},
+                    ssl=config["ssl_verify"],
                 )
             except (TimeoutError, aiohttp.ClientConnectionError) as exc:
                 last_exception = exc
             else:
                 return None
             retries -= 1
-        return str(last_exception)
+        if last_exception:
+            return str(last_exception)
+        return None
 
     #
     # Command methods: heartbeat
@@ -174,12 +211,13 @@ class Heartbeat(commands.Cog):
     @heartbeat.command()
     async def settings(self, ctx: commands.Context) -> None:
         """Display current settings."""
+        endpoints = await self.config.custom("ENDPOINT").all()
         global_section = SettingDisplay("Global Settings")
-        heartbeat_status = "Disabled (no URL set)"
+        heartbeat_status = "Disabled (no URLs set)"
         if self.bg_loop_task and not self.bg_loop_task.done():
             heartbeat_status = "Enabled"
-        elif await self.config.url():
-            heartbeat_status = "Disabled (faulty URL)"
+        elif endpoints:
+            heartbeat_status = "Disabled (error occured)"
         global_section.add("Heartbeat", heartbeat_status)
         global_section.add(
             "Frequency", humanize_timedelta(seconds=await self.config.frequency())
@@ -190,42 +228,91 @@ class Heartbeat(commands.Cog):
                 humanize_timedelta(
                     timedelta=self.next_heartbeat - datetime.datetime.now(datetime.UTC)
                 )
-                or "0 seconds",
+                or "<1 second",
             )
-        if self.current_error:
-            global_section.add("Current error", self.current_error)
-        await ctx.send(str(global_section))
+        status = SettingDisplay("Heartbeat Status")
+        for endpoint in endpoints:
+            status.add(endpoint, self.current_errors.get(endpoint, "OK"))
+        await ctx.send(global_section.display(status))
 
     @heartbeat.command()
-    async def url(self, ctx: commands.Context, url: str) -> None:
-        """Set the URL Heartbeat will send pings to."""
+    async def add(self, ctx: commands.Context, url: str) -> None:
+        """Add a new endpoint to send pings to."""
         await delete(ctx.message)
-        try:
-            error_message = await self.send_heartbeat(url)
-            if not error_message:
-                await self.config.url.set(url)
-                self.enable_bg_loop(skip_first=True)
-                await ctx.send(success("Heartbeat URL has been set and enabled."))
-                return
-        except Exception as ex:  # noqa: BLE001
-            error_message = str(ex)
-        previous_url_text = (
-            "I will continue to use the previous URL instead."
-            if await self.config.url()
-            else ""
-        )
+        endpoint_id = await self.get_new_endpoint_id(url)
+        await self.config.custom(
+            "ENDPOINT",
+            endpoint_id,
+        ).set({"url": url})
+        self.enable_bg_loop()
         await ctx.send(
-            error(
-                f"Something seems to be wrong with that URL, I am not able to connect to it:\n```{error_message}```{previous_url_text}"
+            success(f"Endpoint `{endpoint_id}` has been added to Heartbeat.")
+        )
+
+    @heartbeat.command()
+    async def remove(self, ctx: commands.Context, endpoint_id: str) -> None:
+        """Remove and disable Heartbeat pings for a given endpoint ID."""
+        await self.config.custom("ENDPOINT", endpoint_id).clear()
+        self.enable_bg_loop()
+        await ctx.send(
+            success(f"Endpoint `{endpoint_id}` has been removed from Heartbeat.")
+        )
+
+    @heartbeat.group()
+    async def modify(self, ctx: commands.Context) -> None:
+        """Modify configuration for a given endpoint."""
+
+    @modify.command(name="ssl_verify")
+    async def modify_ssl_verify(
+        self, ctx: commands.Context, endpoint_id: str, *, true_false: bool
+    ) -> None:
+        """Configure if we should verify SSL when performing ping."""
+        endpoint = await self.get_endpoint_config(endpoint_id)
+        if not endpoint:
+            await ctx.send(
+                error(
+                    f"Could not find endpoint ID `{endpoint_id}`. Check `[p]heartbeat settings` for a list of valid endpoint IDs."
+                )
+            )
+            return
+        await self.config.custom("ENDPOINT", endpoint_id).ssl_verify.set(true_false)
+        self.enable_bg_loop()
+        await ctx.send(
+            success(
+                f"Endpoint `{endpoint_id}` will {'now' if true_false else 'no longer'} verify SSL."
             )
         )
 
     @heartbeat.command()
-    async def disable(self, ctx: commands.Context) -> None:
-        """Remove the set URL and disable Heartbeat pings."""
-        await self.config.url.clear()
+    async def rename(
+        self, ctx: commands.Context, endpoint_id: str, new_endpoint_id: str
+    ) -> None:
+        """Rename an endpoint ID."""
+        current_config = await self.config.custom("ENDPOINT").all()
+        if endpoint_id in current_config:
+            await self.config.custom("ENDPOINT", new_endpoint_id).set(
+                current_config[endpoint_id]
+            )
+            await self.config.custom("ENDPOINT", endpoint_id).clear()
+            self.enable_bg_loop()
+            await ctx.send(
+                success(
+                    f"Endpoint `{endpoint_id}` has been renamed to `{new_endpoint_id}`."
+                )
+            )
+        else:
+            await ctx.send(
+                error(
+                    f"Could not find endpoint ID `{endpoint_id}`. Check `[p]heartbeat settings` for a list of valid endpoint IDs."
+                )
+            )
+
+    @heartbeat.command()
+    async def reset(self, ctx: commands.Context) -> None:
+        """Remove all endpoints and disable Heartbeat pings."""
+        await self.config.custom("ENDPOINT").clear()
         self.enable_bg_loop()
-        await ctx.send(success("Heartbeat has been disabled."))
+        await ctx.send(success("Heartbeat has been disabled completely."))
 
     @heartbeat.command()
     async def frequency(
@@ -245,3 +332,36 @@ class Heartbeat(commands.Cog):
             )
         )
         self.enable_bg_loop()
+
+    #
+    # Private methods
+    #
+
+    async def get_new_endpoint_id(self, url: str) -> str:
+        """Generate an ID from a given URL."""
+        endpoint_id = "default"
+        with suppress(Exception):
+            endpoint_id = urlparse(url).netloc or endpoint_id
+        endpoint_id_result = endpoint_id
+        config_check = await self.config.custom(
+            "ENDPOINT", endpoint_id_result
+        ).all()  # Returns default values
+        count = 1
+        while config_check["url"]:
+            count += 1
+            endpoint_id_result = f"{endpoint_id}_{count}"
+            config_check = await self.config.custom(
+                "ENDPOINT", endpoint_id_result
+            ).all()  # Returns default values
+        return endpoint_id_result
+
+    async def get_endpoint_config(self, endpoint_id: str) -> dict[str, Any] | None:
+        """Get an endpoint config from the DB, ignoring invalid ones."""
+        endpoint = await self.config.custom("ENDPOINT", endpoint_id).all()
+        if not endpoint["url"]:
+            return None
+        return endpoint
+
+    #
+    # Public methods
+    #
