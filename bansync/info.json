@@ -3,8 +3,8 @@
     "author": [
         "PhasecoreX (PhasecoreX#0635)"
     ],
-    "short": "Automatically sync bans across servers.",
-    "description": "This cog allows server admins to ban users on their server when they are banned on another server that the bot is in.",
+    "short": "Automatically sync moderation actions across servers.",
+    "description": "This cog allows server admins to have moderation actions automatically applied to members on their server when those actions are performed on another server that the bot is in.",
     "install_msg": "Thanks for installing BanSync!",
     "tags": [
         "auto",
@@ -14,6 +14,7 @@
         "moderation",
         "pull",
         "sync",
+        "timeout",
         "utility"
     ],
     "min_bot_version": "3.5.0",
