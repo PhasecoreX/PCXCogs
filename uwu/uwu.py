@@ -127,12 +127,12 @@ class UwU(commands.Cog):
         )
 
     #
-    # Listener for auto-UwU webhook replacement (fully unified with ?uwu + typing)
+    # Listener for auto-UwU webhook replacement (no typing)
     #
 
     @commands.Cog.listener()
     async def on_message_without_command(self, message: discord.Message):
-        """Automatically uwu-ize messages in configured channels using webhook, matching ?uwu output."""
+        """Automatically uwu-ize messages in configured channels using webhook."""
         if message.author.bot or not message.guild or not message.content:
             return
 
@@ -154,28 +154,15 @@ class UwU(commands.Cog):
         # Prepare attachments
         files = [await a.to_file() for a in message.attachments] if message.attachments else None
 
-        # Typing simulation: send message in chunks
-        chunk_size = 50  # adjust chunk size for typing effect
-        chunks = [uwu_text[i : i + chunk_size] for i in range(0, len(uwu_text), chunk_size)]
-        for chunk in chunks:
-            async with message.channel.typing():
-                await webhook.send(
-                    content=chunk,
-                    username=message.author.display_name,
-                    avatar_url=message.author.display_avatar.url,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                )
-
-        # Send attachments and embeds at the end
-        if files or message.embeds:
-            await webhook.send(
-                content="",
-                files=files,
-                embeds=message.embeds if message.embeds else None,
-                username=message.author.display_name,
-                avatar_url=message.author.display_avatar.url,
-                allowed_mentions=discord.AllowedMentions.none(),
-            )
+        # Send the UwU message through the webhook
+        await webhook.send(
+            content=uwu_text,
+            username=message.author.display_name,
+            avatar_url=message.author.display_avatar.url,
+            allowed_mentions=discord.AllowedMentions.none(),
+            files=files,
+            embeds=message.embeds if message.embeds else None,
+        )
 
     #
     # UwUize methods
