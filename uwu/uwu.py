@@ -14,7 +14,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX + Modified by Didi"
-    __version__ = "2.2.1"
+    __version__ = "2.2.2"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -51,7 +51,6 @@ class UwU(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1234567890)
-        # store a list of channel IDs for automatic UwU
         self.config.register_guild(auto_channels=[])
 
     #
@@ -136,8 +135,7 @@ class UwU(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # Allow commands to still work
-        await self.bot.process_commands(message)
+        await self.bot.process_commands(message)  # allow commands to run
 
         if message.author.bot or not message.guild:
             return
@@ -199,7 +197,6 @@ class UwU(commands.Cog):
         final_punctuation = punctuations[-1] if punctuations else ""
         extra_punctuation = punctuations[:-1] if punctuations else ""
 
-        # Process punctuation
         if final_punctuation == "." and not random.randint(0, 3):
             final_punctuation = random.choice(self.KAOMOJI_JOY)
         if final_punctuation == "?" and not random.randint(0, 2):
