@@ -1,4 +1,4 @@
-"""UwU cog for Red-DiscordBot by PhasecoreX."""
+"""UwU cog for Red-DiscordBot by PhasecoreX + per-user toggle."""
 
 # ruff: noqa: S311
 import random
@@ -14,8 +14,8 @@ from .pcx_lib import type_message
 class UwU(commands.Cog):
     """UwU."""
 
-    __author__ = "PhasecoreX + Didi (For the channel feature)"
-    __version__ = "2.3.1"
+    __author__ = "PhasecoreX + Didi"
+    __version__ = "2.4.0"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -53,6 +53,8 @@ class UwU(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1234567890)
         self.config.register_global(uwu_channels={})
+        # Per-guild user toggles
+        self.config.register_guild(user_uwu_toggle={})
         self._webhook_cache: dict[int, discord.Webhook] = {}
 
     #
@@ -94,6 +96,26 @@ class UwU(commands.Cog):
         self._webhook_cache.pop(channel.id, None)
         await ctx.send(f"UwU channel removed: {channel.mention}")
 
+    @commands.group()
+    async def uwuuser(self, ctx: commands.Context):
+        """Toggle per-user UwU webhook in this server."""
+
+    @uwuuser.command(name="enable")
+    async def uwuuser_enable(self, ctx: commands.Context):
+        """Enable UwU webhook for yourself in this server."""
+        data = await self.config.guild(ctx.guild).user_uwu_toggle()
+        data[str(ctx.author.id)] = True
+        await self.config.guild(ctx.guild).user_uwu_toggle.set(data)
+        await ctx.send("UwU webhook enabled for you in this server!")
+
+    @uwuuser.command(name="disable")
+    async def uwuuser_disable(self, ctx: commands.Context):
+        """Disable UwU webhook for yourself in this server."""
+        data = await self.config.guild(ctx.guild).user_uwu_toggle()
+        data.pop(str(ctx.author.id), None)
+        await self.config.guild(ctx.guild).user_uwu_toggle.set(data)
+        await ctx.send("UwU webhook disabled for you in this server!")
+
     @commands.command(aliases=["owo"])
     async def uwu(self, ctx: commands.Context, *, text: str | None = None) -> None:
         """Uwuize the replied to message, previous message, or your own text."""
@@ -126,7 +148,10 @@ class UwU(commands.Cog):
             return
 
         uwu_channels = await self.config.uwu_channels()
-        if str(message.channel.id) not in uwu_channels:
+        user_toggle = await self.config.guild(message.guild).user_uwu_toggle()
+        user_enabled = user_toggle.get(str(message.author.id), False)
+
+        if not (str(message.channel.id) in uwu_channels or user_enabled):
             return
 
         uwu_content = self.uwuize_string(message.content)
