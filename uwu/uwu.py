@@ -7,14 +7,14 @@ from typing import ClassVar
 import discord
 from redbot.core import commands, Config
 
-from .pcx_lib import type_message
+from .pcx_lib import type_message  # keep your type_message utility
 
 
 class UwU(commands.Cog):
     """UwU."""
 
-    __author__ = "PhasecoreX + Modified by Didi"
-    __version__ = "2.2.2"
+    __author__ = "PhasecoreX + Didi"
+    __version__ = "2.3.0"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -135,16 +135,17 @@ class UwU(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        await self.bot.process_commands(message)  # allow commands to run
-
+        # Ignore bots, DMs, and command messages
         if message.author.bot or not message.guild:
+            return
+        if message.content.startswith(tuple(self.bot.command_prefix)):
             return
 
         auto_channels = await self.config.guild(message.guild).auto_channels()
         if message.channel.id not in auto_channels:
             return
 
-        if not message.content:  # skip empty messages
+        if not message.content:
             return
 
         uwu_text = self.uwuize_string(message.content)
@@ -163,7 +164,7 @@ class UwU(commands.Cog):
         if webhook is None:
             webhook = await message.channel.create_webhook(name="UwU Webhook")
 
-        # Send UwUized message as the user
+        # Send UwUized message as the original user
         await webhook.send(
             uwu_text,
             username=message.author.display_name,
