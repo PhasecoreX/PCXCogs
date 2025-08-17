@@ -6,7 +6,7 @@ from contextlib import suppress
 from typing import ClassVar
 
 import discord
-from redbot.core import commands, Config, checks
+from redbot.core import Config, checks, commands
 
 from .pcx_lib import type_message
 
@@ -76,7 +76,6 @@ class UwU(commands.Cog):
     @checks.is_owner()
     async def uwuset(self, ctx: commands.Context):
         """Setup UwU channel settings."""
-        pass
 
     @uwuset.command(name="channel")
     async def uwuset_channel(self, ctx: commands.Context, channel: discord.TextChannel):
@@ -233,7 +232,12 @@ class UwU(commands.Cog):
                 + protected
             )
 
-        if len(uwu) > 2 and uwu[0].isalpha() and "-" not in uwu and not random.randint(0, 6):
+        if (
+            len(uwu) > 2
+            and uwu[0].isalpha()
+            and "-" not in uwu
+            and not random.randint(0, 6)
+        ):
             uwu = f"{uwu[0]}-{uwu}"
 
         return uwu + extra_punctuation + final_punctuation

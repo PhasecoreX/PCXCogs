@@ -2,7 +2,9 @@
 
 import json
 from pathlib import Path
+
 from redbot.core.bot import Red
+
 from .uwu import UwU
 
 with Path(__file__).parent.joinpath("info.json").open() as fp:
@@ -11,4 +13,3 @@ with Path(__file__).parent.joinpath("info.json").open() as fp:
 
 async def setup(bot):
     await bot.add_cog(UwU(bot))
-
