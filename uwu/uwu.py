@@ -14,7 +14,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX + Didi"
-    __version__ = "2.3.1"
+    __version__ = "2.3.2"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -44,7 +44,7 @@ class UwU(commands.Cog):
         " \\*:･ﾟ✧\\*:･ﾟ✧ ",
         " ☆\\*:・ﾟ ",
         "〜☆ ",
-        " uguu.., ",
+        " uguu.. ",
         "-.-",
     ]
 
@@ -130,17 +130,13 @@ class UwU(commands.Cog):
         )
 
     #
-    # Listener
+    # Listener for auto-UwU webhook replacement
     #
 
-    @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
+    @commands.Cog.listener("on_message_without_command")
+    async def uwu_auto_webhook(self, message: discord.Message):
         # Ignore bots and DMs
         if message.author.bot or not message.guild:
-            return
-
-        # Ignore commands
-        if message.content.startswith(tuple(self.bot.command_prefix)):
             return
 
         auto_channels = await self.config.guild(message.guild).auto_channels()
