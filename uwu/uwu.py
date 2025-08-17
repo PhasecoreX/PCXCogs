@@ -1,4 +1,4 @@
-"""UwU cog for Red-DiscordBot by PhasecoreX + UwU channel webhook feature with webhook caching."""
+"""UwU cog for Red-DiscordBot by PhasecoreX."""
 
 # ruff: noqa: S311
 import random
@@ -14,7 +14,7 @@ from .pcx_lib import type_message
 class UwU(commands.Cog):
     """UwU."""
 
-    __author__ = "PhasecoreX + Didi"
+    __author__ = "PhasecoreX + Didi (For the channel feature)"
     __version__ = "2.3.1"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
