@@ -6,7 +6,6 @@ from typing import ClassVar
 
 import discord
 from redbot.core import commands, Config
-
 from .pcx_lib import type_message  # keep your type_message utility
 
 
@@ -14,7 +13,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX + Didi"
-    __version__ = "2.3.2"
+    __version__ = "2.3.3"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -73,7 +72,7 @@ class UwU(commands.Cog):
     @commands.group(invoke_without_command=True)
     async def uwuset(self, ctx: commands.Context):
         """Setup UwU features."""
-        await ctx.send_help()  # show help if no subcommand
+        await ctx.send_help()
 
     @uwuset.command(name="addchannel")
     async def uwuset_addchannel(self, ctx: commands.Context, channel: discord.TextChannel):
@@ -124,50 +123,51 @@ class UwU(commands.Cog):
         await type_message(
             ctx.channel,
             self.uwuize_string(text),
-            allowed_mentions=discord.AllowedMentions(
-                everyone=False, users=False, roles=False
-            ),
+            allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False),
         )
 
     #
     # Listener for auto-UwU webhook replacement
     #
 
-    @commands.Cog.listener("on_message_without_command")
-    async def uwu_auto_webhook(self, message: discord.Message):
-        # Ignore bots and DMs
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
+            return
+        # Skip commands
+        if message.content.startswith(tuple(self.bot.command_prefix)):
             return
 
         auto_channels = await self.config.guild(message.guild).auto_channels()
         if message.channel.id not in auto_channels:
             return
+        if not message.content:
+            return
 
-        # Uwuize text if it exists
-        uwu_text = self.uwuize_string(message.content) if message.content else ""
+        uwu_text = self.uwuize_string(message.content)
 
         # Delete original message
         with suppress(discord.Forbidden, discord.NotFound):
             await message.delete()
 
         # Find or create webhook
-        webhook = None
-        for wh in await message.channel.webhooks():
-            if wh.name == "UwU Webhook":
-                webhook = wh
-                break
-        if webhook is None:
-            webhook = await message.channel.create_webhook(name="UwU Webhook")
+        try:
+            webhooks = await message.channel.webhooks()
+            webhook = discord.utils.get(webhooks, name="UwU Webhook")
+            if webhook is None:
+                webhook = await message.channel.create_webhook(name="UwU Webhook")
 
-        # Send UwUized message via webhook, include attachments and embeds
-        await webhook.send(
-            content=uwu_text,
-            username=message.author.display_name,
-            avatar_url=message.author.display_avatar.url,
-            allowed_mentions=discord.AllowedMentions.none(),
-            files=[await attachment.to_file() for attachment in message.attachments] if message.attachments else None,
-            embeds=message.embeds if message.embeds else None,
-        )
+            # Send UwUized message
+            await webhook.send(
+                content=uwu_text,
+                username=message.author.display_name,
+                avatar_url=message.author.display_avatar.url,
+                allowed_mentions=discord.AllowedMentions.none(),
+                files=[await a.to_file() for a in message.attachments] if message.attachments else None,
+                embeds=message.embeds if message.embeds else None,
+            )
+        except Exception as e:
+            print(f"UwU webhook failed: {e}")
 
     #
     # UwUize methods
