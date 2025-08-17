@@ -13,7 +13,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX + Didi"
-    __version__ = "2.3.5"
+    __version__ = "2.3.6"  # updated version
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -127,7 +127,7 @@ class UwU(commands.Cog):
         )
 
     #
-    # Listener for auto-UwU webhook replacement (fully unified with ?uwu + typing)
+    # Listener for auto-UwU webhook replacement (restored stuttering)
     #
 
     @commands.Cog.listener()
@@ -142,40 +142,28 @@ class UwU(commands.Cog):
 
         uwu_text = self.uwuize_string(message.content)
 
-        # Delete the original message
+        # Delete original message
         with suppress(discord.Forbidden, discord.NotFound):
             await message.delete()
 
-        # Find or create the webhook
+        # Find or create webhook
         webhook = discord.utils.get(await message.channel.webhooks(), name="UwU Webhook")
         if webhook is None:
             webhook = await message.channel.create_webhook(name="UwU Webhook")
 
-        # Prepare attachments
+        # Prepare files and embeds
         files = [await a.to_file() for a in message.attachments] if message.attachments else None
+        embeds = message.embeds if message.embeds else None
 
-        # Typing simulation: send message in chunks
-        chunk_size = 50  # adjust chunk size for typing effect
-        chunks = [uwu_text[i : i + chunk_size] for i in range(0, len(uwu_text), chunk_size)]
-        for chunk in chunks:
-            async with message.channel.typing():
-                await webhook.send(
-                    content=chunk,
-                    username=message.author.display_name,
-                    avatar_url=message.author.display_avatar.url,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                )
-
-        # Send attachments and embeds at the end
-        if files or message.embeds:
-            await webhook.send(
-                content="",
-                files=files,
-                embeds=message.embeds if message.embeds else None,
-                username=message.author.display_name,
-                avatar_url=message.author.display_avatar.url,
-                allowed_mentions=discord.AllowedMentions.none(),
-            )
+        # Send final UwU message
+        await webhook.send(
+            content=uwu_text or "\u200b",
+            username=message.author.display_name,
+            avatar_url=message.author.display_avatar.url,
+            allowed_mentions=discord.AllowedMentions.none(),
+            files=files,
+            embeds=embeds,
+        )
 
     #
     # UwUize methods
@@ -197,23 +185,29 @@ class UwU(commands.Cog):
         return converted
 
     def uwuize_word(self, word: str) -> str:
-        word = word.lower()
-        uwu = word.rstrip(".?!,")
-        punctuations = word[len(uwu):]
+        word_lower = word.lower()
+        uwu = word_lower.rstrip(".?!,")
+        punctuations = word_lower[len(uwu):]
         final_punctuation = punctuations[-1] if punctuations else ""
         extra_punctuation = punctuations[:-1] if punctuations else ""
 
-        if final_punctuation == "." and not random.randint(0, 3):
-            final_punctuation = random.choice(self.KAOMOJI_JOY)
-        if final_punctuation == "?" and not random.randint(0, 2):
-            final_punctuation = random.choice(self.KAOMOJI_CONFUSE)
-        if final_punctuation == "!" and not random.randint(0, 2):
-            final_punctuation = random.choice(self.KAOMOJI_JOY)
-        if final_punctuation == "," and not random.randint(0, 3):
-            final_punctuation = random.choice(self.KAOMOJI_EMBARRASSED)
-        if final_punctuation and not random.randint(0, 4):
-            final_punctuation = random.choice(self.KAOMOJI_SPARKLES)
+        # Add "stuttering" at random for first letter
+        if len(uwu) > 2 and uwu[0].isalpha() and random.randint(0, 2) == 0:
+            uwu = f"{uwu[0]}-{uwu}"
 
+        # Replace letters and patterns
+        uwu = (
+            uwu.replace("r", "w")
+            .replace("l", "w")
+            .replace("na", "nya")
+            .replace("ne", "nye")
+            .replace("ni", "nyi")
+            .replace("no", "nyo")
+            .replace("nu", "nyu")
+            .replace("ove", "uv")
+        )
+
+        # Exceptions
         exceptions = {
             "you're": "ur",
             "youre": "ur",
@@ -231,27 +225,17 @@ class UwU(commands.Cog):
         }
         if uwu in exceptions:
             uwu = exceptions[uwu]
-        else:
-            protected = ""
-            if uwu.endswith(("le", "ll", "er", "re")):
-                protected = uwu[-2:]
-                uwu = uwu[:-2]
-            elif uwu.endswith(("les", "lls", "ers", "res")):
-                protected = uwu[-3:]
-                uwu = uwu[:-3]
-            uwu = (
-                uwu.replace("l", "w")
-                .replace("r", "w")
-                .replace("na", "nya")
-                .replace("ne", "nye")
-                .replace("ni", "nyi")
-                .replace("no", "nyo")
-                .replace("nu", "nyu")
-                .replace("ove", "uv")
-                + protected
-            )
 
-        if len(uwu) > 2 and uwu[0].isalpha() and "-" not in uwu and not random.randint(0, 6):
-            uwu = f"{uwu[0]}-{uwu}"
+        # Add random kaomojis at the end
+        if final_punctuation == "." and not random.randint(0, 3):
+            final_punctuation = random.choice(self.KAOMOJI_JOY)
+        if final_punctuation == "?" and not random.randint(0, 2):
+            final_punctuation = random.choice(self.KAOMOJI_CONFUSE)
+        if final_punctuation == "!" and not random.randint(0, 2):
+            final_punctuation = random.choice(self.KAOMOJI_JOY)
+        if final_punctuation == "," and not random.randint(0, 3):
+            final_punctuation = random.choice(self.KAOMOJI_EMBARRASSED)
+        if final_punctuation and not random.randint(0, 4):
+            final_punctuation = random.choice(self.KAOMOJI_SPARKLES)
 
         return uwu + extra_punctuation + final_punctuation
