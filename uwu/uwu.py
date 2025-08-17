@@ -1,4 +1,4 @@
-"""UwU cog for Red-DiscordBot by PhasecoreX + Didi (The channel and user toggles)."""
+"""uwu cog for Red-DiscordBot by PhasecoreX + Didi (The channel and user toggles)."""
 
 # ruff: noqa: S311
 import random
@@ -12,7 +12,7 @@ from .pcx_lib import type_message
 
 
 class UwU(commands.Cog):
-    """UwU."""
+    """uwu."""
 
     __author__ = "PhasecoreX + Didi"
     __version__ = "2.5.0"
@@ -55,7 +55,7 @@ class UwU(commands.Cog):
         self.config.register_global(uwu_channels={})
         # Per-guild user toggles
         self.config.register_guild(
-            user_uwu_toggle={}, admin_override={}  # User opt-in  # Admin-forced UwU
+            user_uwu_toggle={}, admin_override={}  # User opt-in  # Admin-forced uwu
         )
         self._webhook_cache: dict[int, discord.Webhook] = {}
 
@@ -79,36 +79,36 @@ class UwU(commands.Cog):
     @commands.group()
     @checks.is_owner()
     async def uwuset(self, ctx: commands.Context):
-        """Setup UwU channel settings."""
+        """Setup uwu channel settings."""
 
     @uwuset.command(name="channel")
     async def uwuset_channel(self, ctx: commands.Context, channel: discord.TextChannel):
-        """Enable UwU auto-messages for a channel."""
+        """Enable uwu auto-messages for a channel."""
         channels = await self.config.uwu_channels()
         channels[str(channel.id)] = True
         await self.config.uwu_channels.set(channels)
-        await ctx.send(f"UwU channel set: {channel.mention}")
+        await ctx.send(f"uwu channel set: {channel.mention}")
 
     @uwuset.command(name="remove")
     async def uwuset_remove(self, ctx: commands.Context, channel: discord.TextChannel):
-        """Disable UwU auto-messages for a channel."""
+        """Disable uwu auto-messages for a channel."""
         channels = await self.config.uwu_channels()
         channels.pop(str(channel.id), None)
         await self.config.uwu_channels.set(channels)
         self._webhook_cache.pop(channel.id, None)
-        await ctx.send(f"UwU channel removed: {channel.mention}")
+        await ctx.send(f"uwu channel removed: {channel.mention}")
 
     @commands.group()
     async def uwuuser(self, ctx: commands.Context):
-        """Toggle per-user UwU webhook in this server."""
+        """Toggle per-user uwu webhook in this server."""
 
     @uwuuser.command(name="toggle")
     async def uwuuser_toggle(self, ctx: commands.Context):
-        """Enable or disable UwU webhook for yourself in this server."""
+        """Enable or disable uwu webhook for yourself in this server."""
         admin_override = await self.config.guild(ctx.guild).admin_override()
         if str(ctx.author.id) in admin_override:
             return await ctx.send(
-                "Admin has forced UwU for you; you cannot disable it."
+                "Admin has forced uwu for you; you cannot disable it."
             )
 
         data = await self.config.guild(ctx.guild).user_uwu_toggle()
@@ -124,11 +124,11 @@ class UwU(commands.Cog):
     @uwuuser.command(name="list")
     @checks.mod()
     async def uwuuser_list(self, ctx: commands.Context):
-        """List users with per-user UwU enabled or admin-forced."""
+        """List users with per-user uwu enabled or admin-forced."""
         data = await self.config.guild(ctx.guild).user_uwu_toggle()
         admin_override = await self.config.guild(ctx.guild).admin_override()
         if not data and not admin_override:
-            return await ctx.send("No users have per-user UwU enabled.")
+            return await ctx.send("No users have per-user uwu enabled.")
         lines = []
         for uid in set(list(data.keys()) + list(admin_override.keys())):
             member = ctx.guild.get_member(int(uid))
@@ -140,13 +140,13 @@ class UwU(commands.Cog):
     @uwuuser.command(name="admin")
     @checks.mod()
     async def uwuuser_admin(self, ctx: commands.Context, member: discord.Member):
-        """Toggle admin-forced UwU for a user."""
+        """Toggle admin-forced uwu for a user."""
         admin_override = await self.config.guild(ctx.guild).admin_override()
         uid = str(member.id)
         if uid in admin_override:
             admin_override.pop(uid)
             await self.config.guild(ctx.guild).admin_override.set(admin_override)
-            await ctx.send(f"Admin-forced UwU disabled for {member.display_name}.")
+            await ctx.send(f"Admin-forced uwu disabled for {member.display_name}.")
         else:
             admin_override[uid] = True
             # Also remove user opt-in to prevent conflicts
@@ -179,7 +179,7 @@ class UwU(commands.Cog):
         )
 
     #
-    # Event listener for auto-UwU channels
+    # Event listener for auto-uwu channels
     #
 
     @commands.Cog.listener()
@@ -211,11 +211,11 @@ class UwU(commands.Cog):
         if not webhook:
             webhooks = await message.channel.webhooks()
             for wh in webhooks:
-                if wh.name == "UwU Bot":
+                if wh.name == "uwu Bot":
                     webhook = wh
                     break
             if not webhook:
-                webhook = await message.channel.create_webhook(name="UwU Bot")
+                webhook = await message.channel.create_webhook(name="uwu Bot")
             self._webhook_cache[message.channel.id] = webhook
 
         await webhook.send(
@@ -230,7 +230,7 @@ class UwU(commands.Cog):
     #
 
     def uwuize_string(self, string: str) -> str:
-        """Uwuize and return a string."""
+        """uwuize and return a string."""
         converted = ""
         current_word = ""
         for letter in string:
