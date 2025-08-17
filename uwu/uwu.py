@@ -1,4 +1,4 @@
-"""UwU cog for Red-DiscordBot by PhasecoreX."""
+"""UwU cog for Red-DiscordBot by PhasecoreX + UwU channel webhook feature."""
 
 # ruff: noqa: S311
 import random
@@ -6,7 +6,7 @@ from contextlib import suppress
 from typing import ClassVar
 
 import discord
-from redbot.core import commands
+from redbot.core import commands, Config
 
 from .pcx_lib import type_message
 
@@ -14,8 +14,8 @@ from .pcx_lib import type_message
 class UwU(commands.Cog):
     """UwU."""
 
-    __author__ = "PhasecoreX"
-    __version__ = "2.1.1"
+    __author__ = "PhasecoreX + Modified by Didi"
+    __version__ = "2.2.0"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -49,6 +49,12 @@ class UwU(commands.Cog):
         "-.-",
     ]
 
+    def __init__(self, bot):
+        self.bot = bot
+        self.config = Config.get_conf(self, identifier=1234567890)
+        # store a list of channel IDs for automatic UwU
+        self.config.register_guild(auto_channels=[])
+
     #
     # Red methods
     #
@@ -63,6 +69,48 @@ class UwU(commands.Cog):
         return
 
     #
+    # Setup commands
+    #
+
+    @commands.guild_only()
+    @commands.admin_or_permissions(manage_guild=True)
+    @commands.group()
+    async def uwuset(self, ctx: commands.Context):
+        """Setup UwU features."""
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help()
+
+    @uwuset.command(name="addchannel")
+    async def uwuset_addchannel(self, ctx: commands.Context, channel: discord.TextChannel):
+        """Add a channel for automatic UwU messages."""
+        async with self.config.guild(ctx.guild).auto_channels() as channels:
+            if channel.id not in channels:
+                channels.append(channel.id)
+        await ctx.send(f"Added {channel.mention} to UwU auto channels.")
+
+    @uwuset.command(name="removechannel")
+    async def uwuset_removechannel(self, ctx: commands.Context, channel: discord.TextChannel):
+        """Remove a channel from automatic UwU messages."""
+        async with self.config.guild(ctx.guild).auto_channels() as channels:
+            if channel.id in channels:
+                channels.remove(channel.id)
+        await ctx.send(f"Removed {channel.mention} from UwU auto channels.")
+
+    @uwuset.command(name="listchannels")
+    async def uwuset_listchannels(self, ctx: commands.Context):
+        """List all channels set for automatic UwU messages."""
+        channels = await self.config.guild(ctx.guild).auto_channels()
+        if not channels:
+            await ctx.send("No channels are set for automatic UwU messages.")
+            return
+        mentions = []
+        for cid in channels:
+            ch = ctx.guild.get_channel(cid)
+            if ch:
+                mentions.append(ch.mention)
+        await ctx.send("Automatic UwU channels: " + ", ".join(mentions))
+
+    #
     # Command methods
     #
 
@@ -71,15 +119,12 @@ class UwU(commands.Cog):
         """Uwuize the replied to message, previous message, or your own text."""
         if not text:
             if hasattr(ctx.message, "reference") and ctx.message.reference:
-                with suppress(
-                    discord.Forbidden, discord.NotFound, discord.HTTPException
-                ):
+                with suppress(discord.Forbidden, discord.NotFound, discord.HTTPException):
                     message_id = ctx.message.reference.message_id
                     if message_id:
                         text = (await ctx.fetch_message(message_id)).content
             if not text:
                 messages = [message async for message in ctx.channel.history(limit=2)]
-                # [0] is the command, [1] is the message before the command
                 text = messages[1].content or "I can't translate that!"
         await type_message(
             ctx.channel,
@@ -90,7 +135,46 @@ class UwU(commands.Cog):
         )
 
     #
-    # Public methods
+    # Listener
+    #
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        # Ignore bot messages
+        if message.author.bot or not message.guild:
+            return
+
+        auto_channels = await self.config.guild(message.guild).auto_channels()
+        if message.channel.id not in auto_channels:
+            return
+
+        # UwUize content
+        uwu_text = self.uwuize_string(message.content)
+
+        # Delete original message
+        with suppress(discord.Forbidden, discord.NotFound):
+            await message.delete()
+
+        # Find or create webhook
+        webhook = None
+        for wh in await message.channel.webhooks():
+            if wh.name == "UwU Webhook":
+                webhook = wh
+                break
+
+        if webhook is None:
+            webhook = await message.channel.create_webhook(name="UwU Webhook")
+
+        # Send UwUized message as the user
+        await webhook.send(
+            uwu_text,
+            username=message.author.display_name,
+            avatar_url=message.author.display_avatar.url,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+
+    #
+    # UwUize methods
     #
 
     def uwuize_string(self, string: str) -> str:
@@ -110,14 +194,10 @@ class UwU(commands.Cog):
         return converted
 
     def uwuize_word(self, word: str) -> str:
-        """Uwuize and return a word.
-
-        Thank you to the following for inspiration:
-        https://github.com/senguyen1011/UwUinator
-        """
+        """Uwuize and return a word."""
         word = word.lower()
         uwu = word.rstrip(".?!,")
-        punctuations = word[len(uwu) :]
+        punctuations = word[len(uwu):]
         final_punctuation = punctuations[-1] if punctuations else ""
         extra_punctuation = punctuations[:-1] if punctuations else ""
 
@@ -134,25 +214,23 @@ class UwU(commands.Cog):
             final_punctuation = random.choice(self.KAOMOJI_SPARKLES)
 
         # Full word exceptions
-        if uwu in ("you're", "youre"):
-            uwu = "ur"
-        elif uwu == "fuck":
-            uwu = "fwickk"
-        elif uwu == "shit":
-            uwu = "poopoo"
-        elif uwu == "bitch":
-            uwu = "meanie"
-        elif uwu == "asshole":
-            uwu = "b-butthole"
-        elif uwu in ("dick", "penis"):
-            uwu = "peenie"
-        elif uwu in ("cum", "semen"):
-            uwu = "cummies"
-        elif uwu == "ass":
-            uwu = "b-butt"
-        elif uwu in ("dad", "father"):
-            uwu = "daddy"
-        # Normal word conversion
+        exceptions = {
+            "you're": "ur",
+            "youre": "ur",
+            "fuck": "fwickk",
+            "shit": "poopoo",
+            "bitch": "meanie",
+            "asshole": "b-butthole",
+            "dick": "peenie",
+            "penis": "peenie",
+            "cum": "cummies",
+            "semen": "cummies",
+            "ass": "b-butt",
+            "dad": "daddy",
+            "father": "daddy",
+        }
+        if uwu in exceptions:
+            uwu = exceptions[uwu]
         else:
             # Protect specific word endings from changes
             protected = ""
@@ -176,12 +254,7 @@ class UwU(commands.Cog):
             )
 
         # Add occasional stutter
-        if (
-            len(uwu) > 2  # noqa: PLR2004
-            and uwu[0].isalpha()
-            and "-" not in uwu
-            and not random.randint(0, 6)
-        ):
+        if len(uwu) > 2 and uwu[0].isalpha() and "-" not in uwu and not random.randint(0, 6):
             uwu = f"{uwu[0]}-{uwu}"
 
         # Add back punctuations and return
