@@ -13,7 +13,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX + Didi"
-    __version__ = "2.3.4"
+    __version__ = "2.3.5"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -149,23 +149,24 @@ class UwU(commands.Cog):
             await message.delete()
 
         # Find or create webhook
-        try:
-            webhooks = await message.channel.webhooks()
-            webhook = discord.utils.get(webhooks, name="UwU Webhook")
-            if webhook is None:
-                webhook = await message.channel.create_webhook(name="UwU Webhook")
+        webhook = discord.utils.get(await message.channel.webhooks(), name="UwU Webhook")
+        if webhook is None:
+            webhook = await message.channel.create_webhook(name="UwU Webhook")
 
-            # Send UwUized message
-            await webhook.send(
-                content=uwu_text,
-                username=message.author.display_name,
-                avatar_url=message.author.display_avatar.url,
-                allowed_mentions=discord.AllowedMentions.none(),
-                files=[await a.to_file() for a in message.attachments] if message.attachments else None,
-                embeds=message.embeds if message.embeds else None,
-            )
-        except Exception as e:
-            print(f"UwU webhook failed: {e}")
+        # Prepare kwargs
+        send_kwargs = {
+            "content": uwu_text,
+            "username": message.author.display_name,
+            "avatar_url": message.author.display_avatar.url,
+            "allowed_mentions": discord.AllowedMentions.none(),
+        }
+        if message.attachments:
+            send_kwargs["files"] = [await a.to_file() for a in message.attachments]
+        if message.embeds:
+            send_kwargs["embeds"] = message.embeds
+
+        # Send the UwU message
+        await webhook.send(**send_kwargs)
 
     #
     # UwUize methods
