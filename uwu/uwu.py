@@ -14,7 +14,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX + Didi"
-    __version__ = "2.3.0"
+    __version__ = "2.3.1"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -135,9 +135,11 @@ class UwU(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # Ignore bots, DMs, and command messages
+        # Ignore bots and DMs
         if message.author.bot or not message.guild:
             return
+
+        # Ignore commands
         if message.content.startswith(tuple(self.bot.command_prefix)):
             return
 
@@ -145,10 +147,8 @@ class UwU(commands.Cog):
         if message.channel.id not in auto_channels:
             return
 
-        if not message.content:
-            return
-
-        uwu_text = self.uwuize_string(message.content)
+        # Uwuize text if it exists
+        uwu_text = self.uwuize_string(message.content) if message.content else ""
 
         # Delete original message
         with suppress(discord.Forbidden, discord.NotFound):
@@ -160,16 +160,17 @@ class UwU(commands.Cog):
             if wh.name == "UwU Webhook":
                 webhook = wh
                 break
-
         if webhook is None:
             webhook = await message.channel.create_webhook(name="UwU Webhook")
 
-        # Send UwUized message as the original user
+        # Send UwUized message via webhook, include attachments and embeds
         await webhook.send(
-            uwu_text,
+            content=uwu_text,
             username=message.author.display_name,
             avatar_url=message.author.display_avatar.url,
             allowed_mentions=discord.AllowedMentions.none(),
+            files=[await attachment.to_file() for attachment in message.attachments] if message.attachments else None,
+            embeds=message.embeds if message.embeds else None,
         )
 
     #
