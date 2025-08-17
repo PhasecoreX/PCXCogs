@@ -54,8 +54,7 @@ class uwu(commands.Cog):
         self.config = Config.get_conf(self, identifier=1234567890)
         self.config.register_global(uwu_channels={})
         self.config.register_guild(
-            user_uwu_toggle={},  # User opt-in
-            admin_override={}    # Admin-forced uwu
+            user_uwu_toggle={}, admin_override={}  # User opt-in  # Admin-forced uwu
         )
         self._webhook_cache: dict[int, discord.Webhook] = {}
 
@@ -99,14 +98,18 @@ class uwu(commands.Cog):
         await ctx.send(f"uwu channel removed: {channel.mention}")
 
     @commands.command()
-    async def uwutoggle(self, ctx: commands.Context, member: discord.Member | None = None):
+    async def uwutoggle(
+        self, ctx: commands.Context, member: discord.Member | None = None
+    ):
         """Toggle uwu for yourself or, if admin, for another member."""
         guild = ctx.guild
         user_toggle = await self.config.guild(guild).user_uwu_toggle()
         admin_override = await self.config.guild(guild).admin_override()
 
         # Admin toggling someone else
-        if member and (ctx.author.guild_permissions.manage_guild or ctx.author == guild.owner):
+        if member and (
+            ctx.author.guild_permissions.manage_guild or ctx.author == guild.owner
+        ):
             uid = str(member.id)
             if uid in admin_override:
                 admin_override.pop(uid)
@@ -119,12 +122,14 @@ class uwu(commands.Cog):
                 await self.config.guild(guild).user_uwu_toggle.set(user_toggle)
                 await self.config.guild(guild).admin_override.set(admin_override)
                 await ctx.send(f"Admin-forced uwu enabled for {member.display_name}.")
-            return
+            return None
 
         # Regular user toggling self
         uid = str(ctx.author.id)
         if uid in admin_override:
-            return await ctx.send("Admin has forced uwu for you; you cannot disable it.")
+            return await ctx.send(
+                "Admin has forced uwu for you; you cannot disable it."
+            )
         if uid in user_toggle:
             user_toggle.pop(uid)
             await self.config.guild(guild).user_uwu_toggle.set(user_toggle)
@@ -153,7 +158,7 @@ class uwu(commands.Cog):
 
     @commands.command(aliases=["owo"])
     async def uwu(self, ctx: commands.Context, *, text: str | None = None) -> None:
-        """uwuize the replied to message, previous message, or your own text."""
+        """Uwuize the replied to message, previous message, or your own text."""
         if not text:
             if hasattr(ctx.message, "reference") and ctx.message.reference:
                 with suppress(
@@ -225,7 +230,7 @@ class uwu(commands.Cog):
     #
 
     def uwuize_string(self, string: str) -> str:
-        """uwuize and return a string."""
+        """Uwuize and return a string."""
         converted = ""
         current_word = ""
         for letter in string:
@@ -241,7 +246,7 @@ class uwu(commands.Cog):
         return converted
 
     def uwuize_word(self, word: str) -> str:
-        """uwuize and return a word."""
+        """Uwuize and return a word."""
         word = word.lower()
         uwu = word.rstrip(".?!,")
         punctuations = word[len(uwu) :]
