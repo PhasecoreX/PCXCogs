@@ -55,8 +55,7 @@ class UwU(commands.Cog):
         self.config.register_global(uwu_channels={})
         # Per-guild user toggles
         self.config.register_guild(
-            user_uwu_toggle={},      # User opt-in
-            admin_override={}        # Admin-forced UwU
+            user_uwu_toggle={}, admin_override={}  # User opt-in  # Admin-forced UwU
         )
         self._webhook_cache: dict[int, discord.Webhook] = {}
 
@@ -108,7 +107,9 @@ class UwU(commands.Cog):
         """Enable or disable UwU webhook for yourself in this server."""
         admin_override = await self.config.guild(ctx.guild).admin_override()
         if str(ctx.author.id) in admin_override:
-            return await ctx.send("Admin has forced UwU for you; you cannot disable it.")
+            return await ctx.send(
+                "Admin has forced UwU for you; you cannot disable it."
+            )
 
         data = await self.config.guild(ctx.guild).user_uwu_toggle()
         if str(ctx.author.id) in data:
