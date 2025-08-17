@@ -1,4 +1,4 @@
-"""UwU cog for Red-DiscordBot by PhasecoreX + per-user toggle + admin overrides."""
+"""UwU cog for Red-DiscordBot by PhasecoreX + Didi (The channel and user toggles)."""
 
 # ruff: noqa: S311
 import random
