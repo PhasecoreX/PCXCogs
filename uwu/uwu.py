@@ -142,7 +142,7 @@ class UwU(commands.Cog):
 
         uwu_text = self.uwuize_string(message.content)
 
-        # Delete original message
+        # Delete the original message
         with suppress(discord.Forbidden, discord.NotFound):
             await message.delete()
 
@@ -151,21 +151,18 @@ class UwU(commands.Cog):
         if webhook is None:
             webhook = await message.channel.create_webhook(name="UwU Webhook")
 
-        # Prepare kwargs for webhook.send
-        send_kwargs = {
-            "content": uwu_text or "\u200b",  # fallback if empty
-            "username": message.author.display_name,
-            "avatar_url": message.author.display_avatar.url,
-            "allowed_mentions": discord.AllowedMentions.none(),
-        }
-
-        if message.attachments:
-            send_kwargs["files"] = [await a.to_file() for a in message.attachments]
-        if message.embeds:
-            send_kwargs["embeds"] = message.embeds
+        # Prepare attachments
+        files = [await a.to_file() for a in message.attachments] if message.attachments else None
 
         # Send the UwU message through the webhook
-        await webhook.send(**send_kwargs)
+        await webhook.send(
+            content=uwu_text,
+            username=message.author.display_name,
+            avatar_url=message.author.display_avatar.url,
+            allowed_mentions=discord.AllowedMentions.none(),
+            files=files,
+            embeds=message.embeds if message.embeds else None,
+        )
 
     #
     # UwUize methods
