@@ -1,6 +1,5 @@
 """UwU cog for Red-DiscordBot by PhasecoreX + UwU channel webhook feature."""
 
-# ruff: noqa: S311
 import random
 from contextlib import suppress
 from typing import ClassVar
@@ -15,7 +14,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX + Modified by Didi"
-    __version__ = "2.2.0"
+    __version__ = "2.2.1"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -60,12 +59,10 @@ class UwU(commands.Cog):
     #
 
     def format_help_for_context(self, ctx: commands.Context) -> str:
-        """Show version in help."""
         pre_processed = super().format_help_for_context(ctx)
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
     async def red_delete_data_for_user(self, *, _requester: str, _user_id: int) -> None:
-        """Nothing to delete."""
         return
 
     #
@@ -74,11 +71,10 @@ class UwU(commands.Cog):
 
     @commands.guild_only()
     @commands.admin_or_permissions(manage_guild=True)
-    @commands.group()
+    @commands.group(invoke_without_command=True)
     async def uwuset(self, ctx: commands.Context):
         """Setup UwU features."""
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help()
+        await ctx.send_help()  # show help if no subcommand
 
     @uwuset.command(name="addchannel")
     async def uwuset_addchannel(self, ctx: commands.Context, channel: discord.TextChannel):
@@ -140,7 +136,9 @@ class UwU(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # Ignore bot messages
+        # Allow commands to still work
+        await self.bot.process_commands(message)
+
         if message.author.bot or not message.guild:
             return
 
@@ -148,7 +146,9 @@ class UwU(commands.Cog):
         if message.channel.id not in auto_channels:
             return
 
-        # UwUize content
+        if not message.content:  # skip empty messages
+            return
+
         uwu_text = self.uwuize_string(message.content)
 
         # Delete original message
@@ -178,7 +178,6 @@ class UwU(commands.Cog):
     #
 
     def uwuize_string(self, string: str) -> str:
-        """Uwuize and return a string."""
         converted = ""
         current_word = ""
         for letter in string:
@@ -194,7 +193,6 @@ class UwU(commands.Cog):
         return converted
 
     def uwuize_word(self, word: str) -> str:
-        """Uwuize and return a word."""
         word = word.lower()
         uwu = word.rstrip(".?!,")
         punctuations = word[len(uwu):]
@@ -213,7 +211,6 @@ class UwU(commands.Cog):
         if final_punctuation and not random.randint(0, 4):
             final_punctuation = random.choice(self.KAOMOJI_SPARKLES)
 
-        # Full word exceptions
         exceptions = {
             "you're": "ur",
             "youre": "ur",
@@ -232,7 +229,6 @@ class UwU(commands.Cog):
         if uwu in exceptions:
             uwu = exceptions[uwu]
         else:
-            # Protect specific word endings from changes
             protected = ""
             if uwu.endswith(("le", "ll", "er", "re")):
                 protected = uwu[-2:]
@@ -240,7 +236,6 @@ class UwU(commands.Cog):
             elif uwu.endswith(("les", "lls", "ers", "res")):
                 protected = uwu[-3:]
                 uwu = uwu[:-3]
-            # l -> w, r -> w, n<vowel> -> ny<vowel>, ove -> uv
             uwu = (
                 uwu.replace("l", "w")
                 .replace("r", "w")
@@ -253,9 +248,7 @@ class UwU(commands.Cog):
                 + protected
             )
 
-        # Add occasional stutter
         if len(uwu) > 2 and uwu[0].isalpha() and "-" not in uwu and not random.randint(0, 6):
             uwu = f"{uwu[0]}-{uwu}"
 
-        # Add back punctuations and return
         return uwu + extra_punctuation + final_punctuation
