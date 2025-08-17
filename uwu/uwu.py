@@ -127,7 +127,7 @@ class UwU(commands.Cog):
         )
 
     #
-    # Listener for auto-UwU webhook replacement (fully unified with ?uwu)
+    # Listener for auto-UwU webhook replacement (fully unified with ?uwu + typing)
     #
 
     @commands.Cog.listener()
@@ -140,7 +140,6 @@ class UwU(commands.Cog):
         if message.channel.id not in auto_channels:
             return
 
-        # UwUize the message content
         uwu_text = self.uwuize_string(message.content)
 
         # Delete the original message
@@ -155,17 +154,28 @@ class UwU(commands.Cog):
         # Prepare attachments
         files = [await a.to_file() for a in message.attachments] if message.attachments else None
 
-        # Send the UwU message using type_message to replicate ?uwu formatting
-        await type_message(
-            message.channel,
-            uwu_text,
-            webhook=webhook,
-            username=message.author.display_name,
-            avatar_url=message.author.display_avatar.url,
-            allowed_mentions=discord.AllowedMentions.none(),
-            files=files,
-            embeds=message.embeds if message.embeds else None,
-        )
+        # Typing simulation: send message in chunks
+        chunk_size = 50  # adjust chunk size for typing effect
+        chunks = [uwu_text[i : i + chunk_size] for i in range(0, len(uwu_text), chunk_size)]
+        for chunk in chunks:
+            async with message.channel.typing():
+                await webhook.send(
+                    content=chunk,
+                    username=message.author.display_name,
+                    avatar_url=message.author.display_avatar.url,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+
+        # Send attachments and embeds at the end
+        if files or message.embeds:
+            await webhook.send(
+                content="",
+                files=files,
+                embeds=message.embeds if message.embeds else None,
+                username=message.author.display_name,
+                avatar_url=message.author.display_avatar.url,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
 
     #
     # UwUize methods
