@@ -13,7 +13,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX + Didi"
-    __version__ = "2.3.5"
+    __version__ = "2.4.0"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -127,7 +127,7 @@ class UwU(commands.Cog):
         )
 
     #
-    # Listener for auto-UwU webhook replacement
+    # Listener for auto-UwU webhook replacement using type_message
     #
 
     @commands.Cog.listener()
@@ -153,20 +153,17 @@ class UwU(commands.Cog):
         if webhook is None:
             webhook = await message.channel.create_webhook(name="UwU Webhook")
 
-        # Prepare kwargs
-        send_kwargs = {
-            "content": uwu_text,
-            "username": message.author.display_name,
-            "avatar_url": message.author.display_avatar.url,
-            "allowed_mentions": discord.AllowedMentions.none(),
-        }
-        if message.attachments:
-            send_kwargs["files"] = [await a.to_file() for a in message.attachments]
-        if message.embeds:
-            send_kwargs["embeds"] = message.embeds
-
-        # Send the UwU message
-        await webhook.send(**send_kwargs)
+        # Use type_message to match ?uwu formatting exactly
+        await type_message(
+            message.channel,
+            uwu_text,
+            allowed_mentions=discord.AllowedMentions.none(),
+            webhook=webhook,
+            username=message.author.display_name,
+            avatar_url=message.author.display_avatar.url,
+            attachments=message.attachments,
+            embeds=message.embeds,
+        )
 
     #
     # UwUize methods
