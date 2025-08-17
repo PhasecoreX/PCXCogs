@@ -13,7 +13,7 @@ class UwU(commands.Cog):
     """UwU."""
 
     __author__ = "PhasecoreX + Didi"
-    __version__ = "2.4.0"
+    __version__ = "2.3.5"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -127,42 +127,44 @@ class UwU(commands.Cog):
         )
 
     #
-    # Listener for auto-UwU webhook replacement using type_message
+    # Listener for auto-UwU webhook replacement (fully unified with ?uwu)
     #
 
     @commands.Cog.listener()
     async def on_message_without_command(self, message: discord.Message):
-        """Automatically uwu-ize messages in configured channels using webhook."""
-        if message.author.bot or not message.guild:
+        """Automatically uwu-ize messages in configured channels using webhook, matching ?uwu output."""
+        if message.author.bot or not message.guild or not message.content:
             return
 
         auto_channels = await self.config.guild(message.guild).auto_channels()
         if message.channel.id not in auto_channels:
             return
-        if not message.content:
-            return
 
+        # UwUize the message content
         uwu_text = self.uwuize_string(message.content)
 
-        # Delete original message
+        # Delete the original message
         with suppress(discord.Forbidden, discord.NotFound):
             await message.delete()
 
-        # Find or create webhook
+        # Find or create the webhook
         webhook = discord.utils.get(await message.channel.webhooks(), name="UwU Webhook")
         if webhook is None:
             webhook = await message.channel.create_webhook(name="UwU Webhook")
 
-        # Use type_message to match ?uwu formatting exactly
+        # Prepare attachments
+        files = [await a.to_file() for a in message.attachments] if message.attachments else None
+
+        # Send the UwU message using type_message to replicate ?uwu formatting
         await type_message(
             message.channel,
             uwu_text,
-            allowed_mentions=discord.AllowedMentions.none(),
             webhook=webhook,
             username=message.author.display_name,
             avatar_url=message.author.display_avatar.url,
-            attachments=message.attachments,
-            embeds=message.embeds,
+            allowed_mentions=discord.AllowedMentions.none(),
+            files=files,
+            embeds=message.embeds if message.embeds else None,
         )
 
     #
