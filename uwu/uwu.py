@@ -230,7 +230,7 @@ class UwU(commands.Cog):
     #
 
     def uwuize_string(self, string: str) -> str:
-        """uwuize and return a string."""
+        """Uwuize and return a string."""
         converted = ""
         current_word = ""
         for letter in string:
