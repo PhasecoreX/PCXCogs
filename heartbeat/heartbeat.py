@@ -35,7 +35,7 @@ class Heartbeat(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "2.0.1"
+    __version__ = "2.0.2"
 
     default_global_settings: ClassVar[dict[str, int]] = {
         "schema_version": 0,
@@ -45,6 +45,7 @@ class Heartbeat(commands.Cog):
     default_endpoint_settings: ClassVar[dict[str, bool | str]] = {
         "url": "",
         "ssl_verify": True,
+        "request_type": "GET",
     }
 
     def __init__(self, bot: Red) -> None:
@@ -180,16 +181,23 @@ class Heartbeat(commands.Cog):
             ping: float = self.bot.latency
             if ping is None or math.isnan(ping):
                 ping = 0
-            url = url.replace("{{ping}}", f"{ping*1000:.2f}")
+            url = url.replace("{{ping}}", f"{ping * 1000:.2f}")
         last_exception = None
         retries = 3
         while retries > 0:
             try:
-                await self.session.get(
-                    url,
-                    headers={"user-agent": user_agent},
-                    ssl=config["ssl_verify"],
-                )
+                if config["request_type"].upper() == "POST":
+                    await self.session.post(
+                        url,
+                        headers={"user-agent": user_agent},
+                        ssl=config["ssl_verify"],
+                    )
+                else:
+                    await self.session.get(
+                        url,
+                        headers={"user-agent": user_agent},
+                        ssl=config["ssl_verify"],
+                    )
             except (TimeoutError, aiohttp.ClientConnectionError) as exc:
                 last_exception = exc
             else:
@@ -280,6 +288,38 @@ class Heartbeat(commands.Cog):
         await ctx.send(
             success(
                 f"Endpoint `{endpoint_id}` will {'now' if true_false else 'no longer'} verify SSL."
+            )
+        )
+
+    @modify.command(name="request_type")
+    async def modify_request_type(
+        self, ctx: commands.Context, endpoint_id: str, *, request_type: str
+    ) -> None:
+        """Configure what type of request we should send."""
+        endpoint = await self.get_endpoint_config(endpoint_id)
+        if not endpoint:
+            await ctx.send(
+                error(
+                    f"Could not find endpoint ID `{endpoint_id}`. Check `[p]heartbeat settings` for a list of valid endpoint IDs."
+                )
+            )
+            return
+        request_type_clean = request_type.upper()
+        supported_types = ["GET", "POST"]
+        if request_type_clean not in supported_types:
+            await ctx.send(
+                error(
+                    f"Request type {request_type_clean} is not supported. Supported request types: {', '.join(supported_types)}"
+                )
+            )
+            return
+        await self.config.custom("ENDPOINT", endpoint_id).request_type.set(
+            request_type_clean
+        )
+        self.enable_bg_loop()
+        await ctx.send(
+            success(
+                f"Endpoint `{endpoint_id}` will now send {request_type_clean} requests."
             )
         )
 
