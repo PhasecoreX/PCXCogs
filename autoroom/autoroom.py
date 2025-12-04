@@ -39,7 +39,7 @@ class AutoRoom(
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "4.0.6"
+    __version__ = "4.0.7"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, bool | list[int]]] = {
@@ -490,14 +490,18 @@ class AutoRoom(
             perms.update(role, autoroom_source_config["perms"]["allow"])
 
         # Create new AutoRoom
-        new_voice_channel = await guild.create_voice_channel(
-            name=new_channel_name,
-            category=dest_category,
-            reason="AutoRoom: New AutoRoom needed.",
-            overwrites=perms.overwrites if perms.overwrites else {},
-            bitrate=min(autoroom_source.bitrate, int(guild.bitrate_limit)),
-            user_limit=autoroom_source.user_limit,
-        )
+        voice_channel_config = {
+            "name": new_channel_name,
+            "category": dest_category,
+            "reason": "AutoRoom: New AutoRoom needed.",
+            "bitrate": min(autoroom_source.bitrate, int(guild.bitrate_limit)),
+            "user_limit": autoroom_source.user_limit,
+        }
+        if perms.overwrites:
+            voice_channel_config["overwrites"] = perms.overwrites
+        if autoroom_source.rtc_region:
+            voice_channel_config["rtc_region"] = autoroom_source.rtc_region
+        new_voice_channel = await guild.create_voice_channel(**voice_channel_config)
         await self.config.channel(new_voice_channel).source_channel.set(
             autoroom_source.id
         )
