@@ -1,0 +1,295 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: autoroom zh-tw\n"
+"POT-Creation-Date: 2022-04-27 23:03+0800\n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: Zaphkiel\n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 3.0.1\n"
+"X-Poedit-SearchPath-0: autoroom.py\n"
+"X-Poedit-SearchPath-1: c_autoroom.py\n"
+"X-Poedit-SearchPath-2: c_autoroomset.py\n"
+
+#: autoroom/c_autoroom.py:34
+msgid "Room Settings"
+msgstr "頻道設置"
+
+#: autoroom/c_autoroom.py:35
+msgid "owner"
+msgstr "擁有者"
+
+#: autoroom/c_autoroom.py:43
+msgid "Mode"
+msgstr "模式"
+
+#: autoroom/c_autoroom.py:44
+msgid "Server Managed"
+msgstr "伺服器管理"
+
+#: autoroom/c_autoroom.py:47
+msgid "source_channel"
+msgstr "原頻道"
+
+#: autoroom/c_autoroom.py:47
+msgid "custom"
+msgstr "顧客/自訂"
+
+#: autoroom/c_autoroom.py:67
+msgid ", only certain roles"
+msgstr ", 只有某些身分組"
+
+#: autoroom/c_autoroom.py:68
+msgid "Access"
+msgstr "使用權"
+
+#: autoroom/c_autoroom.py:71
+msgid "Member Roles"
+msgstr "成員身分組"
+
+#: autoroom/c_autoroom.py:71
+msgid ", "
+msgstr ", "
+
+#: autoroom/c_autoroom.py:74
+msgid "Bitrate"
+msgstr "位元率(越高音質越好)"
+
+#: autoroom/c_autoroom.py:74
+msgid "{autoroom_channel.bitrate // 1000}kbps"
+msgstr "{autoroom_channel.bitrate // 1000}kbps"
+
+#: autoroom/c_autoroom.py:76
+msgid "Channel Age"
+msgstr "頻道存在時間"
+
+#: autoroom/c_autoroom.py:82
+msgid "Current Access Settings"
+msgstr "當前訪問設置"
+
+#: autoroom/c_autoroom.py:105
+msgid "Allowed Members"
+msgstr ""
+"15 / 5,000\n"
+"翻譯結果\n"
+"允許的成員"
+
+#: autoroom/c_autoroom.py:114
+msgid "Denied Members"
+msgstr "被拒絕的成員"
+
+#: autoroom/c_autoroom.py:119
+msgid "Denied Roles"
+msgstr "拒絕身分組"
+
+#: autoroom/c_autoroom.py:124
+msgid "name"
+msgstr "名字"
+
+#: autoroom/c_autoroom.py:126
+msgid "Change the name of your AutoRoom."
+msgstr "更改 AutoRoom 的名稱。"
+
+#: autoroom/c_autoroom.py:139
+msgid "{ctx.message.author.mention}, you can only modify an AutoRoom name **{bucket.rate}** times "
+msgstr "{ctx.message.author.mention}，你只能修改一個AutoRoom名字**{bucket.rate}**次"
+
+#: autoroom/c_autoroom.py:140
+msgid "every **{humanize_timedelta(seconds=per_display)}** with this command. "
+msgstr "每 **{humanize_timedelta(seconds=per_display)}** 使用此命令。"
+
+#: autoroom/c_autoroom.py:141
+msgid "You can try again in **{humanize_timedelta(seconds=max(1, min(per_display, retry_after)))}**."
+msgstr "您可以在 **{humanize_timedelta(seconds=max(1, min(per_display, retry_after)))}** 中再試一次。"
+
+#: autoroom/c_autoroom.py:143
+msgid "Alternatively, you can modify the channel yourself by either right clicking the channel on "
+msgstr "或者，您可以自己設置頻道，方法是右鍵點擊頻道"
+
+#: autoroom/c_autoroom.py:144
+msgid "desktop or by long pressing it on mobile."
+msgstr "平板或在手機上長按。"
+
+#: autoroom/c_autoroom.py:148
+msgid " Do note that since this server has 2FA enabled, you will need it enabled "
+msgstr "請注意，由於此服務器啟用了 2FA，因此您需要啟用它"
+
+#: autoroom/c_autoroom.py:149
+msgid "on your account to modify the channel in this way."
+msgstr "在您的帳戶上以這種方式修改頻道。"
+
+#: autoroom/c_autoroom.py:161
+msgid "bitrate"
+msgstr "位元率(越高音質越好)"
+
+#: autoroom/c_autoroom.py:161
+msgid "kbps"
+msgstr "kbps"
+
+#: autoroom/c_autoroom.py:163
+msgid "Change the bitrate of your AutoRoom."
+msgstr "更改 AutoRoom 的位元率(越高音質越好)。"
+
+#: autoroom/c_autoroom.py:176
+msgid "users"
+msgstr "使用者"
+
+#: autoroom/c_autoroom.py:176
+msgid "userlimit"
+msgstr "使用者限制"
+
+#: autoroom/c_autoroom.py:178
+msgid "Change the user limit of your AutoRoom."
+msgstr "更改 AutoRoom 的使用者限制。"
+
+#: autoroom/c_autoroom.py:186
+msgid "AutoRoom: User edit room info"
+msgstr "AutoRoom：使用者編輯房間信息"
+
+#: autoroom/c_autoroom.py:193
+msgid "Make your AutoRoom public."
+msgstr "公開您的 AutoRoom。"
+
+#: autoroom/c_autoroom.py:198
+msgid "Lock your AutoRoom (visible, but no one can join)."
+msgstr "鎖定您的 AutoRoom（可見，但沒有人可以加入）。"
+
+#: autoroom/c_autoroom.py:203
+msgid "Make your AutoRoom private."
+msgstr "將您的 AutoRoom 設為私人。"
+
+#: autoroom/c_autoroom.py:206
+msgid "add"
+msgstr "加"
+
+#: autoroom/c_autoroom.py:210
+msgid "Allow a user (or role) into your AutoRoom."
+msgstr "允許用戶（或身分組）進入您的 AutoRoom。"
+
+#: autoroom/c_autoroom.py:215
+msgid "ban"
+msgstr "ban"
+
+#: autoroom/c_autoroom.py:215
+msgid "block"
+msgstr "阻擋"
+
+#: autoroom/c_autoroom.py:219
+msgid "Deny a user (or role) from accessing your AutoRoom./nIf the user is already in your AutoRoom, they will be disconnected./nIf a user is no longer able to access the room due to denying a role,/nthey too will be disconnected. Keep in mind that if the server is using/nmember roles, denying roles will probably not work as expected."
+msgstr "拒絕用戶（或身分組）訪問您的 AutoRoom。/n如果用戶已經在您的 AutoRoom 中，他們將斷開連接。/n如果用戶由於拒絕角色而不再能夠訪問房間，/n他們也將 斷開連接。 請記住，如果服務器正在使用/nmember 身分組，則拒絕角色可能不會按預期工作。"
+
+#: autoroom/c_autoroom.py:235
+msgid "AutoRoom: Deny user"
+msgstr "AutoRoom：拒絕用戶"
+
+#: autoroom/c_autoroom.py:244
+msgid "Actually do channel edit for allow/deny."
+msgstr "允許/拒絕對頻道編輯。"
+
+#: autoroom/c_autoroom.py:252
+msgid "{ctx.message.author.mention}, I do not have the required permissions to do this. "
+msgstr "{ctx.message.author.mention}，我沒有執行此操作所需的權限。"
+
+#: autoroom/c_autoroom.py:253
+msgid "Please let the staff know about this!"
+msgstr "請告知工作人員！"
+
+#: autoroom/c_autoroom.py:264
+msgid "{ctx.message.author.mention}, it seems like the AutoRoom Source this AutoRoom was made from "
+msgstr "{ctx.message.author.mention}，這似乎是這個 AutoRoom 的 AutoRoom  源(?)"
+
+#: autoroom/c_autoroom.py:265
+msgid "no longer exists. Because of that, I can no longer modify this AutoRoom."
+msgstr "快消失了。 因此，我不能再修改這個 AutoRoom。"
+
+#: autoroom/c_autoroom.py:291
+msgid "user"
+msgstr "用戶"
+
+#: autoroom/c_autoroom.py:292
+msgid "them"
+msgstr "他們"
+
+#: autoroom/c_autoroom.py:294
+msgid "role"
+msgstr "身分組"
+
+#: autoroom/c_autoroom.py:295
+msgid "it"
+msgstr "它"
+
+#: autoroom/c_autoroom.py:297
+msgid "since that {user_role} is not allowed to connect to the AutoRoom Source "
+msgstr "因為不允許 {user_role} 連接到 AutoRoom 源"
+
+#: autoroom/c_autoroom.py:298
+msgid "that this AutoRoom was made from, I can't allow {them_it} here either."
+msgstr "這個 AutoRoom 是由什麼製成的，我也不能在這裡允許 {them_it}。"
+
+#: autoroom/c_autoroom.py:305
+msgid "this AutoRoom is using member roles, so I can't allow a lower hierarchy role."
+msgstr "這個 AutoRoom 正在使用成員身分組，所以我不能允許較低層次的身分組。"
+
+#: autoroom/c_autoroom.py:312
+msgid "why would I deny myself from entering your AutoRoom?"
+msgstr "為什麼我要拒絕自己進入你的 AutoRoom？"
+
+#: autoroom/c_autoroom.py:314
+msgid "don't be so hard on yourself! This is your AutoRoom!"
+msgstr "不要對自己那麼苛刻！ 這是您的 AutoRoom！"
+
+#: autoroom/c_autoroom.py:317
+msgid "I don't know if you know this, but that's the server owner... "
+msgstr "我不知道你是否知道，但那是服務器所有者......"
+
+#: autoroom/c_autoroom.py:318
+msgid "I can't deny them from entering your AutoRoom."
+msgstr "我不能拒絕他們進入你的 AutoRoom。"
+
+#: autoroom/c_autoroom.py:324
+msgid "that's an admin{role_suffix}, so I can't deny them from entering your AutoRoom."
+msgstr "那是管理員{role_suffix}，所以我不能拒絕他們進入您的 AutoRoom。"
+
+#: autoroom/c_autoroom.py:329
+msgid "that's a moderator{role_suffix}, so I can't deny them from entering your AutoRoom."
+msgstr "那是版主{role_suffix}，所以我不能拒絕他們進入您的 AutoRoom。"
+
+#: autoroom/c_autoroom.py:344
+msgid "AutoRoom: Permission change"
+msgstr "AutoRoom：權限更改"
+
+#: autoroom/c_autoroom.py:352
+msgid "Get the members current voice channel, or None if not in a voice channel."
+msgstr "獲取成員當前的語音頻道，如果不在語音頻道中，則為無。"
+
+#: autoroom/c_autoroom.py:364
+msgid "{ctx.message.author.mention}, you are not in an AutoRoom."
+msgstr "{ctx.message.author.mention}，您不在 AutoRoom 中。"
+
+#: autoroom/c_autoroom.py:372
+msgid " (it is a server AutoRoom)"
+msgstr "（它是一個服務器 AutoRoom）"
+
+#: autoroom/c_autoroom.py:375
+msgid "{ctx.message.author.mention}, you are not the owner of this AutoRoom{reason_server}."
+msgstr "{ctx.message.author.mention}，您不是此 AutoRoom{reason_server} 的所有者。"
+
+#: autoroom/c_autoroom.py:385
+msgid "Get the type of access a role has in an AutoRoom (public, locked, private, etc)."
+msgstr "獲取角色在 AutoRoom 中的訪問類型（公共、鎖定、私人等）。"
+
+#: autoroom/c_autoroom.py:399
+msgid "private"
+msgstr "私人的"
+
+#: autoroom/c_autoroom.py:401
+msgid "locked"
+msgstr "鎖定"
+
+#: autoroom/c_autoroom.py:402
+msgid "public"
+msgstr "公開的"
