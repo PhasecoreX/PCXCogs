@@ -9,7 +9,6 @@ from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import error, info, success, warning
 
 from .pcx_lib import delete
-from .services.antiraid import Antiraid
 
 
 class BanCheck(commands.Cog):
@@ -24,7 +23,7 @@ class BanCheck(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "2.6.1"
+    __version__ = "2.7.0"
 
     default_global_settings: ClassVar[dict[str, int]] = {
         "schema_version": 0,
@@ -37,9 +36,7 @@ class BanCheck(commands.Cog):
         "total_bans": 0,
         "services": {},
     }
-    supported_global_services: ClassVar[dict] = {
-        "antiraid": Antiraid,
-    }
+    supported_global_services: ClassVar[dict] = {}
     supported_guild_services: ClassVar[dict] = {}
     all_supported_services: ClassVar[dict] = {
         **supported_global_services,
@@ -384,6 +381,7 @@ class BanCheck(commands.Cog):
         disabled_services = ""
         disabled_services_api = ""
         disabled_services_global_api = ""
+        available_services = False
         for service_name, service_class in self.all_supported_services.items():
             api_key = await self.get_api_key(service_name, config_services)
             enabled = config_services.get(service_name, {}).get("enabled", False)
@@ -406,6 +404,7 @@ class BanCheck(commands.Cog):
                     disabled_services_global_api += service_name_formatted
                 else:
                     disabled_services_api += service_name_formatted
+            available_services = True
         if enabled_services:
             embed.add_field(
                 name=success("Enabled Services"), value=enabled_services, inline=False
@@ -438,6 +437,12 @@ class BanCheck(commands.Cog):
             embed.add_field(
                 name=error("Disabled Services (Missing Global API Key)"),
                 value=disabled_services_global_api,
+                inline=False,
+            )
+        if not available_services:
+            embed.add_field(
+                name=error("No Services Are Available"),
+                value="All ban lookup services are currently unavailable or have shut down, making this cog useless. If you know of a new ban checking service, please let PhasecoreX know about it.",
                 inline=False,
             )
         description = ""

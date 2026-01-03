@@ -1,7 +1,7 @@
 {
     "name": "BanCheck",
     "author": [
-        "PhasecoreX (PhasecoreX#0635)"
+        "PhasecoreX"
     ],
     "short": "Automatically check users against multiple global ban lists.",
     "description": "This cog allows server admins to check their members against multiple external ban lists. It can also automatically check new members that join the server, and optionally ban them if they appear in a list.",
@@ -22,5 +22,6 @@
         11,
         0
     ],
+    "hidden": true,
     "end_user_data_statement": "This cog does not persistently store data or metadata about users."
 }
