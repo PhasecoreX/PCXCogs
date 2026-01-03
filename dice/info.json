@@ -1,7 +1,7 @@
 {
     "name": "Dice",
     "author": [
-        "PhasecoreX (PhasecoreX#0635)"
+        "PhasecoreX"
     ],
     "short": "Perform complex dice rolling.",
     "description": "This cog allows for rolling complex dice, such as 3d8+4 or (4d6+3)*2.",

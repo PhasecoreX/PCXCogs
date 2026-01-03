@@ -1,7 +1,7 @@
 {
     "name": "PCXCogs",
     "author": [
-        "PhasecoreX (PhasecoreX#0635)"
+        "PhasecoreX"
     ],
     "short": "PhasecoreX's Cogs for Red-DiscordBot.",
     "description": "My cogs focus on automation, where the bot will automatically respond or perform actions when needed, even if commands are not used. There's also other stuff thrown in there for fun.",

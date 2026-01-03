@@ -1,7 +1,7 @@
 {
     "name": "BanSync",
     "author": [
-        "PhasecoreX (PhasecoreX#0635)"
+        "PhasecoreX"
     ],
     "short": "Automatically sync moderation actions across servers.",
     "description": "This cog allows server admins to have moderation actions automatically applied to members on their server when those actions are performed on another server that the bot is in.",

@@ -1,7 +1,7 @@
 {
     "name": "Heartbeat",
     "author": [
-        "PhasecoreX (PhasecoreX#0635)"
+        "PhasecoreX"
     ],
     "short": "A heartbeat uptime client.",
     "description": "Monitor the uptime of your bot by having it send heartbeat pings to a configurable URL (healthchecks.io for instance).",

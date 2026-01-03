@@ -1,7 +1,7 @@
 {
     "name": "ReactChannel",
     "author": [
-        "PhasecoreX (PhasecoreX#0635)"
+        "PhasecoreX"
     ],
     "short": "Per-channel automatic reaction tools.",
     "description": "Allows for channels to be set up to have reactions automatically added to messages. This can facilitate things such as an upvote/downvote system (with user karma), a checklist system (checked messages are deleted), or any custom emoji reaction systems (no actions performed).",

@@ -1,7 +1,7 @@
 {
     "name": "NetSpeed",
     "author": [
-        "PhasecoreX (PhasecoreX#0635)"
+        "PhasecoreX"
     ],
     "short": "Test your servers internet speed.",
     "description": "Runs an internet speedtest and prints the results. Only the owner can run this.",

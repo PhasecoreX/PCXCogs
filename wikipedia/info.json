@@ -1,7 +1,7 @@
 {
     "name": "Wikipedia",
     "author": [
-        "PhasecoreX (PhasecoreX#0635)"
+        "PhasecoreX"
     ],
     "short": "Look up articles on Wikipedia.",
     "description": "Allows for looking up terms on Wikipedia, and having the results displayed in chat.",
