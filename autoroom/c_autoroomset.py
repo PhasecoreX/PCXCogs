@@ -909,7 +909,6 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 data["game"] = "Example Game"
             # Add wordlist_word if using wordlist type
             if room_type == "wordlist" and self.wordlist:
-                import random
 
                 # Use a deterministic seed for consistent examples
                 random.seed("example")
