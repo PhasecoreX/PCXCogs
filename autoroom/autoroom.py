@@ -130,21 +130,20 @@ class AutoRoom(
 
     def _load_wordlist(self) -> bool:
         """Load words from wordlist.txt file in the cog directory.
-        
+
         Returns:
             bool: True if successful, False otherwise
+
         """
         try:
             # Get the path to the wordlist file in the autoroom cog directory
             cog_path = Path(__file__).parent
             wordlist_path = cog_path / "wordlist.txt"
-            
+
             if wordlist_path.exists():
                 with wordlist_path.open(encoding="utf-8") as f:
                     # Read lines, strip whitespace, and filter out empty lines
-                    self.wordlist = [
-                        line.strip() for line in f if line.strip()
-                    ]
+                    self.wordlist = [line.strip() for line in f if line.strip()]
             else:
                 # File doesn't exist, use empty list
                 self.wordlist = []
@@ -152,21 +151,22 @@ class AutoRoom(
         except Exception:
             # If anything goes wrong, preserve existing wordlist instead of clearing it
             # Only clear if we don't have a wordlist yet (initial load)
-            if not hasattr(self, 'wordlist') or not self.wordlist:
+            if not hasattr(self, "wordlist") or not self.wordlist:
                 self.wordlist = []
             return False
 
     def _save_wordlist(self) -> bool:
         """Save the wordlist to wordlist.txt file in the cog directory.
-        
+
         Returns:
             bool: True if successful, False otherwise
+
         """
         try:
             # Get the path to the wordlist file in the autoroom cog directory
             cog_path = Path(__file__).parent
             wordlist_path = cog_path / "wordlist.txt"
-            
+
             # Write wordlist to file, one word per line
             with wordlist_path.open("w", encoding="utf-8") as f:
                 for word in self.wordlist:
@@ -681,7 +681,7 @@ class AutoRoom(
         channel_name_type = autoroom_source_config["channel_name_type"]
         if channel_name_type == "wordlist" and not self.wordlist:
             channel_name_type = "username"
-        
+
         template = None
         if channel_name_type in channel_name_template:
             template = channel_name_template[channel_name_type]
@@ -693,13 +693,13 @@ class AutoRoom(
         data["random_seed"] = (
             f"{member.id}{random.random()}"  # noqa: S311 # Doesn't need to be secure
         )
-        
+
         # Add wordlist word if using wordlist type
         if channel_name_type == "wordlist" and self.wordlist:
             # Use deterministic random based on random_seed
             random.seed(data["random_seed"])
             data["wordlist_word"] = random.choice(self.wordlist)  # noqa: S311
-        
+
         new_channel_name = None
         attempt = 1
         with suppress(Exception):

@@ -56,9 +56,13 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         )
         if bot_roles:
             server_section.add("Bot roles allowed in all AutoRooms", bot_roles)
-        
+
         # Add wordlist status
-        wordlist_status = f"{len(self.wordlist)} words loaded" if self.wordlist else "Not loaded or empty"
+        wordlist_status = (
+            f"{len(self.wordlist)} words loaded"
+            if self.wordlist
+            else "Not loaded or empty"
+        )
         server_section.add("Wordlist", wordlist_status)
 
         await ctx.send(server_section.display())
@@ -107,7 +111,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             ):
                 room_name_format = f'Custom: "{avc_settings["channel_name_format"]}"'
             autoroom_section.add("Room name format", room_name_format)
-            
+
             # Add warning if wordlist type is used but wordlist is empty
             if avc_settings["channel_name_type"] == "wordlist" and not self.wordlist:
                 autoroom_section.add(
@@ -327,7 +331,9 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         """List all words in the wordlist."""
         if not self.wordlist:
             await ctx.send(
-                info("The wordlist is currently empty. Use `[p]autoroomset wordlist add` to add words.")
+                info(
+                    "The wordlist is currently empty. Use `[p]autoroomset wordlist add` to add words."
+                )
             )
             return
 
@@ -335,31 +341,27 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             [f"{i + 1}. {word}" for i, word in enumerate(self.wordlist)]
         )
         await ctx.send(
-            success(
-                f"**Wordlist ({len(self.wordlist)} words):**\n\n{word_list}"
-            )
+            success(f"**Wordlist ({len(self.wordlist)} words):**\n\n{word_list}")
         )
 
     @wordlist.command(name="add")
-    async def wordlist_add(
-        self, ctx: commands.Context, *words: str
-    ) -> None:
+    async def wordlist_add(self, ctx: commands.Context, *words: str) -> None:
         """Add one or more words to the wordlist.
 
         Words will be stripped of leading/trailing whitespace.
         Duplicate words will be skipped.
         """
         if not words:
-            await ctx.send(
-                error("Please provide at least one word to add.")
-            )
+            await ctx.send(error("Please provide at least one word to add."))
             return
 
         # Process words: strip whitespace and filter empty
         processed_words = [word.strip() for word in words if word.strip()]
         if not processed_words:
             await ctx.send(
-                error("No valid words provided. All words were empty after stripping whitespace.")
+                error(
+                    "No valid words provided. All words were empty after stripping whitespace."
+                )
             )
             return
 
@@ -377,7 +379,9 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         if added_words:
             if not self._save_wordlist():
                 await ctx.send(
-                    error("Failed to save wordlist to file. Changes were not persisted.")
+                    error(
+                        "Failed to save wordlist to file. Changes were not persisted."
+                    )
                 )
                 # Revert changes
                 for word in added_words:
@@ -410,9 +414,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         if message_parts:
             await ctx.send("\n".join(str(msg) for msg in message_parts))
         else:
-            await ctx.send(
-                error("No words were added. All words were duplicates.")
-            )
+            await ctx.send(error("No words were added. All words were duplicates."))
 
     @wordlist.command(name="remove", aliases=["delete", "del"])
     async def wordlist_remove(
@@ -432,14 +434,12 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             return
 
         if not self.wordlist:
-            await ctx.send(
-                error("The wordlist is empty. Nothing to remove.")
-            )
+            await ctx.send(error("The wordlist is empty. Nothing to remove."))
             return
 
         # Store original length for error messages
         original_length = len(self.wordlist)
-        
+
         removed_words = []
         removed_indices = set()  # Track indices to avoid duplicates
         invalid_indices = []
@@ -485,13 +485,17 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             # Save to file
             if not self._save_wordlist():
                 await ctx.send(
-                    error("Failed to save wordlist to file. Changes were not persisted.")
+                    error(
+                        "Failed to save wordlist to file. Changes were not persisted."
+                    )
                 )
                 # Reload to revert changes
                 if not self._load_wordlist():
                     # Even reload failed - this is bad, but we tried to revert
                     await ctx.send(
-                        warning("Failed to reload wordlist after save failure. The wordlist may be in an inconsistent state.")
+                        warning(
+                            "Failed to reload wordlist after save failure. The wordlist may be in an inconsistent state."
+                        )
                     )
                 return
 
@@ -521,7 +525,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         if not_found_words:
             message_parts.append(
                 error(
-                    f"Word(s) not found in wordlist:\n"
+                    "Word(s) not found in wordlist:\n"
                     + "\n".join(f"- {word}" for word in not_found_words)
                 )
             )
@@ -529,9 +533,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         if message_parts:
             await ctx.send("\n".join(str(msg) for msg in message_parts))
         else:
-            await ctx.send(
-                error("No words were removed.")
-            )
+            await ctx.send(error("No words were removed."))
 
     @autoroomset.command(aliases=["enable", "add"])
     async def create(
@@ -628,6 +630,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         if self.wordlist:
             options.append("wordlist")
             import random
+
             example_word = random.choice(self.wordlist)  # noqa: S311
             wordlist_note = f'\n`wordlist` - Appends a random word from wordlist (e.g., "{ctx.author.display_name} {example_word}")'
         pred = MessagePredicate.lower_contained_in(options, ctx)
@@ -813,7 +816,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
 
         Format: {{username}}{{wordlist_word}}{% if dupenum > 1 %} ({{dupenum}}){% endif %}
         Example: "Pete is cool" or "Pete is awesome"
-        """  # noqa: D401
+        """
         if not self.wordlist:
             await ctx.send(
                 error(
@@ -905,6 +908,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             # Add wordlist_word if using wordlist type
             if room_type == "wordlist" and self.wordlist:
                 import random
+
                 # Use a deterministic seed for consistent examples
                 random.seed("example")
                 data["wordlist_word"] = random.choice(self.wordlist)  # noqa: S311
