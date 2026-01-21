@@ -128,8 +128,12 @@ class AutoRoom(
         self.wordlist: list[str] = []
         self._load_wordlist()
 
-    def _load_wordlist(self) -> None:
-        """Load words from wordlist.txt file in the cog directory."""
+    def _load_wordlist(self) -> bool:
+        """Load words from wordlist.txt file in the cog directory.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
         try:
             # Get the path to the wordlist file in the autoroom cog directory
             cog_path = Path(__file__).parent
@@ -144,9 +148,33 @@ class AutoRoom(
             else:
                 # File doesn't exist, use empty list
                 self.wordlist = []
+            return True
         except Exception:
-            # If anything goes wrong, use empty list
-            self.wordlist = []
+            # If anything goes wrong, preserve existing wordlist instead of clearing it
+            # Only clear if we don't have a wordlist yet (initial load)
+            if not hasattr(self, 'wordlist') or not self.wordlist:
+                self.wordlist = []
+            return False
+
+    def _save_wordlist(self) -> bool:
+        """Save the wordlist to wordlist.txt file in the cog directory.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Get the path to the wordlist file in the autoroom cog directory
+            cog_path = Path(__file__).parent
+            wordlist_path = cog_path / "wordlist.txt"
+            
+            # Write wordlist to file, one word per line
+            with wordlist_path.open("w", encoding="utf-8") as f:
+                for word in self.wordlist:
+                    f.write(f"{word}\n")
+            return True
+        except Exception:
+            # If anything goes wrong, return False
+            return False
 
     #
     # Red methods

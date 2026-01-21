@@ -314,6 +314,225 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 success("New AutoRooms will not allow any extra bot roles in.")
             )
 
+    @autoroomset.group()
+    async def wordlist(self, ctx: commands.Context) -> None:
+        """Manage the wordlist for wordlist-based room names.
+
+        Use these commands to add, remove, or list words in the wordlist.
+        Changes are saved to the wordlist.txt file immediately.
+        """
+
+    @wordlist.command(name="list")
+    async def wordlist_list(self, ctx: commands.Context) -> None:
+        """List all words in the wordlist."""
+        if not self.wordlist:
+            await ctx.send(
+                info("The wordlist is currently empty. Use `[p]autoroomset wordlist add` to add words.")
+            )
+            return
+
+        word_list = "\n".join(
+            [f"{i + 1}. {word}" for i, word in enumerate(self.wordlist)]
+        )
+        await ctx.send(
+            success(
+                f"**Wordlist ({len(self.wordlist)} words):**\n\n{word_list}"
+            )
+        )
+
+    @wordlist.command(name="add")
+    async def wordlist_add(
+        self, ctx: commands.Context, *words: str
+    ) -> None:
+        """Add one or more words to the wordlist.
+
+        Words will be stripped of leading/trailing whitespace.
+        Duplicate words will be skipped.
+        """
+        if not words:
+            await ctx.send(
+                error("Please provide at least one word to add.")
+            )
+            return
+
+        # Process words: strip whitespace and filter empty
+        processed_words = [word.strip() for word in words if word.strip()]
+        if not processed_words:
+            await ctx.send(
+                error("No valid words provided. All words were empty after stripping whitespace.")
+            )
+            return
+
+        # Check for duplicates and add new words
+        added_words = []
+        skipped_words = []
+        for word in processed_words:
+            if word in self.wordlist:
+                skipped_words.append(word)
+            else:
+                self.wordlist.append(word)
+                added_words.append(word)
+
+        # Save to file
+        if added_words:
+            if not self._save_wordlist():
+                await ctx.send(
+                    error("Failed to save wordlist to file. Changes were not persisted.")
+                )
+                # Revert changes
+                for word in added_words:
+                    self.wordlist.remove(word)
+                return
+
+            # Reload to ensure consistency (but don't fail if reload fails - save was successful)
+            if not self._load_wordlist():
+                # Reload failed, but save succeeded - log warning but don't fail the operation
+                # The in-memory state should match what we just wrote, so this is non-critical
+                pass
+
+        # Send response
+        message_parts = []
+        if added_words:
+            message_parts.append(
+                success(
+                    f"Added {len(added_words)} word(s) to the wordlist:\n"
+                    + "\n".join(f"- {word}" for word in added_words)
+                )
+            )
+        if skipped_words:
+            message_parts.append(
+                warning(
+                    f"Skipped {len(skipped_words)} duplicate word(s):\n"
+                    + "\n".join(f"- {word}" for word in skipped_words)
+                )
+            )
+
+        if message_parts:
+            await ctx.send("\n".join(str(msg) for msg in message_parts))
+        else:
+            await ctx.send(
+                error("No words were added. All words were duplicates.")
+            )
+
+    @wordlist.command(name="remove", aliases=["delete", "del"])
+    async def wordlist_remove(
+        self, ctx: commands.Context, *words_or_indices: str
+    ) -> None:
+        """Remove words from the wordlist.
+
+        You can remove words by:
+        - Exact word match: `[p]autoroomset wordlist remove "is cool"`
+        - Index number: `[p]autoroomset wordlist remove 1 2 3`
+        - Mix of both: `[p]autoroomset wordlist remove "is cool" 1 2`
+        """
+        if not words_or_indices:
+            await ctx.send(
+                error("Please provide at least one word or index to remove.")
+            )
+            return
+
+        if not self.wordlist:
+            await ctx.send(
+                error("The wordlist is empty. Nothing to remove.")
+            )
+            return
+
+        # Store original length for error messages
+        original_length = len(self.wordlist)
+        
+        removed_words = []
+        removed_indices = set()  # Track indices to avoid duplicates
+        invalid_indices = []
+        not_found_words = []
+
+        # Process each argument
+        for arg in words_or_indices:
+            arg = arg.strip()
+            # Check if it's a number (index)
+            try:
+                index = int(arg)
+                # Convert to 0-based index
+                list_index = index - 1
+                if 0 <= list_index < len(self.wordlist):
+                    # Only add if we haven't already marked this index for removal
+                    if list_index not in removed_indices:
+                        removed_words.append((list_index, self.wordlist[list_index]))
+                        removed_indices.add(list_index)
+                else:
+                    invalid_indices.append(index)
+            except ValueError:
+                # Not a number, treat as word
+                if arg in self.wordlist:
+                    # Find all occurrences
+                    indices_to_remove = [
+                        i for i, word in enumerate(self.wordlist) if word == arg
+                    ]
+                    for idx in reversed(indices_to_remove):
+                        # Only add if we haven't already marked this index for removal
+                        if idx not in removed_indices:
+                            removed_words.append((idx, self.wordlist[idx]))
+                            removed_indices.add(idx)
+                else:
+                    not_found_words.append(arg)
+
+        # Remove words (sort by index descending to avoid index shifting issues)
+        if removed_words:
+            # Sort by index descending
+            removed_words.sort(key=lambda x: x[0], reverse=True)
+            for index, word in removed_words:
+                self.wordlist.pop(index)
+
+            # Save to file
+            if not self._save_wordlist():
+                await ctx.send(
+                    error("Failed to save wordlist to file. Changes were not persisted.")
+                )
+                # Reload to revert changes
+                if not self._load_wordlist():
+                    # Even reload failed - this is bad, but we tried to revert
+                    await ctx.send(
+                        warning("Failed to reload wordlist after save failure. The wordlist may be in an inconsistent state.")
+                    )
+                return
+
+            # Reload to ensure consistency (but don't fail if reload fails - save was successful)
+            if not self._load_wordlist():
+                # Reload failed, but save succeeded - log warning but don't fail the operation
+                # The in-memory state should match what we just wrote, so this is non-critical
+                pass
+
+        # Send response
+        message_parts = []
+        if removed_words:
+            removed_word_list = [word for _, word in removed_words]
+            message_parts.append(
+                success(
+                    f"Removed {len(removed_words)} word(s) from the wordlist:\n"
+                    + "\n".join(f"- {word}" for word in removed_word_list)
+                )
+            )
+        if invalid_indices:
+            message_parts.append(
+                error(
+                    f"Invalid index(es) (wordlist has {original_length} items):\n"
+                    + "\n".join(f"- {idx}" for idx in invalid_indices)
+                )
+            )
+        if not_found_words:
+            message_parts.append(
+                error(
+                    f"Word(s) not found in wordlist:\n"
+                    + "\n".join(f"- {word}" for word in not_found_words)
+                )
+            )
+
+        if message_parts:
+            await ctx.send("\n".join(str(msg) for msg in message_parts))
+        else:
+            await ctx.send(
+                error("No words were removed.")
+            )
+
     @autoroomset.command(aliases=["enable", "add"])
     async def create(
         self,
@@ -404,13 +623,14 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             return
 
         # Channel name
-        options = ["username", "game", "wordlist"]
-        pred = MessagePredicate.lower_contained_in(options, ctx)
+        options = ["username", "game"]
         wordlist_note = ""
         if self.wordlist:
+            options.append("wordlist")
             import random
             example_word = random.choice(self.wordlist)  # noqa: S311
-            wordlist_note = f'\n`wordlist` - Appends a random word from wordlist (e.g., "{ctx.author.display_name}{example_word}")'
+            wordlist_note = f'\n`wordlist` - Appends a random word from wordlist (e.g., "{ctx.author.display_name} {example_word}")'
+        pred = MessagePredicate.lower_contained_in(options, ctx)
         await ctx.send(
             "**Channel Name**"
             "\n"
@@ -682,6 +902,12 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 message += "."
             if "game" not in data:
                 data["game"] = "Example Game"
+            # Add wordlist_word if using wordlist type
+            if room_type == "wordlist" and self.wordlist:
+                import random
+                # Use a deterministic seed for consistent examples
+                random.seed("example")
+                data["wordlist_word"] = random.choice(self.wordlist)  # noqa: S311
             message += "\n\nExample room names:"
             for room_num in range(1, 4):
                 message += f"\n{await self.format_template_room_name(template, data, room_num)}"
