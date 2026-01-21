@@ -18,6 +18,7 @@ from .pcx_lib import SettingDisplay
 channel_name_template = {
     "username": "{{username}}'s Room{% if dupenum > 1 %} ({{dupenum}}){% endif %}",
     "game": "{{game}}{% if not game %}{{username}}'s Room{% endif %}{% if dupenum > 1 %} ({{dupenum}}){% endif %}",
+    "wordlist": "{{username}} {{wordlist_word}}{% if dupenum > 1 %} ({{dupenum}}){% endif %}",
 }
 
 MAX_MESSAGE_LENGTH = 2000
@@ -55,6 +56,10 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         )
         if bot_roles:
             server_section.add("Bot roles allowed in all AutoRooms", bot_roles)
+        
+        # Add wordlist status
+        wordlist_status = f"{len(self.wordlist)} words loaded" if self.wordlist else "Not loaded or empty"
+        server_section.add("Wordlist", wordlist_status)
 
         await ctx.send(server_section.display())
         avcs = await self.get_all_autoroom_source_configs(ctx.guild)
@@ -102,6 +107,13 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             ):
                 room_name_format = f'Custom: "{avc_settings["channel_name_format"]}"'
             autoroom_section.add("Room name format", room_name_format)
+            
+            # Add warning if wordlist type is used but wordlist is empty
+            if avc_settings["channel_name_type"] == "wordlist" and not self.wordlist:
+                autoroom_section.add(
+                    "Wordlist Status",
+                    "WARNING: Wordlist is empty, will fallback to username format",
+                )
 
             if avc_settings["text_channel_hint"]:
                 autoroom_section.add(
@@ -392,8 +404,13 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             return
 
         # Channel name
-        options = ["username", "game"]
+        options = ["username", "game", "wordlist"]
         pred = MessagePredicate.lower_contained_in(options, ctx)
+        wordlist_note = ""
+        if self.wordlist:
+            import random
+            example_word = random.choice(self.wordlist)  # noqa: S311
+            wordlist_note = f'\n`wordlist` - Appends a random word from wordlist (e.g., "{ctx.author.display_name}{example_word}")'
         await ctx.send(
             "**Channel Name**"
             "\n"
@@ -401,6 +418,7 @@ class AutoRoomSetCommands(MixinMeta, ABC):
             "\n\n"
             f'`username` - Shows up as "{ctx.author.display_name}\'s Room"\n'
             "`game    ` - AutoRoom Owner's playing game, otherwise `username`"
+            + wordlist_note
         )
         answer = None
         with suppress(asyncio.TimeoutError):
@@ -566,6 +584,26 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         `{{game}}{% if not game %}{{username}}'s Room{% endif %}{% if dupenum > 1 %} ({{dupenum}}){% endif %}`
         """  # noqa: D401
         await self._save_room_name(ctx, autoroom_source, "game")
+
+    @modify_name.command(name="wordlist")
+    async def modify_name_wordlist(
+        self, ctx: commands.Context, autoroom_source: discord.VoiceChannel
+    ) -> None:
+        """Append a random word from the wordlist to the username.
+
+        Format: {{username}}{{wordlist_word}}{% if dupenum > 1 %} ({{dupenum}}){% endif %}
+        Example: "Pete is cool" or "Pete is awesome"
+        """  # noqa: D401
+        if not self.wordlist:
+            await ctx.send(
+                error(
+                    "The wordlist file is empty or could not be loaded. "
+                    "Please ensure `wordlist.txt` exists in the autoroom cog directory "
+                    "and contains at least one word or phrase."
+                )
+            )
+            return
+        await self._save_room_name(ctx, autoroom_source, "wordlist")
 
     @modify_name.command(name="custom")
     async def modify_name_custom(

@@ -4,6 +4,7 @@ import random
 from abc import ABC
 from contextlib import suppress
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, ClassVar
 
 import discord
@@ -124,6 +125,28 @@ class AutoRoom(
         self.bucket_autoroom_owner_claim = commands.CooldownMapping.from_cooldown(
             1, 120, lambda channel: channel
         )
+        self.wordlist: list[str] = []
+        self._load_wordlist()
+
+    def _load_wordlist(self) -> None:
+        """Load words from wordlist.txt file in the cog directory."""
+        try:
+            # Get the path to the wordlist file in the autoroom cog directory
+            cog_path = Path(__file__).parent
+            wordlist_path = cog_path / "wordlist.txt"
+            
+            if wordlist_path.exists():
+                with wordlist_path.open(encoding="utf-8") as f:
+                    # Read lines, strip whitespace, and filter out empty lines
+                    self.wordlist = [
+                        line.strip() for line in f if line.strip()
+                    ]
+            else:
+                # File doesn't exist, use empty list
+                self.wordlist = []
+        except Exception:
+            # If anything goes wrong, use empty list
+            self.wordlist = []
 
     #
     # Red methods
@@ -626,12 +649,15 @@ class AutoRoom(
         taken_channel_names: list,
     ) -> str:
         """Return a channel name with an incrementing number appended to it, based on a formatting string."""
+        # Check if wordlist type is requested but wordlist is empty - fallback to username
+        channel_name_type = autoroom_source_config["channel_name_type"]
+        if channel_name_type == "wordlist" and not self.wordlist:
+            channel_name_type = "username"
+        
         template = None
-        if autoroom_source_config["channel_name_type"] in channel_name_template:
-            template = channel_name_template[
-                autoroom_source_config["channel_name_type"]
-            ]
-        elif autoroom_source_config["channel_name_type"] == "custom":
+        if channel_name_type in channel_name_template:
+            template = channel_name_template[channel_name_type]
+        elif channel_name_type == "custom":
             template = autoroom_source_config["channel_name_format"]
         template = template or channel_name_template["username"]
 
@@ -639,6 +665,13 @@ class AutoRoom(
         data["random_seed"] = (
             f"{member.id}{random.random()}"  # noqa: S311 # Doesn't need to be secure
         )
+        
+        # Add wordlist word if using wordlist type
+        if channel_name_type == "wordlist" and self.wordlist:
+            # Use deterministic random based on random_seed
+            random.seed(data["random_seed"])
+            data["wordlist_word"] = random.choice(self.wordlist)  # noqa: S311
+        
         new_channel_name = None
         attempt = 1
         with suppress(Exception):
@@ -660,6 +693,10 @@ class AutoRoom(
             and new_channel_name not in attempted_channel_names
         ):
             attempt += 1
+            # Regenerate random word for each attempt to ensure uniqueness
+            if channel_name_type == "wordlist" and self.wordlist:
+                random.seed(f"{data['random_seed']}{attempt}")
+                data["wordlist_word"] = random.choice(self.wordlist)  # noqa: S311
             attempted_channel_names.append(new_channel_name)
             new_channel_name = await self.format_template_room_name(
                 template, data, attempt
