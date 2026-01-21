@@ -2,6 +2,7 @@
 
 import asyncio
 import io
+import random
 from abc import ABC
 from contextlib import suppress
 
@@ -447,10 +448,10 @@ class AutoRoomSetCommands(MixinMeta, ABC):
 
         # Process each argument
         for arg in words_or_indices:
-            arg = arg.strip()
+            stripped_arg = arg.strip()
             # Check if it's a number (index)
             try:
-                index = int(arg)
+                index = int(stripped_arg)
                 # Convert to 0-based index
                 list_index = index - 1
                 if 0 <= list_index < len(self.wordlist):
@@ -462,10 +463,10 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                     invalid_indices.append(index)
             except ValueError:
                 # Not a number, treat as word
-                if arg in self.wordlist:
+                if stripped_arg in self.wordlist:
                     # Find all occurrences
                     indices_to_remove = [
-                        i for i, word in enumerate(self.wordlist) if word == arg
+                        i for i, word in enumerate(self.wordlist) if word == stripped_arg
                     ]
                     for idx in reversed(indices_to_remove):
                         # Only add if we haven't already marked this index for removal
@@ -473,13 +474,13 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                             removed_words.append((idx, self.wordlist[idx]))
                             removed_indices.add(idx)
                 else:
-                    not_found_words.append(arg)
+                    not_found_words.append(stripped_arg)
 
         # Remove words (sort by index descending to avoid index shifting issues)
         if removed_words:
             # Sort by index descending
             removed_words.sort(key=lambda x: x[0], reverse=True)
-            for index, word in removed_words:
+            for index in removed_words:
                 self.wordlist.pop(index)
 
             # Save to file
@@ -629,7 +630,6 @@ class AutoRoomSetCommands(MixinMeta, ABC):
         wordlist_note = ""
         if self.wordlist:
             options.append("wordlist")
-            import random
 
             example_word = random.choice(self.wordlist)  # noqa: S311
             wordlist_note = f'\n`wordlist` - Appends a random word from wordlist (e.g., "{ctx.author.display_name} {example_word}")'

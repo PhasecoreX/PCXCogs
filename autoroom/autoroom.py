@@ -147,13 +147,14 @@ class AutoRoom(
             else:
                 # File doesn't exist, use empty list
                 self.wordlist = []
-            return True
-        except Exception:
+        except OSError:
             # If anything goes wrong, preserve existing wordlist instead of clearing it
             # Only clear if we don't have a wordlist yet (initial load)
             if not hasattr(self, "wordlist") or not self.wordlist:
                 self.wordlist = []
             return False
+        else:
+            return True
 
     def _save_wordlist(self) -> bool:
         """Save the wordlist to wordlist.txt file in the cog directory.
@@ -171,10 +172,10 @@ class AutoRoom(
             with wordlist_path.open("w", encoding="utf-8") as f:
                 for word in self.wordlist:
                     f.write(f"{word}\n")
-            return True
-        except Exception:
-            # If anything goes wrong, return False
+        except OSError:
             return False
+        else:
+            return True
 
     #
     # Red methods
