@@ -466,7 +466,9 @@ class AutoRoomSetCommands(MixinMeta, ABC):
                 if stripped_arg in self.wordlist:
                     # Find all occurrences
                     indices_to_remove = [
-                        i for i, word in enumerate(self.wordlist) if word == stripped_arg
+                        i
+                        for i, word in enumerate(self.wordlist)
+                        if word == stripped_arg
                     ]
                     for idx in reversed(indices_to_remove):
                         # Only add if we haven't already marked this index for removal
