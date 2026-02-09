@@ -381,7 +381,7 @@ class AutoRoom(
                 perms.update(member, asc["perms"]["deny"])
                 if perms.modified:
                     await autoroom_channel.edit(
-                        overwrites=perms.overwrites if perms.overwrites else {},
+                        overwrites=perms.overwrites or {},
                         reason="AutoRoom: Rejoining user, prevent deny evasion",
                     )
 
@@ -441,9 +441,7 @@ class AutoRoom(
         # Generate overwrites
         perms = Perms()
         dest_perms = dest_category.permissions_for(dest_category.guild.me)
-        source_overwrites = (
-            autoroom_source.overwrites if autoroom_source.overwrites else {}
-        )
+        source_overwrites = autoroom_source.overwrites or {}
         member_roles = self.get_member_roles(autoroom_source)
         for target, permissions in source_overwrites.items():
             # We can't put manage_roles in overwrites, so just get rid of it
@@ -551,7 +549,7 @@ class AutoRoom(
                 category=dest_category,
                 topic=text_channel_topic,
                 reason="AutoRoom: New legacy text channel needed.",
-                overwrites=perms.overwrites if perms.overwrites else {},
+                overwrites=perms.overwrites or {},
             )
 
             await self.config.channel(new_voice_channel).associated_text_channel.set(
@@ -615,7 +613,7 @@ class AutoRoom(
         # Edit channel if overwrites were modified
         if perms.modified:
             await legacy_text_channel.edit(
-                overwrites=perms.overwrites if perms.overwrites else {},
+                overwrites=perms.overwrites or {},
                 reason="AutoRoom: Legacy text channel permission update",
             )
 
@@ -820,9 +818,7 @@ class AutoRoom(
     ) -> tuple[bool, SettingDisplay | None]:
         result = True
         checked_perms = {}
-        source_overwrites = (
-            autoroom_source.overwrites if autoroom_source.overwrites else {}
-        )
+        source_overwrites = autoroom_source.overwrites or {}
         for permissions in source_overwrites.values():
             # We can't put manage_roles in overwrites, so just get rid of it
             # Also get rid of view_channel, connect, and send_messages, as we will be controlling those

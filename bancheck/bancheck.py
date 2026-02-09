@@ -744,7 +744,7 @@ class BanCheck(commands.Cog):
                 elif response.result == "error":
                     is_error = True
                     description += warning(
-                        f"**{response.service}:** Error - {response.reason if response.reason else 'No reason given'}\n"
+                        f"**{response.service}:** Error - {response.reason or 'No reason given'}\n"
                     )
 
                 else:

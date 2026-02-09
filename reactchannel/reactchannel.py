@@ -784,8 +784,8 @@ class ReactChannel(commands.Cog):
         if not ctx.invoked_subcommand:
             upvote = await self._get_emoji(ctx.guild, "upvote")
             downvote = await self._get_emoji(ctx.guild, "downvote")
-            message = f"Upvote emoji: {upvote if upvote else 'None'}\n"
-            message += f"Downvote emoji: {downvote if downvote else 'None'}"
+            message = f"Upvote emoji: {upvote or 'None'}\n"
+            message += f"Downvote emoji: {downvote or 'None'}"
             await ctx.send(message)
 
     @emoji.command(name="upvote")
