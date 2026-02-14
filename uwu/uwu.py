@@ -1,4 +1,4 @@
-"""UwU cog for Red-DiscordBot by PhasecoreX."""
+"""uwu cog for Red-DiscordBot by PhasecoreX + Didi (The channel and user toggles)."""
 
 # ruff: noqa: S311
 import random
@@ -6,16 +6,16 @@ from contextlib import suppress
 from typing import ClassVar
 
 import discord
-from redbot.core import commands
+from redbot.core import Config, checks, commands
 
 from .pcx_lib import type_message
 
 
 class UwU(commands.Cog):
-    """UwU."""
+    """uwu."""
 
-    __author__ = "PhasecoreX"
-    __version__ = "2.1.1"
+    __author__ = "PhasecoreX + Didi"
+    __version__ = "2.5.0"
 
     KAOMOJI_JOY: ClassVar[list[str]] = [
         " (\\* ^ ω ^)",
@@ -49,6 +49,16 @@ class UwU(commands.Cog):
         "-.-",
     ]
 
+    def __init__(self, bot):
+        self.bot = bot
+        self.config = Config.get_conf(self, identifier=1234567890)
+        self.config.register_global(uwu_channels={})
+        # Per-guild user toggles
+        self.config.register_guild(
+            user_uwu_toggle={}, admin_override={}  # User opt-in  # Admin-forced uwu
+        )
+        self._webhook_cache: dict[int, discord.Webhook] = {}
+
     #
     # Red methods
     #
@@ -66,6 +76,86 @@ class UwU(commands.Cog):
     # Command methods
     #
 
+    @commands.group()
+    @checks.is_owner()
+    async def uwuset(self, ctx: commands.Context):
+        """Setup uwu channel settings."""
+
+    @uwuset.command(name="channel")
+    async def uwuset_channel(self, ctx: commands.Context, channel: discord.TextChannel):
+        """Enable uwu auto-messages for a channel."""
+        channels = await self.config.uwu_channels()
+        channels[str(channel.id)] = True
+        await self.config.uwu_channels.set(channels)
+        await ctx.send(f"uwu channel set: {channel.mention}")
+
+    @uwuset.command(name="remove")
+    async def uwuset_remove(self, ctx: commands.Context, channel: discord.TextChannel):
+        """Disable uwu auto-messages for a channel."""
+        channels = await self.config.uwu_channels()
+        channels.pop(str(channel.id), None)
+        await self.config.uwu_channels.set(channels)
+        self._webhook_cache.pop(channel.id, None)
+        await ctx.send(f"uwu channel removed: {channel.mention}")
+
+    @commands.group()
+    async def uwuuser(self, ctx: commands.Context):
+        """Toggle per-user uwu webhook in this server."""
+
+    @uwuuser.command(name="toggle")
+    async def uwuuser_toggle(self, ctx: commands.Context):
+        """Enable or disable uwu webhook for yourself in this server."""
+        admin_override = await self.config.guild(ctx.guild).admin_override()
+        if str(ctx.author.id) in admin_override:
+            return await ctx.send(
+                "Admin has forced uwu for you; you cannot disable it."
+            )
+
+        data = await self.config.guild(ctx.guild).user_uwu_toggle()
+        if str(ctx.author.id) in data:
+            data.pop(str(ctx.author.id))
+            await self.config.guild(ctx.guild).user_uwu_toggle.set(data)
+            await ctx.send("UwU webhook disabled for you in this server.")
+        else:
+            data[str(ctx.author.id)] = True
+            await self.config.guild(ctx.guild).user_uwu_toggle.set(data)
+            await ctx.send("UwU webhook enabled for you in this server.")
+
+    @uwuuser.command(name="list")
+    @checks.mod()
+    async def uwuuser_list(self, ctx: commands.Context):
+        """List users with per-user uwu enabled or admin-forced."""
+        data = await self.config.guild(ctx.guild).user_uwu_toggle()
+        admin_override = await self.config.guild(ctx.guild).admin_override()
+        if not data and not admin_override:
+            return await ctx.send("No users have per-user uwu enabled.")
+        lines = []
+        for uid in set(list(data.keys()) + list(admin_override.keys())):
+            member = ctx.guild.get_member(int(uid))
+            name = member.display_name if member else f"User ID {uid}"
+            status = "Admin-forced" if uid in admin_override else "User-enabled"
+            lines.append(f"{name} — {status}")
+        await ctx.send("\n".join(lines))
+
+    @uwuuser.command(name="admin")
+    @checks.mod()
+    async def uwuuser_admin(self, ctx: commands.Context, member: discord.Member):
+        """Toggle admin-forced uwu for a user."""
+        admin_override = await self.config.guild(ctx.guild).admin_override()
+        uid = str(member.id)
+        if uid in admin_override:
+            admin_override.pop(uid)
+            await self.config.guild(ctx.guild).admin_override.set(admin_override)
+            await ctx.send(f"Admin-forced uwu disabled for {member.display_name}.")
+        else:
+            admin_override[uid] = True
+            # Also remove user opt-in to prevent conflicts
+            user_toggle = await self.config.guild(ctx.guild).user_uwu_toggle()
+            user_toggle.pop(uid, None)
+            await self.config.guild(ctx.guild).user_uwu_toggle.set(user_toggle)
+            await self.config.guild(ctx.guild).admin_override.set(admin_override)
+            await ctx.send(f"Admin-forced UwU enabled for {member.display_name}.")
+
     @commands.command(aliases=["owo"])
     async def uwu(self, ctx: commands.Context, *, text: str | None = None) -> None:
         """Uwuize the replied to message, previous message, or your own text."""
@@ -79,7 +169,6 @@ class UwU(commands.Cog):
                         text = (await ctx.fetch_message(message_id)).content
             if not text:
                 messages = [message async for message in ctx.channel.history(limit=2)]
-                # [0] is the command, [1] is the message before the command
                 text = messages[1].content or "I can't translate that!"
         await type_message(
             ctx.channel,
@@ -87,6 +176,53 @@ class UwU(commands.Cog):
             allowed_mentions=discord.AllowedMentions(
                 everyone=False, users=False, roles=False
             ),
+        )
+
+    #
+    # Event listener for auto-uwu channels
+    #
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot or not message.guild:
+            return
+
+        uwu_channels = await self.config.uwu_channels()
+        user_toggle = await self.config.guild(message.guild).user_uwu_toggle()
+        admin_override = await self.config.guild(message.guild).admin_override()
+
+        is_enabled = (
+            str(message.channel.id) in uwu_channels
+            or str(message.author.id) in user_toggle
+            or str(message.author.id) in admin_override
+        )
+
+        if not is_enabled:
+            return
+
+        uwu_content = self.uwuize_string(message.content)
+
+        # Delete original message
+        with suppress(discord.Forbidden, discord.NotFound, discord.HTTPException):
+            await message.delete()
+
+        # Get or create webhook from cache
+        webhook = self._webhook_cache.get(message.channel.id)
+        if not webhook:
+            webhooks = await message.channel.webhooks()
+            for wh in webhooks:
+                if wh.name == "uwu Bot":
+                    webhook = wh
+                    break
+            if not webhook:
+                webhook = await message.channel.create_webhook(name="uwu Bot")
+            self._webhook_cache[message.channel.id] = webhook
+
+        await webhook.send(
+            uwu_content,
+            username=message.author.display_name,
+            avatar_url=message.author.display_avatar.url,
+            allowed_mentions=discord.AllowedMentions.none(),
         )
 
     #
@@ -110,18 +246,13 @@ class UwU(commands.Cog):
         return converted
 
     def uwuize_word(self, word: str) -> str:
-        """Uwuize and return a word.
-
-        Thank you to the following for inspiration:
-        https://github.com/senguyen1011/UwUinator
-        """
+        """Uwuize and return a word."""
         word = word.lower()
         uwu = word.rstrip(".?!,")
         punctuations = word[len(uwu) :]
         final_punctuation = punctuations[-1] if punctuations else ""
         extra_punctuation = punctuations[:-1] if punctuations else ""
 
-        # Process punctuation
         if final_punctuation == "." and not random.randint(0, 3):
             final_punctuation = random.choice(self.KAOMOJI_JOY)
         if final_punctuation == "?" and not random.randint(0, 2):
@@ -133,7 +264,6 @@ class UwU(commands.Cog):
         if final_punctuation and not random.randint(0, 4):
             final_punctuation = random.choice(self.KAOMOJI_SPARKLES)
 
-        # Full word exceptions
         if uwu in ("you're", "youre"):
             uwu = "ur"
         elif uwu == "fuck":
@@ -152,9 +282,7 @@ class UwU(commands.Cog):
             uwu = "b-butt"
         elif uwu in ("dad", "father"):
             uwu = "daddy"
-        # Normal word conversion
         else:
-            # Protect specific word endings from changes
             protected = ""
             if uwu.endswith(("le", "ll", "er", "re")):
                 protected = uwu[-2:]
@@ -162,7 +290,7 @@ class UwU(commands.Cog):
             elif uwu.endswith(("les", "lls", "ers", "res")):
                 protected = uwu[-3:]
                 uwu = uwu[:-3]
-            # l -> w, r -> w, n<vowel> -> ny<vowel>, ove -> uv
+
             uwu = (
                 uwu.replace("l", "w")
                 .replace("r", "w")
@@ -175,14 +303,12 @@ class UwU(commands.Cog):
                 + protected
             )
 
-        # Add occasional stutter
         if (
-            len(uwu) > 2  # noqa: PLR2004
+            len(uwu) > 2
             and uwu[0].isalpha()
             and "-" not in uwu
             and not random.randint(0, 6)
         ):
             uwu = f"{uwu[0]}-{uwu}"
 
-        # Add back punctuations and return
         return uwu + extra_punctuation + final_punctuation
