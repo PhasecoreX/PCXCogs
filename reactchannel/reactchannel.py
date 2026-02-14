@@ -28,7 +28,7 @@ class ReactChannel(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.4.0"
+    __version__ = "3.4.1"
 
     default_global_settings: ClassVar[dict[str, int]] = {"schema_version": 0}
     default_guild_settings: ClassVar[dict[str, dict[str, str | int | None]]] = {
@@ -934,6 +934,7 @@ class ReactChannel(commands.Cog):
             not react_config["reaction_template"]
             and isinstance(message.channel, discord.Thread)
             and message.channel.parent
+            and isinstance(message.channel.parent, discord.ForumChannel)
         ):
             react_config = await self.config.custom(
                 "REACT_CHANNEL", str(message.guild.id), str(message.channel.parent.id)
@@ -1027,6 +1028,7 @@ class ReactChannel(commands.Cog):
             not react_config["reaction_template"]
             and isinstance(channel, discord.Thread)
             and channel.parent
+            and isinstance(channel.parent, discord.ForumChannel)
         ):
             react_config = await self.config.custom(
                 "REACT_CHANNEL", str(guild.id), str(channel.parent.id)
