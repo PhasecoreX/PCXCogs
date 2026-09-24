@@ -28,7 +28,7 @@ class UpdateNotify(commands.Cog):
     """
 
     __author__ = "PhasecoreX"
-    __version__ = "3.1.0"
+    __version__ = "3.1.1"
 
     default_global_settings: ClassVar[dict[str, int | bool]] = {
         "schema_version": 0,
@@ -279,14 +279,18 @@ class UpdateNotify(commands.Cog):
                 "This debug option is only really useful if you're using the phasecorex/red-discordbot Docker image."
             )
         else:
-            build = await self.get_latest_github_actions_build()
+            feature_only = await self.config.pcx_docker_feature_only()
+            build = await self.get_latest_github_actions_build(
+                self.docker_commit,
+                feature_build_only=feature_only,
+            )
             if build:
                 setting_display = SettingDisplay()
                 setting_display.add("Local Docker commit hash", self.docker_commit[:7])
                 setting_display.add("Latest Docker commit hash", build["sha"][:7])
                 setting_display.add("Local Docker build number", self.docker_build)
                 setting_display.add("Latest Docker build number", build["id"])
-                if await self.config.pcx_docker_feature_only():
+                if feature_only:
                     setting_display.add(
                         "Local Docker Status (based on hash)",
                         (
@@ -327,7 +331,9 @@ class UpdateNotify(commands.Cog):
                 )
 
     @staticmethod
-    async def get_latest_github_actions_build() -> dict[str, str] | None:
+    async def get_latest_github_actions_build(
+        current_sha: str, *, feature_build_only: bool
+    ) -> dict[str, str] | None:
         """Check GitHub for the latest update to phasecorex/red-discordbot."""
         url = (
             "https://api.github.com/repos/phasecorex/docker-red-discordbot/actions/runs"
@@ -337,21 +343,28 @@ class UpdateNotify(commands.Cog):
                 async with session.get(url) as resp:
                     data = await resp.json()
                     for run in data["workflow_runs"]:
+                        build_id = str(run["id"])
+                        commit_sha = run["head_commit"]["id"]
+                        commit_message = run["head_commit"]["message"]
                         if (
-                            run["event"] in ("push", "repository_dispatch")
-                            and run["name"] == "build"
+                            run["name"] == "build"
                             and run["head_branch"] == "master"
                             and run["conclusion"] == "success"
+                            and (
+                                run["event"] == "push"
+                                or commit_sha == current_sha
+                                or (
+                                    not feature_build_only
+                                    and run["event"] == "repository_dispatch"
+                                )
+                            )
                         ):
-                            build_id = str(run["id"])
-                            commit_sha = run["head_commit"]["id"]
-                            commit_message = run["head_commit"]["message"]
                             return {
                                 "sha": commit_sha,
                                 "id": build_id,
                                 "message": commit_message,
                             }
-            except aiohttp.ServerConnectionError:
+            except (aiohttp.ServerConnectionError, aiohttp.ClientResponseError):
                 log.warning(
                     "GitHub seems to be having some issues at the moment while checking for the latest Docker commit. "
                     "If this keeps happening, and GitHub is indeed up, consider opening a bug report for this."
@@ -379,8 +392,12 @@ class UpdateNotify(commands.Cog):
         update_docker_commit = False
         update_docker_build = False
         latest_docker_build = None
+        feature_only = await self.config.pcx_docker_feature_only()
         if self.docker_commit and await self.config.check_pcx_docker():
-            latest_docker_build = await self.get_latest_github_actions_build()
+            latest_docker_build = await self.get_latest_github_actions_build(
+                self.docker_commit,
+                feature_build_only=feature_only,
+            )
             if latest_docker_build:
                 update_docker_commit = (
                     self.notified_docker_commit != latest_docker_build["sha"]
@@ -391,7 +408,6 @@ class UpdateNotify(commands.Cog):
 
         message = ""
 
-        feature_only = await self.config.pcx_docker_feature_only()
         update_docker = update_docker_commit or (
             update_docker_build and not feature_only
         )

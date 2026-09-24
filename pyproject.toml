@@ -6,6 +6,7 @@ select = ["ALL"]
 ignore = [
     "C901",
     "COM812",
+    "CPY001",
     "D107",
     "D203",
     "D213",
